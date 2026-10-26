@@ -11,8 +11,9 @@
 //
 //   surface.kind === 'panel'    the conversation slot (message list + composer)
 //   surface.kind === 'surface'  a floating block, by surface.rectIndex:
-//                                 0  the reply card ABOVE the pet (.view-card)
-//                                 1  the input bar  BELOW the pet (.view-bar)
+//                                 0  the reply strip ABOVE the pet (.view-card)
+//                                 1  the input pill  just above the pet, with a tail
+//                                    pointing down at it (.view-bar)
 //
 // The frame's geometry is NOT decided here: the host cropped the window to the
 // rectangle it declared, so this file only fills the box it was given.
@@ -46,6 +47,40 @@ const SHAPE_BAR = 'view-bar';
 // a key, not a path, so the plugin names its own file and the host keeps it in
 // the plugin's private directory.
 const HISTORY_KEY = 'llm-history';
+
+// The tools this plugin lets the model call.
+//
+// A NAME, not a schema: the host owns what each tool does and what it may touch, so
+// this list can only select from what the user has already allowed. A tool whose
+// permission was not granted is dropped by the host and never reaches the model, so
+// asking for one it cannot have is silent by design.
+//
+// `todo_list` is not optional. The host's world snapshot carries titles and due dates
+// but NO ids, and every tool that acts on an existing todo needs one.
+//
+// `memory_*` is here rather than as a separate feature because it is the same
+// mechanism: the only way the model can know something nobody said in THIS
+// conversation. Its own descriptions say when to use it - which is also why this
+// plugin still does not send a `system` prompt: sending one would make the host drop
+// its world snapshot (see sendPrompt).
+const TOOLS = [
+  'todo_list', 'todo_add', 'todo_complete', 'pomodoro_start', 'pet_say',
+  'memory_read', 'memory_append',
+];
+
+// What the pet is doing while a tool runs, keyed by the tool's name.
+//
+// The host sends the NAME and whether it worked - never the arguments, which can hold
+// the user's todo text and would need todos.read to be worth showing.
+const TOOL_STATUS = {
+  todo_list: '正在看你的待办',
+  todo_add: '正在记下这条待办',
+  todo_complete: '正在划掉这条待办',
+  pomodoro_start: '正在开番茄钟',
+  pet_say: '正在说',
+  memory_read: '正在回忆',
+  memory_append: '正在记住这件事',
+};
 
 let initialised = false;
 const granted = new Set();
@@ -202,6 +237,20 @@ function applySurface(surface) {
   els.root.dataset.shape = shape;
   document.documentElement.dataset.surface = kind;
 
+  // Where the tail points. NOT 50%: the host clamps every rectangle into the window, and the
+  // pet sits flush against the window's right edge, so a block wider than the pet is shifted
+  // left of the pet's centre. `rect.tailX` is that centre measured from this rectangle's left
+  // edge, computed by the host where both rectangles are known.
+  //
+  // Missing (an older host, or a harness that sends no rect) falls back to centred, which is
+  // the right answer for a block that was never clamped.
+  const tailX = surface && surface.rect ? Number(surface.rect.tailX) : NaN;
+  if (Number.isFinite(tailX)) {
+    els.root.style.setProperty('--tail-x', tailX + 'px');
+  } else {
+    els.root.style.removeProperty('--tail-x');
+  }
+
   // Each floating block is one piece of the same document: the card carries the
   // latest reply, the input bar carries only the composer. The other piece is
   // hidden rather than removed, so switching blocks never has to rebuild the
@@ -274,11 +323,29 @@ function remember(role, text) {
 /** Handles the host's single init frame, which is what unlocks the UI. */
 function onInit(data) {
   initialised = true;
+  applyTheme(data.theme);
   granted.clear();
   for (const p of data.granted || []) granted.add(p);
   applySurface(data.surface || {});
   applyGrants();
   if (granted.has('storage')) loadHistory();
+  loadSettings();
+}
+
+/**
+ * Reads the plugin's own declared settings.
+ *
+ * Only `llmHistoryTurns` is used from them, and it is used HERE rather than read by
+ * the host: how much of the transcript to replay is a conversation-panel decision,
+ * while the endpoint, the model and the credential belong to the host's llm.chat
+ * path. A settings read that fails leaves the default in place.
+ */
+let settings = {};
+let pendingConfig = null;
+
+function loadSettings() {
+  if (!granted.has('plugin.config')) return;
+  pendingConfig = request('config.get', {});
 }
 
 // The request id whose response carries the stored transcript, so its response
@@ -306,6 +373,12 @@ function onResponse(data) {
       // A transcript the plugin itself cannot parse is treated as empty rather
       // than fatal: the next turn overwrites it anyway.
     }
+    return;
+  }
+  if (data.id && data.id === pendingConfig) {
+    pendingConfig = null;
+    const values = data.ok ? (data.result && data.result.values) : null;
+    if (values && typeof values === 'object') settings = values;
     return;
   }
   if (data.ok) return;
@@ -456,6 +529,24 @@ function onError(payload) {
   reportProblem((payload && payload.message) || '对话失败');
 }
 
+/**
+ * Shows what the pet is doing while the model runs a tool.
+ *
+ * Without this the UI sits on "正在回复…" for the whole loop and then jumps to the
+ * answer, which reads as a stall rather than as work. With tools the answer can be
+ * four rounds away.
+ *
+ * A FAILED tool is reported as a status line, not through reportProblem: the model
+ * receives the failure too and goes on to answer, so a red "对话失败" would be
+ * describing a conversation that is still happening.
+ */
+function onTool(payload) {
+  const requestId = payload && payload.requestId;
+  if (current && requestId && current.requestId && requestId !== current.requestId) return;
+  const label = TOOL_STATUS[payload.name] || payload.name || '工具';
+  setStatus(payload.ok === false ? label + '时出错了' : label + '…');
+}
+
 function onEvent(data) {
   const payload = data.payload || {};
   switch (data.name) {
@@ -467,6 +558,9 @@ function onEvent(data) {
       break;
     case 'llm.error':
       onError(payload);
+      break;
+    case 'llm.tool':
+      onTool(payload);
       break;
     default:
       // Unknown event names are ignored on purpose: the host may add names
@@ -485,6 +579,9 @@ function onMessage(event) {
     case 'init':
       onInit(data);
       break;
+    case 'theme':
+      applyTheme(data.theme);
+      break;
     case 'response':
       onResponse(data);
       break;
@@ -495,6 +592,24 @@ function onMessage(event) {
       break;
   }
 }
+
+/**
+ * Applies the window's colour scheme.
+ *
+ * The market program owns the scheme; this document mirrors it, because a sandboxed
+ * frame cannot see the host's CSS. `data-theme` on <html> is the whole interface to
+ * style.css, which holds both palettes. The value arrives three ways: `?theme=` on the
+ * frame URL (applied by the inline script in panel.html BEFORE the first paint, so
+ * there is no flash), `init`, and a `theme` message when the user flips the switch
+ * while this frame is running.
+ *
+ * The pet mounts the same document with no scheme at all, which stays dark.
+ */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+}
+
+applyTheme(new URLSearchParams(location.search).get('theme'));
 
 /**
  * Sends what is in the composer.
@@ -517,7 +632,37 @@ function sendPrompt() {
   endedRequestId = null;
   beginReply(requestId, true);
   setStatus('正在回复…');
-  request('llm.chat', { text, requestId });
+  // The replayed turns go with the request so the model can answer a follow-up
+  // ("那明天呢") without the user repeating themselves. The host clamps the list
+  // (roles, count, total length) and, because `system` is NOT sent here, keeps
+  // assembling the pet's world snapshot as before.
+  //
+  // `tools` asks for the list above. The host runs whatever the model calls - up to
+  // four rounds - and streams only the final answer, so the transcript this plugin
+  // keeps stays plain text.
+  request('llm.chat', { text, requestId, history: replayTurns(), tools: TOOLS });
+}
+
+/**
+ * The turns to replay, oldest first, without the question just asked.
+ *
+ * `history` already ends with the new user message (sendPrompt remembered it a
+ * line above), so it is dropped here: the host appends the new text itself, and
+ * sending it twice would read to the model as a repeated question.
+ */
+function replayTurns() {
+  const turns = history
+    .slice(0, Math.max(0, history.length - 1))
+    .slice(-historyTurns())
+    .map((turn) => ({ role: turn.role, text: turn.text }));
+  return turns;
+}
+
+/** How many turns of context the user asked for, from the plugin's own settings. */
+function historyTurns() {
+  const n = Number.parseInt(String(settings.llmHistoryTurns ?? '12'), 10);
+  if (!Number.isFinite(n)) return 12;
+  return Math.min(40, Math.max(0, n));
 }
 
 /**

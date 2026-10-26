@@ -1,15 +1,17 @@
 {
   "id": "com.shixiansi.plugin-chat",
   "name": "对话插件",
-  "version": "1.3.0",
+  "version": "1.5.0",
   "author": "shixiansi",
   "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-  "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage"],
+  "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage",
+                  "todos.read", "todos.write", "timer.control"],
+  "shareLLM": true,
   "panel": true,
   "panelSlot": "chat",
   "surface": [
-    { "dx": -75, "dy": -120, "w": 300, "h": 112, "radius": 14 },
-    { "dx": -75, "dy": 208, "w": 300, "h": 56, "radius": 14 }
+    { "dx": -75, "dy": -118, "w": 300, "h": 44, "radius": 14 },
+    { "dx": -75, "dy": -66, "w": 300, "h": 66, "radius": 16 }
   ],
   "config": [
     { "key": "llmEnabled", "label": "开启对话（插件是否启用由宿主的启停开关决定；此值仅随迁移保留）", "type": "bool", "default": "false" },

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Packages every plugin under plugins/ and refreshes the market catalogue.
 
@@ -35,7 +35,10 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$HostSampleDir = 'F:\pet_pc\internal\plugins\sample'
+    # Derived, not hardcoded: this used to say `F:\pet_pc\internal\plugins\sample`, which is
+    # where the host checkout lived before it moved - and the copy step would then quietly
+    # create a second sample tree somewhere else. tools -> market -> host repo root.
+    [string]$HostSampleDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'internal\plugins\sample')
 )
 
 $ErrorActionPreference = 'Stop'

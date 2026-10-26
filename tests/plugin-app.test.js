@@ -265,33 +265,46 @@ describe('surface kinds', () => {
     expect(document.getElementById('reply').hidden).toBe(true);
   });
 
-  test('the reply card sits above the pet and the input bar below it', () => {
-    // The geometry is the MANIFEST's, not this file's - so the assertion is
-    // against the declaration the host crops the window to. The card's dy is
-    // negative (above the pet's top-left origin) and the bar's is past the pet's
-    // 200px height (below it).
-    const manifest = JSON.parse(
-      readFileSync(path.join(pluginDir, 'manifest.json'), 'utf8'),
-    );
-    const rects = manifest.surface;
-    expect(rects).toHaveLength(2);
+  test('both floating blocks hang above the pet, the pill touching it', () => {
+  // The geometry is the MANIFEST's, not this file's - so the assertion is against the
+  // declaration the host crops the window to.
+  //
+  // The shape this pins is Coopanion's: the input pill sits directly ON the pet, with a
+  // tail pointing down at it, and the reply strip floats above the pill. The input used to
+  // be BELOW the pet, which put a text field in the middle of whatever the user was doing.
+  const manifest = JSON.parse(
+    readFileSync(path.join(pluginDir, 'manifest.json'), 'utf8'),
+  );
+  const rects = manifest.surface;
+  expect(rects).toHaveLength(2);
 
-    const [card, bar] = rects;
-    expect(card.dy).toBeLessThan(0);
-    expect(card.dy + card.h).toBeLessThanOrEqual(0);
-    expect(bar.dy).toBeGreaterThanOrEqual(200);
+  const [card, bar] = rects;
+  // Both are above the pet's top-left origin (dy is negative = up).
+  expect(card.dy).toBeLessThan(0);
+  expect(bar.dy).toBeLessThan(0);
 
-    // Both are 300 wide - twice the pet's 150 - and `dx: -75` puts their CENTRE
-    // on the pet's centre. The pet is only 150 wide, so a 300-wide block centred
-    // on it necessarily overhangs the pet's column; the host lets it extend
-    // toward the free side of the window rather than clipping it.
-    const petW = 150;
-    for (const r of rects) {
-      expect(r.w).toBe(300);
-      expect(r.dx + r.w / 2).toBe(petW / 2);
-      expect(r.ellipse).toBeUndefined();
-    }
-  });
+  // The pill's bottom edge lands EXACTLY on the pet's top edge: that is where the tail
+  // ends, and it is why the block is taller than the visible pill - the host crops to
+  // this rectangle, so a tail drawn outside it would be cut away.
+  expect(bar.dy + bar.h).toBe(0);
+  // ...and it is taller than the pill it draws, by the tail band.
+  expect(bar.h).toBeGreaterThan(56);
+
+  // The reply strip clears the pill: its bottom edge is above the pill's top edge.
+  expect(card.dy + card.h).toBeLessThanOrEqual(bar.dy);
+
+  // Both are 300 wide - twice the pet's 150 - and `dx: -75` puts their CENTRE
+  // on the pet's centre, which is also what keeps the tail centred on the pet's head.
+  // The pet is only 150 wide, so a 300-wide block centred on it necessarily overhangs the
+  // pet's column; the host lets it extend toward the free side of the window rather than
+  // clipping it.
+  const petW = 150;
+  for (const r of rects) {
+    expect(r.w).toBe(300);
+    expect(r.dx + r.w / 2).toBe(petW / 2);
+    expect(r.ellipse).toBeUndefined();
+  }
+});
 
   test('the manifest declares no ellipse block any more', () => {
     // The three thinking puffs were removed. `ellipse: true` is still a

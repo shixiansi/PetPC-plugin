@@ -3,22 +3,34 @@
 <head>
 <meta charset="utf-8">
 <title>对话插件</title>
+<!--
+  The market window's colour scheme, applied BEFORE the stylesheet paints: the host
+  puts `?theme=light|dark` on the frame URL so a light window does not flash a dark
+  panel. app.js takes over for a switch that happens while this frame is running.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
 <link rel="stylesheet" href="./style.css">
 </head>
 <!-- ONE document, THREE appearances.
      The host mounts this file in two different places: inside the conversation
      slot (the panel, where it fills a 380x520 area) and once per declared
-     floating rectangle (the 300x112 reply card above the pet and the 300x56
-     input bar below it). `app.js` reads `surface.kind` and `surface.rectIndex`
+     floating rectangle (the 300x44 reply strip and the 300x66 input pill, both above
+     the pet). `app.js` reads `surface.kind` and `surface.rectIndex`
      from the `init` frame and swaps the root class between `view-panel` /
      `view-card` / `view-bar`, which is what turns one document into the right
      shape for each block.
 
-     The two floating blocks are placed by the manifest: the card sits directly
-     ABOVE the pet and the bar directly BELOW it, both centred on the pet. They
-     are 300 wide and the pet is 150, so the extra width extends to the pet's
-     free side rather than being clipped. Nothing in this file decides that -
-     the numbers live in manifest.json and the host crops the window to them. -->
+     The two floating blocks are placed by the manifest, BOTH above the pet and both
+     centred on it: the reply strip on top, and the input pill underneath it with a tail
+     pointing down at the pet's head. They are 300 wide and the pet is 150, so the input is
+     readable and the tail stays centred. Nothing in this file decides any of that - the
+     numbers live in manifest.json and the host crops the window to them, tail band
+     included, which is why the tail is drawn inside the declared rectangle. -->
 <body id="root" class="view-panel" data-surface="panel" data-shape="view-panel">
 <header class="bar">
   <span class="title">对话插件</span>
