@@ -415,17 +415,24 @@ body.view-bar .reply {
 body.view-bar .compose {
   flex: 1 1 auto;
   flex-direction: row;
-  gap: 6px;
-  padding: 6px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
   height: 100%;
   background: var(--p-card);
-  border-radius: 16px;
-  /* A 1px edge, because the pill floats over the user's wallpaper: the fill alone disappears
-     on a dark one, and the tail's outline (drawn in app.js) has to meet something.
-     The colour is NOT `--p-line`: that is rgba(255,255,255,.10), which over a dark wallpaper
-     is a couple of RGB steps away from the fill - an outline nobody can see, which is how a
-     previous attempt at exactly this looked "still broken". .38 reads on light and dark. */
-  border: 1px solid rgba(255, 255, 255, 0.38);
+  /* 17px, 8px padding, 15px/24px text: the proportions of the reference bubble we are
+     matching (Coopanion's composer). Only the NUMBERS and the look are borrowed - its
+     markup is Tailwind utility classes and its code is AGPL, so nothing is copied. */
+  border-radius: 17px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+}
+
+/* The dashed rule inside the pill, around the field: it says "this is a text input" even
+   before any placeholder is read, and it is the one detail that makes the bubble look
+   composed rather than a floating bar. Inset with a 1px dashed hairline, 10px radius. */
+body.view-bar .prompt {
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
 }
 
 body.view-bar .prompt {

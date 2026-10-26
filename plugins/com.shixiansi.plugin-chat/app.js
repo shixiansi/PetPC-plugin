@@ -279,7 +279,9 @@ function applySurface(surface) {
     const line = getComputedStyle(document.documentElement).getPropertyValue('--p-line').trim();
     const centre = Number.isFinite(tailX) ? tailX : (surface && surface.rect ? surface.rect.w / 2 : 0);
     const parts = [
-      { id: 'tail-edge', half: 8, height: 11, colour: 'rgba(255, 255, 255, 0.38)' },
+      // Same colour and same 1px as the pill's border (see `.view-bar .compose`): the two are
+      // one bubble's outline, split across two elements because CSS cannot draw outside a box.
+      { id: 'tail-edge', half: 8, height: 11, colour: 'rgba(255, 255, 255, 0.92)' },
       { id: 'tail', half: 7, height: 10, colour: card || '#2a2f3a' },
     ];
     for (const part of parts) {
