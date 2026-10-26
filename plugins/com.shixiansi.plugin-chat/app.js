@@ -251,6 +251,54 @@ function applySurface(surface) {
     els.root.style.removeProperty('--tail-x');
   }
 
+  // The tail is a REAL ELEMENT, not `body::after`.
+  //
+  // A pseudo-element version of this was invisible on the real window: the block stayed a
+  // plain rounded rectangle, with no tail and with the pill filling all 66px instead of 56.
+  // Whether that was the pseudo-element not painting or the geometry being read from a box
+  // that is not the frame, the fix is the same - put the tail in the DOM where its box can be
+  // measured from the outside, and print the measurements next to it (see the debug box
+  // below) instead of guessing a second time.
+  //
+  // `bottom: 0` of the BODY's padding box: for `.view-bar` the body is padding-free and
+  // 100% tall, so that is the frame's bottom edge - the same place the region ends.
+  // The tail is TWO triangles: a 1px-larger one in the pill's border colour, and the fill on
+  // top of it.
+  //
+  // Not decoration - legibility. The band under the pill is transparent and shows the user's
+  // wallpaper, so whether the tail reads depends on the wallpaper: on a dark one the #1d2027
+  // fill and the wallpaper are within a few RGB steps and the shape disappears. An outline is
+  // the only thing that works on every background, which is why the pill gets a matching
+  // 1px border (see `.view-bar .compose`).
+  //
+  // Geometry: the outline is half-width 8 / height 11, the fill 7 / 10, both anchored at the
+  // frame's bottom edge - the extra 1px goes UP into the pill so the two edges meet without a
+  // seam.
+  if (shape === SHAPE_BAR) {
+    const card = getComputedStyle(document.documentElement).getPropertyValue('--p-card').trim();
+    const line = getComputedStyle(document.documentElement).getPropertyValue('--p-line').trim();
+    const centre = Number.isFinite(tailX) ? tailX : (surface && surface.rect ? surface.rect.w / 2 : 0);
+    const parts = [
+      { id: 'tail-edge', half: 8, height: 11, colour: line || 'rgba(255,255,255,.16)' },
+      { id: 'tail', half: 7, height: 10, colour: card || '#2a2f3a' },
+    ];
+    for (const part of parts) {
+      let el = document.getElementById(part.id);
+      if (!el) {
+        el = document.createElement('div');
+        el.id = part.id;
+        els.root.appendChild(el);
+      }
+      el.style.cssText =
+        'position:absolute;bottom:0;width:0;height:0;' +
+        'z-index:' + (part.id === 'tail' ? 3 : 2) + ';' +
+        'border-left:' + part.half + 'px solid transparent;' +
+        'border-right:' + part.half + 'px solid transparent;' +
+        'border-top:' + part.height + 'px solid ' + part.colour + ';' +
+        'left:' + centre + 'px;margin-left:-' + part.half + 'px';
+    }
+  }
+
   // Each floating block is one piece of the same document: the card carries the
   // latest reply, the input bar carries only the composer. The other piece is
   // hidden rather than removed, so switching blocks never has to rebuild the

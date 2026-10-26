@@ -112,6 +112,19 @@ body {
   height: 100%;
 }
 
+/* The CANVAS, not the page. Chromium paints #121212 behind a document that leaves the root
+ * background unset while the system is in dark mode, and that colour is what filled the
+ * transparent part of every floating block: the tail was being drawn (#1d2027) on a #121212
+ * band, ten RGB steps apart, which reads as "no tail". `body` was already transparent; the
+ * canvas was not, so nothing on the body could fix it.
+ *
+ * Transparent here means the host's window shows through - which is the whole point of the
+ * region being a bounding box (AGENTS.md §3.2). The PANEL appearance is unaffected: it paints
+ * its own background on `body`. */
+html {
+  background: transparent;
+}
+
 body {
   display: flex;
   flex-direction: column;
@@ -340,30 +353,29 @@ body.view-card .msg {
  * 停止 / 气泡 / 浮层面 stay in the panel, where there is room for them - they live in the
  * same `.actions` row, so the row stays and the three of them are hidden individually.
  */
+/* The band is BODY PADDING, and the pill is 100% of what is left.
+ *
+ * Two earlier attempts put the band in a flex item's margin and in a pseudo-element's
+ * `bottom`; both came out as one 66px box with no band at all, which is what the screenshots
+ * kept showing. Padding cannot be swallowed that way: with `box-sizing: border-box` and
+ * `height: 100%`, the content box IS 66 - 10 = 56, and the 10px padding strip is painted by
+ * the body - which is transparent - so the tail hangs in a see-through band.
+ *
+ * The tail itself is a DOM element (`#tail`, positioned by app.js at the pet's centre) rather
+ * than `body::after`: its box can be measured from the outside, which is how the geometry got
+ * settled in the first place. */
 body.view-bar {
   position: relative;
   flex-direction: row;
   align-items: stretch;
-  padding: 6px;
-  gap: 6px;
-  /* Transparent: ::before draws the pill, ::after the tail. */
+  padding: 0 0 10px;
+  gap: 0;
   background: transparent;
-}
-
-body.view-bar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 10px;
-  background: var(--p-card);
-  border-radius: 16px;
 }
 
 body.view-bar::after {
   content: '';
-  position: absolute;
+  position: fixed;
   /* `--tail-x` is the PET's centre inside this block, sent by the host: the block is wider
      than the pet and the host clamps it against the window's edge, so the block's own centre
      is not the pet's centre. Falls back to centred for a block that was never clamped. */
@@ -377,22 +389,24 @@ body.view-bar::after {
   border-top: 10px solid var(--p-card);
 }
 
-/* The content sits above the two shapes, and is inset by the tail band at the bottom. */
-body.view-bar > * {
-  position: relative;
-  z-index: 1;
-}
-
 body.view-bar .bar,
 body.view-bar .reply {
   display: none;
 }
 
+/* The pill ITSELF: what the user sees as the input box. `height: 100%` fills the body's
+ * CONTENT box, which is the frame minus the 10px band the body's padding reserves. */
 body.view-bar .compose {
   flex: 1 1 auto;
   flex-direction: row;
   gap: 6px;
-  margin-bottom: 10px;
+  padding: 6px;
+  height: 100%;
+  background: var(--p-card);
+  border-radius: 16px;
+  /* A 1px edge, because the pill floats over the user's wallpaper: the fill alone disappears
+     on a dark one, and the tail's outline (drawn in app.js) has to meet something. */
+  border: 1px solid var(--p-line);
 }
 
 body.view-bar .prompt {

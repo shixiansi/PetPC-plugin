@@ -36,6 +36,12 @@ market/                                    ← 本仓根目录（独立 git 仓�
 
 **发布流程只有三步**：改 `plugins/<id>/` 下的内容 → 运行 `tools/package.ps1` → 提交 `dist/` 里新生成的 zip 与更新后的 `index.json`。
 
+> **改一个已装插件的任何文件，都必须同时升 `manifest.json` 的 `version`。**
+> 宿主靠 `pluginId + version + 矩形数量` 判断要不要重建插件的 iframe；版本不变，桌宠会继续运行
+> 它启动时加载的那份旧文档——改了 CSS 或 JS 也看不到任何变化，而且重启桌宠**不会**帮忙，因为
+> 磁盘上的版本号同样没变。这不是「重启就好」的问题，`version` 就是重载的判据。
+> 2026-10 的尖角输入框那轮因为没有升版本，白折腾了三轮。
+
 ---
 
 ## 2. `manifest.json` 字段
@@ -105,7 +111,7 @@ market/                                    ← 本仓根目录（独立 git 仓�
 | `timer.read` | 读取番茄钟阶段与剩余时间 |
 | `events` | 订阅待办与番茄钟的变化事件（`todos.changed` / `timer.changed` / `timer.phaseEnded` / `reminder.fired`）。**关闭界面后也会送达**——前提是插件用 `background` 申请了常驻帧 |
 | `net.fetch` | 访问网络，**仅限**该插件 `manifest.json` 里 `netHosts` 声明的域名，外加它 `hostWhitelist` 配置项当前值里的域名。默认按**文本**返回正文，`encoding: "base64"` 才取二进制（文本形式对 WAV 这类数据是**有损**的：非法字节会被替换成 U+FFFD，文件大小看着对、播出来是噪声） |
-| `storage` | 在插件自己的私有目录里保存少量数据 |
+| `storage` | 在插件自己的私有目录里保存数据。键是**相对路径**（`media/stickers/bytes/<hash>`），所以可以自己分文件夹；`storage.dir` 的 `sub` 把子目录的绝对路径交给插件启动的程序，`storage.list` 让插件看清自己文件夹里到底有什么，`storage.move` 在自己的目录里改名（迁移用，零拷贝） |
 | `pet.surface` | 在桌宠旁显示自定义浮层面 |
 | `llm.chat` | 调用该插件自己配置的大模型（流式返回）；**模型密钥归插件所有**，加密存在插件私有目录里 |
 | `plugin.config` | 保存插件自己的设置；存在插件私有目录里，插件之间互相读不到 |
@@ -113,7 +119,7 @@ market/                                    ← 本仓根目录（独立 git 仓�
 
 **没有 `background` 权限**：常驻帧由 manifest 的 `background` 字段申请、由既有的 `events` 权限门控。门禁里有一条「权限表与方法表逐项一致」的断言——每个权限都必须被某个方法使用，所以一个只用来"批准后台运行"、背后没有方法的权限会正好违反它。
 
-**`audio` 不是 `storage` 的加宽**：`storage` 装的是少量**文本**（插件自己的 JSON），`audio` 装的是**二进制、几百 KB 量级**。只想记住一个设置的插件，不该为此被授予一个它永远不用的音频出口。
+**`audio` 不是 `storage` 的加宽**：`storage` 的接口是**文本**（插件自己的 JSON，以及像表情包那样被编码成 base64 的字节——能存，但代价是 4/3），`audio` 是**二进制、几百 KB 量级**而且要能直接播放。只想记住一个设置的插件，不该为此被授予一个它永远不用的音频出口。
 
 示例插件申请 `llm.chat`、`pet.bubble`、`pet.surface`、`plugin.config`、`storage` 五项。它**不**申请 `net.fetch`（请求统一由宿主的 `llm.chat` 发出），因此它既不需要也不包含 `netHosts`。
 
@@ -158,6 +164,33 @@ git commit -m "feat: [AI-GEN] publish com.shixiansi.plugin-chat 1.3.0"
 git push            # 由维护者手动执行，agent 不推送
 ```
 
+### 插件必须跟随窗口主题（`data-theme`）
+
+市场窗口有深/浅两套配色，而插件的工作区是 **sandboxed iframe 里的外来文档**：它看不到宿主的
+CSS 变量，宿主也不能往里注入样式。所以是**宿主告知、插件自己画**，三条通道各管一段时间：
+
+| 通道 | 什么时候 | 插件侧要做的 |
+|---|---|---|
+| `?theme=dark\|light` 挂在 frame URL 上 | **首帧之前** | `<head>` 里一个内联脚本读它，写到 `<html data-theme=…>`——这样浅色窗口不会先闪一下深色 |
+| `init.theme` | 挂载后 | `onInit` 里 `applyTheme(data.theme)`；桌宠挂载时没有这个字段，一律深色 |
+| `{v:1,type:'theme',theme}` 消息 | 用户在工坊开着时切主题 | 监听 `message`，改 `data-theme` 即可；**不要重挂页面**（会丢掉输入到一半的表单） |
+
+插件侧的做法就是 CSS 里放两套调色板，keyed on `html[data-theme="light"]`：
+
+```css
+:root { --p-bg: #191b21; --p-text: #e8eaf0; /* … */ color-scheme: dark; }
+html[data-theme="light"] { --p-bg: #f4f6fa; --p-text: #16202e; /* … */ color-scheme: light; }
+```
+
+比"浅色"更重要的是**别把颜色写死在规则里**：旧的两个插件（`chat`/`voice`）原本满是字面量，
+这一轮先把它们收成 `--p-*` 变量再加浅色块——**深色的字节一个没变**。
+`style.css` 里 `box-shadow`/`filter`/`transform` 依旧禁止（见上文裁剪约束），主题与那是两件事。
+
+> 版本提醒：这一轮三个包都升了 patch（`chat` 1.4.1、`qq` 1.9.1、`voice` 1.0.1）；
+> 之后 `qq` 因为提示词与人设的改动升到 **1.10.0**。插件是**安装时
+> 复制进 `<dataDir>/plugins/<id>/`** 的，所以只改本仓源码、不重新打包并让市场装一次，用户看到的
+> 仍是旧的那份。
+
 ### 示例插件的前端行为（`app.js`）
 
 - 启动即向宿主发 `{v:1,type:'ready'}`；收到宿主回投的 `init` 后才按 `init.granted` 启用界面——缺 `llm.chat` 时输入区禁用且状态行显示「未获授权：llm.chat」，缺 `pet.bubble` / `pet.surface` 时对应按钮禁用。**`init` 之前不发起任何 `request`**。
@@ -181,6 +214,33 @@ node node_modules\vitest\vitest.mjs run
 > **两套都只驱动插件自己的前端**——宿主侧的
 > **市场托管插件界面**那段（`tools/plugin-market/frontend/src/plugin-ui.js`，
 > 210 行）**没有测试**。见宿主仓 `docs/voice.md` §8。
+
+### QQ 群聊插件的人设与提示词（`app.js`）
+
+人设是**用户自己写的**一段话（配置项 `persona`），它替换系统提示词的**第一段**，
+插件在它下面追加固定规则。两边分工很硬：
+
+- **人设管语气与人**：说话长短、脾气、口头禅、遇到什么事怎么反应。
+- **插件管机制**：群里在哪个群、当前提问的人是谁、`replyMaxChars` 是**硬上限不是目标**、
+  不要 Markdown/列表/emoji、不要重复上一条的开头与口癖、不知道就说不知道、
+  末尾的〔表情:分类〕协议。
+- **留空时的默认人设**（`DEFAULT_PERSONA`）写的是「群里的老熟人」，**不是**「一个待在
+  QQ 群里的机器人」：模型被告知自己是机器人之后，写出来的就是助手腔——这是群聊里最
+  显眼的一种人机味。
+
+几条由真机测试换来的约定（改提示词前先读）：
+
+1. **说话人昵称跟着当前这条提问一起进模型**（`昵称：内容`），与历史里的格式一致。
+   只给历史加名字时，模型看不见"现在是谁在问"，会答成「你们」——像客服，不像群友。
+2. **主动开口的提示词必须写"接住群友聊的那件具体的事"**，否则它会写成关于自己的旁白
+   （"我先去囤点米饭"）。反过来**不要**写"最后一条是提示语，不是群友说的话"：实测加了
+   这句，模型会认为整段群聊它没看到，答"没看到你们刚才聊啥"。
+3. **〔表情:分类〕在两条路径上都要剥掉**（回答、主动开口）。它是模型与插件之间的协议，
+   漏进群里就是一行乱码；主动开口原本没剥，模型自己加一个就会直接发出去。
+4. **空回复要重试一次**。`qwen3.8-27b` 这类推理模型会把 token 预算花在 reasoning 上，
+   然后返回 `finish_reason: "stop"` 的空 content；群里"不说话"是最像坏掉的一种表现。
+5. **`*动作*` 转成中文括号**（`（甩了下尾巴）`）。只删星号会留下一个裸词，读起来像
+   丢了括号的舞台指示。
 
 ### 语音插件的前端行为（`app.js`）
 
@@ -218,7 +278,14 @@ node node_modules\vitest\vitest.mjs run
 %AppData%\PetPC\plugins.json               已装索引（启用状态 + 已授权限）
 %AppData%\PetPC\plugin-data\<插件id>\      插件私有存储（storage / config / audio 能力唯一的可写落点）
 %AppData%\PetPC\plugin-data\<插件id>\audio\<name>.wav   插件自己的音频（audio 能力）
+%AppData%\PetPC\plugin-data\<插件id>\share\<name>       它发布到跨插件托盘的那份值（宿主写）
 ```
+
+`storage` 的**键是相对路径**（`media/stickers/bytes/<hash>`、`media/video/tmp/<name>`），所以私有目录里
+还能有插件自己分的文件夹；父目录由宿主建好，每一段仍然只认 `[A-Za-z0-9_-]`，所以
+`..`、盘符、反斜杠都出不了目录。分隔符/路径规则写在 `internal/plugins/privatestore.go`，
+桌宠与市场**共用**那一份实现——同一个键在两个程序里因此一样合法，而 QQ 插件的机器人跑在
+桌宠、表情包工坊跑在市场。
 
 即对话插件的安装目录是 `%AppData%\PetPC\plugins\com.shixiansi.plugin-chat\`，其中就是 zip 解压出来的 `manifest.json`、`panel.html`、`app.js`、`style.css`。
 
