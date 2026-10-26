@@ -279,7 +279,7 @@ function applySurface(surface) {
     const line = getComputedStyle(document.documentElement).getPropertyValue('--p-line').trim();
     const centre = Number.isFinite(tailX) ? tailX : (surface && surface.rect ? surface.rect.w / 2 : 0);
     const parts = [
-      { id: 'tail-edge', half: 8, height: 11, colour: line || 'rgba(255,255,255,.16)' },
+      { id: 'tail-edge', half: 8, height: 11, colour: 'rgba(255, 255, 255, 0.38)' },
       { id: 'tail', half: 7, height: 10, colour: card || '#2a2f3a' },
     ];
     for (const part of parts) {

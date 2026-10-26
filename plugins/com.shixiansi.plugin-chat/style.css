@@ -121,8 +121,24 @@ body {
  * Transparent here means the host's window shows through - which is the whole point of the
  * region being a bounding box (AGENTS.md §3.2). The PANEL appearance is unaffected: it paints
  * its own background on `body`. */
-html {
+/* The CANVAS, not the page.
+ *
+ * `:root` above declares `color-scheme: dark` for the palette, and with that Chromium paints
+ * the CANVAS #121212 — even when the root's own background is `transparent`. That colour was
+ * what filled the 10px tail band: a crimson probe square in the band proved the band IS
+ * paintable, so the paint came from behind the document, and the canvas was the only layer
+ * left.
+ *
+ * `only light` pins the canvas to the light default, which is transparent here. The PALETTE is
+ * unaffected: every colour in this file comes from custom properties, not from `color-scheme`.
+ *
+ * The selector MUST be `:root`, not `html`: `:root` is a pseudo-class and outranks a bare type
+ * selector, so `html { color-scheme: ... }` loses to the `:root` rule above no matter where it
+ * sits in the file. That is why the first attempt at this changed nothing on screen.
+ */
+:root {
   background: transparent;
+  color-scheme: only light;
 }
 
 body {
@@ -405,8 +421,11 @@ body.view-bar .compose {
   background: var(--p-card);
   border-radius: 16px;
   /* A 1px edge, because the pill floats over the user's wallpaper: the fill alone disappears
-     on a dark one, and the tail's outline (drawn in app.js) has to meet something. */
-  border: 1px solid var(--p-line);
+     on a dark one, and the tail's outline (drawn in app.js) has to meet something.
+     The colour is NOT `--p-line`: that is rgba(255,255,255,.10), which over a dark wallpaper
+     is a couple of RGB steps away from the fill - an outline nobody can see, which is how a
+     previous attempt at exactly this looked "still broken". .38 reads on light and dark. */
+  border: 1px solid rgba(255, 255, 255, 0.38);
 }
 
 body.view-bar .prompt {
