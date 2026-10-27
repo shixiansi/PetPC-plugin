@@ -1222,3 +1222,112 @@ describe('refusals are normal answers', () => {
     expect(requestsFor('audio.play').slice(-1)[0].payload.name).toBe('builtin-focus_end');
   });
 });
+
+describe('the pomodoro publishes phase-ended, and this plugin polls for it (1.0.2)', () => {
+  // WHY THIS BLOCK EXISTS: `timer.phaseEnded` was the HOST's event, and the host's timer retired in
+  // stage 2 - so the two spoken lines went silent with nothing left to subscribe to. The pomodoro
+  // plugin now publishes the same fact through `plugin.share`, and this frame polls it. The
+  // subscription above is KEPT so a future host emitter would restore the old path unchanged; these
+  // tests pin the path that works today.
+
+  const factValue = (at, phase = 'focus') => JSON.stringify({ phase, at });
+
+  /** Boots the headless frame with the settings already answered, so a line can actually play. */
+  async function readyBackground(settings) {
+    await loadApp();
+    hostSends(initFrame({ slot: 'background' }));
+    await Promise.resolve();
+    // The settings reply FIRST: reloadState sends that request as part of the handshake, and
+    // answering it out of order would test a sequence the plugin never sees.
+    hostAnswers('storage.get', { value: JSON.stringify(settings) });
+    await Promise.resolve();
+    hostAnswers('audio.list', []);
+    await Promise.resolve();
+  }
+
+  /** Answers the most recent share.get. Returns the request, or null when the frame did not poll. */
+  function answerPoll(value) {
+    const poll = requestsFor('share.get').slice(-1)[0];
+    if (!poll) return null;
+    hostSends({ v: 1, type: 'response', id: poll.id, ok: true, result: { value } });
+    return poll;
+  }
+
+  test('it asks the pomodoro plugin for the fact, and only from the background frame', async () => {
+    await loadApp();
+    hostSends(initFrame({ slot: 'background' }));
+    await Promise.resolve();
+
+    const polls = requestsFor('share.get');
+    expect(polls.length, 'the headless frame never polled for the phase fact').toBeGreaterThan(0);
+    expect(polls[0].payload).toEqual({
+      owner: 'com.shixiansi.plugin-pomodoro',
+      name: 'phase-ended',
+    });
+  });
+
+  test('the workshop does not poll: the line belongs to the hidden frame', async () => {
+    await loadApp();
+    hostSends(initFrame({ slot: 'workshop' }));
+    await Promise.resolve();
+    // Polling from the workshop would play the line only when the user happened to have the
+    // workshop open, which is the opposite of what "the pet speaks while you work" means.
+    expect(requestsFor('share.get')).toHaveLength(0);
+  });
+
+  test('a new phase ending speaks the line for that phase', async () => {
+    await readyBackground({ enabled: true, pomodoro: true, chosen: {} });
+    const before = requestsFor('audio.play').length;
+
+    answerPoll(factValue(1_700_000_000_000, 'focus'));
+    await Promise.resolve();
+
+    const plays = requestsFor('audio.play').slice(before);
+    expect(plays, 'a finished focus did not speak').toHaveLength(1);
+  });
+
+  test('the same deadline is spoken ONCE - a poll loop must not repeat it', async () => {
+    await readyBackground({ enabled: true, pomodoro: true, chosen: {} });
+    const at = 1_700_000_000_000;
+    const before = requestsFor('audio.play').length;
+
+    // The pomodoro publishes the same value until the NEXT phase ends, so every poll sees it again.
+    // Without the `at` guard the line would play every two seconds forever.
+    answerPoll(factValue(at));
+    await Promise.resolve();
+    expect(requestsFor('audio.play').length).toBe(before + 1);
+
+    answerPoll(factValue(at));
+    await Promise.resolve();
+    expect(requestsFor('audio.play').length, 'the same ending was spoken twice').toBe(before + 1);
+  });
+
+  test('a LATER deadline speaks again, even for the same phase', async () => {
+    await readyBackground({ enabled: true, pomodoro: true, chosen: {} });
+    const before = requestsFor('audio.play').length;
+
+    answerPoll(factValue(1_700_000_000_000));
+    await Promise.resolve();
+    // The next poll is issued by the 2 s INTERVAL, not by the reply, so wait for it rather than
+    // assuming a reply-to-reply chain the plugin does not have.
+    await new Promise((r) => setTimeout(r, 2100));
+    answerPoll(factValue(1_700_001_500_000));
+    await Promise.resolve();
+
+    expect(requestsFor('audio.play').length, 'a second session was not announced').toBe(before + 2);
+  });
+
+  test('an empty or unreadable value is "nothing to say", not an error', async () => {
+    await readyBackground({ enabled: true, pomodoro: true, chosen: {} });
+    const before = requestsFor('audio.play').length;
+
+    // "Nobody published yet" is the ordinary answer: the key is empty until a phase ends, and empty
+    // again after the pomodoro plugin restarts.
+    answerPoll('');
+    await Promise.resolve();
+    answerPoll('not json');
+    await Promise.resolve();
+
+    expect(requestsFor('audio.play').length).toBe(before);
+  });
+});

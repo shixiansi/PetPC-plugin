@@ -262,6 +262,74 @@ function applyView(surface) {
 // --- the background appearance ---------------------------------------------
 
 /**
+ * How often the headless frame asks the pomodoro plugin whether a phase ended.
+ *
+ * POLLING, not an event, and that is not laziness - it is what the situation allows. The host used to
+ * emit `timer.phaseEnded` because it owned the timer; the timer is the pomodoro plugin's now, and a
+ * plugin cannot raise a host event. What it CAN do is publish a fact under its own name through
+ * `plugin.share`, which is the channel built for exactly this. The cost is up to 2 s of delay before
+ * the line is spoken - imperceptible next to a 25-minute session, and the alternative (a host method
+ * that exists only to fan a plugin's fact out to other plugins) is a new permission for one caller.
+ *
+ * The subscription to `timer.phaseEnded` is KEPT below as well: if a future host ever emits it again,
+ * this plugin starts working that way with no change here. That is why the two paths are separate
+ * functions rather than one.
+ */
+const PHASE_POLL_MS = 2000;
+
+// The `at` of the last phase ending this frame spoke for, so the same one is not announced twice.
+//
+// It is the phase's DEADLINE rather than an arrival time: two endings have different deadlines, and
+// the value survives this frame being re-mounted (it comes from the file, not from memory).
+let lastPhaseAt = 0;
+let phasePollInFlight = false;
+let phasePollTimer = null;
+
+/**
+ * Reads the pomodoro plugin's `phase-ended` and speaks if it is new.
+ *
+ * A missing value is the NORMAL state at startup, not an error: the key is empty until a phase
+ * actually ends, and it is empty again after the pomodoro plugin restarts. So an empty or
+ * unparseable value simply means "nothing to say".
+ */
+function pollPhaseEnded() {
+  if (view !== 'background') return;
+  if (!granted.has('plugin.share')) return;
+  if (phasePollInFlight) return;
+  phasePollInFlight = true;
+  // `pending` is this plugin's existing per-request purpose map, and the poll joins it rather than
+  // keeping a second map of its own: one reply router is the thing that makes "which request is
+  // this answer for" a lookup instead of a guess.
+  request('share.get', { owner: 'com.shixiansi.plugin-pomodoro', name: 'phase-ended' }, 'phase-ended');
+}
+
+/**
+ * Handles one reply to pollPhaseEnded.
+ *
+ * Split out of the main reply handler because the answer is a shared value rather than one of this
+ * plugin's own reads, and mixing the two is how "the clip did not play" becomes a bug in the settings
+ * loader.
+ */
+function onPhaseReply(data) {
+  phasePollInFlight = false;
+  if (!data.ok || !data.result) return;
+  const raw = data.result.value;
+  if (!raw) return;
+
+  let fact;
+  try {
+    fact = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  const at = Number(fact && fact.at) || 0;
+  if (!at || at <= lastPhaseAt) return;
+
+  lastPhaseAt = at;
+  playLine(lineForPhase(fact.phase), 'pomodoro');
+}
+
+/**
  * Plays one line, if the switches allow it.
  *
  * The precedence is: the master switch, then the per-notice switch, then the
@@ -672,12 +740,19 @@ function onInit(data) {
   if (!granted.has('storage')) settingsLoaded = true;
 
   if (view === 'background') {
-    // The headless frame's entire job: subscribe, then answer events. It draws
-    // nothing, so it never touches the UI elements below.
+    // The headless frame's entire job: hear about a phase ending, then answer it. It draws nothing,
+    // so it never touches the UI elements below.
     if (granted.has('events')) {
       request('events.subscribe', { names: ['timer.phaseEnded', 'reminder.fired'] });
     }
     reloadState();
+    // And the OTHER half of hearing about it: the pomodoro plugin publishes `phase-ended` through
+    // `plugin.share`, and this frame polls for it. Both paths are kept - see PHASE_POLL_MS for why
+    // the event alone is no longer enough and why the event is still subscribed to.
+    if (granted.has('plugin.share')) {
+      if (!phasePollTimer) phasePollTimer = window.setInterval(pollPhaseEnded, PHASE_POLL_MS);
+      pollPhaseEnded();
+    }
     return;
   }
 
@@ -716,6 +791,14 @@ function reloadState() {
 function onResponse(data) {
   const purpose = data.id != null ? pending.get(data.id) : null;
   if (data.id != null) pending.delete(data.id);
+
+  // The phase poll is routed first and unconditionally: it runs in the headless frame, where the
+  // status line does not exist, and a refused read there is the ordinary "the pomodoro plugin is not
+  // installed" case rather than something to report.
+  if (purpose === 'phase-ended') {
+    onPhaseReply(data);
+    return;
+  }
 
   if (!data.ok) {
     // A refusal is a NORMAL answer here, not an exception: this program does not

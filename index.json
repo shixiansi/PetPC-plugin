@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-27T14:16:38Z",
+  "updatedAt": "2026-10-27T17:05:41Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -26,12 +26,12 @@
     {
       "id": "com.shixiansi.plugin-pomodoro",
       "name": "番茄钟插件",
-      "version": "2.0.1",
+      "version": "2.1.0",
       "author": "shixiansi",
-      "description": "桌宠旁的番茄钟：自己的状态机与记录，开始、暂停、继续、停止，选一件事专注。",
-      "permissions": ["storage", "plugin.config", "plugin.share", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pomodoro-2.0.1.zip",
-      "sha256": "bfa1f28d336574dc9f7b913b859f88d1e9038372a84e0bdbfb6c94d93f9e8519"
+      "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图。",
+      "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-pomodoro-2.1.0.zip",
+      "sha256": "7099bc62bda0508982833b1dd4599a1b79a6433bd62b0e07c18640c9fd902ed9"
     },
     {
       "id": "com.shixiansi.plugin-qq",
@@ -57,13 +57,13 @@
     {
       "id": "com.shixiansi.plugin-voice",
       "name": "语音插件",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
-      "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch"],
+      "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share"],
       "netHosts": ["127.0.0.1:9880"],
-      "download": "dist/com.shixiansi.plugin-voice-1.0.1.zip",
-      "sha256": "2d32d44ba0592cb7572887ce595d47693fdc13efbfed1424624071ebf3b1d2a6"
+      "download": "dist/com.shixiansi.plugin-voice-1.0.2.zip",
+      "sha256": "00c568c2b77dde4a03e15c32f66ca58bbce6649b4655e8ec57fca9a4ac2d5542"
     }
   ]
 }
