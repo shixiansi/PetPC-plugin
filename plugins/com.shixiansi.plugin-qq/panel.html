@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QQ 群聊插件</title>
+  <!--
+    The market window's colour scheme, applied BEFORE the stylesheet paints.
+    The host puts `?theme=light|dark` on the frame URL for exactly this reason: a
+    document that waited for the bridge's `init` would flash the wrong scheme for a
+    frame or two. app.js takes over from here for a switch that happens while this
+    frame is already running (a `theme` message).
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    One document, two appearances.
+
+    The pet mounts this file in a hidden frame (`slot: "background"`) and that frame
+    is the whole bot: it holds the socket, answers the groups. The plugin market
+    mounts the SAME file in its workshop area (`slot: "workshop"`) and that copy is
+    read-only housekeeping - status, per-group memory, the log.
+
+    Which one this is comes from the `init` message and nowhere else; both sections
+    are in the markup so switching does not have to build DOM at runtime, and only
+    one of them is ever visible.
+  -->
+  <div id="root" class="view-workshop">
+    <!-- Background frame: draws nothing, ever. It exists for its side effects. -->
+    <div id="background" hidden></div>
+
+    <main id="workshop" class="workshop">
+      <header class="head">
+        <h1>QQ 群聊插件</h1>
+        <p class="sub">群里的对话在桌宠进程里跑；这个窗口用来查看状态、清理记忆和改配置。</p>
+      </header>
+
+      <section class="card" id="status-card">
+        <h2>连接</h2>
+        <div class="chips">
+          <span class="chip" id="chip-state" data-state="unknown">未知</span>
+          <span class="chip" id="chip-self">机器人：未知</span>
+          <span class="chip" id="chip-model">模型：未知</span>
+        </div>
+        <p class="note" id="status-note">还没有收到桌宠那边的连接状态。</p>
+        <p class="note" id="status-error" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2>这个插件在做什么</h2>
+        <ul class="facts" id="facts"></ul>
+        <p class="note">
+          触发、限流、记忆都在插件的配置里；模型地址与 Key 默认借用对话插件的配置，
+          想用另一套就在这里填 <code>llmBaseUrl</code> 与 <code>llmApiKey</code>。
+        </p>
+        <h3 class="subhead">最近一次模型原话</h3>
+        <p class="note">
+          记忆、表情、沉默都靠模型在正文后面附一个 <code>```json</code> 围栏。这里是它**原始**的
+          回复（不会发进群）：如果没有那个围栏，就是模型没照约定来，而不是插件没记。
+        </p>
+        <pre class="probe" id="probe-note" hidden></pre>
+      </section>
+
+      <!--
+        表情包管理. The bot imports the pictures (owner's private message -> vision
+        model -> bytes in storage); this card is the only human way to see what
+        arrived, re-file it and curate the category list. Its bytes are read ONE PAGE
+        AT A TIME - see the loadStickerPageBytes comment in app.js.
+      -->
+      <section class="card" id="sticker-card">
+        <h2>表情包</h2>
+        <p class="note" id="sticker-summary">正在读取表情包索引…</p>
+        <p class="sticker-status" id="sticker-status" hidden></p>
+
+        <!--
+          待收藏（群里的新图）. The bot downloads + describes them (that is the money already
+          spent); whether they join the library is decided by the model in its reply, and by
+          you here. Both buttons are needed: without the discard side a full queue silently
+          stops collecting anything new.
+        -->
+        <div class="pending" id="pending-block" hidden>
+          <h3 class="subhead">待收藏（群里的新图）</h3>
+          <p class="note">
+            识图已经付过钱了，收不收由你定。模型也会在回复里自己收（`save_meme`）；这一区满了
+            就暂时不再识别新图，所以隔一阵来清一次。
+          </p>
+          <ul class="pending-list" id="pending-list"></ul>
+        </div>
+
+        <div class="toolbar">
+          <label class="field">
+            <span>分类</span>
+            <select id="sticker-filter"></select>
+          </label>
+          <label class="check">
+            <input type="checkbox" id="sticker-select-page" />
+            <span>全选本页</span>
+          </label>
+          <span class="spacer"></span>
+          <span class="note" id="sticker-selected">未选中</span>
+          <label class="field">
+            <span>移到</span>
+            <select id="sticker-move-target"></select>
+          </label>
+          <button type="button" class="ghost" id="sticker-move">移动所选</button>
+        </div>
+
+        <div class="sticker-grid" id="sticker-grid" hidden></div>
+        <p class="note" id="sticker-empty" hidden>这一页还没有表情包。</p>
+
+        <div class="toolbar" id="sticker-purge-row" hidden>
+          <p class="note">
+            这些图在旧版本里被下载上限截断过，看起来正常、实际只剩前几帧。可以先点「从群历史里找回」
+            ——插件会去群里翻记录，把完整的同一张下回来（只看图的前 48 KB 认亲，不重新识图）；
+            找不回来的，把完整的图重新发给机器人也能补，剩下的可以一次删掉。
+          </p>
+          <button type="button" class="ghost" id="sticker-recover-truncated">从群历史里找回</button>
+          <button type="button" class="ghost" id="sticker-purge-truncated">删除残图</button>
+        </div>
+
+        <div class="pager">
+          <button type="button" class="ghost" id="sticker-prev">上一页</button>
+          <span class="pager-label" id="sticker-page">第 0 / 0 页</span>
+          <button type="button" class="ghost" id="sticker-next">下一页</button>
+        </div>
+
+        <h3 class="subhead">分类管理</h3>
+        <p class="note">
+          「未分类」是内建分类，不能改名也不能删除。删除一个分类只会把里面的表情包
+          归入「未分类」——图片本身不会被删掉。
+        </p>
+        <ul class="cat-list" id="sticker-categories"></ul>
+        <div class="toolbar">
+          <input type="text" id="sticker-new-name" placeholder="新分类名（最多 12 个字符）" />
+          <button type="button" class="ghost" id="sticker-add">新增分类</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>每个群记住的对话</h2>
+        <p class="note" id="groups-empty">还没有任何群聊过。</p>
+        <p class="note">
+          「记忆」是它自己记下的要点（说 <code>#状态</code> 可以在群里看，「忘掉这个群」会把
+          往来和要点一起清空）；「能量」是社交能量，越低越懒得说话。点「记忆」那一格可以逐条看、
+          逐条删、也可以自己补一条。
+        </p>
+        <table class="groups" id="groups" hidden>
+          <thead>
+            <tr><th>群号</th><th>群名</th><th>往来</th><th>记忆</th><th>能量</th><th>最近</th><th></th></tr>
+          </thead>
+          <tbody id="groups-body"></tbody>
+        </table>
+      </section>
+
+      <!--
+        某个群的记忆: the bot writes notes itself (`remember` in the reply fence), but a model
+        that mis-remembers ("他下周要出差" for someone who already left) can only be corrected
+        by hand - until now the only human verb available was "forget the whole group", which
+        threw away the good notes with the bad one.
+      -->
+      <section class="card" id="memory-card" hidden>
+        <h2>记忆：<span id="memory-group"></span></h2>
+        <p class="note" id="memory-empty" hidden>这个群还没有任何记忆。</p>
+        <ul class="note-list" id="memory-list"></ul>
+        <div class="toolbar">
+          <input type="text" id="memory-new" maxlength="60" placeholder="补一条它应该知道的事（最多 60 字）" />
+          <button type="button" class="ghost" id="memory-add">加上</button>
+          <span class="note" id="memory-status" hidden></span>
+        </div>
+
+        <h3 class="subhead">定时提醒</h3>
+        <p class="note" id="remind-empty" hidden>这个群没有定时提醒。</p>
+        <p class="note">
+          群友让它"每天 5 点叫我一下"时，它会记在这里并按时发一条带真 @ 的消息。到点发的那句话是
+          存好的，**触发时不调模型**，所以不额外花钱。
+        </p>
+        <ul class="note-list" id="remind-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>最近发生了什么</h2>
+        <p class="note" id="log-empty">桌宠那边还没有写入任何记录。</p>
+        <ol class="log" id="log" hidden></ol>
+      </section>
+    </main>
+  </div>
+  <!--
+    加载顺序 = 原来单文件里的书写顺序，所以依赖关系一模一样。
+    经典 script 共享同一个全局作用域（'use strict' 每支脚本各自生效），因此这里不需要
+    import/export —— 也就不会和"把脚本 eval 进 jsdom"的测试方式打架。
+    新增/新增模块时：在这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/store.js"></script>
+  <script src="lib/state.js"></script>
+  <script src="lib/inbound.js"></script>
+  <script src="lib/importer.js"></script>
+  <script src="lib/protocol.js"></script>
+  <script src="lib/reminders.js"></script>
+  <script src="lib/memory.js"></script>
+  <script src="lib/proactive.js"></script>
+  <script src="lib/bili.js"></script>
+  <script src="lib/admin.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="lib/stickers.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
