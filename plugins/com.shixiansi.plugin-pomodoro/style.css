@@ -1,0 +1,238 @@
+/* The pomodoro plugin's stylesheet.
+ *
+ * Same discipline as the other bundled plugins: this document is painted inside a window region
+ * that only ever describes rectangles, so nothing may paint outside its own border box.
+ *
+ * The face is meant to be GLANCED at: one huge number, one line saying what it is attached to, and
+ * four buttons whose enabled state tells you which of them is the next sensible thing to press.
+ */
+
+:root {
+  --p-bg: #191b21;
+  --p-text: #e8eaf0;
+  --p-muted: #9aa3b2;
+  --p-line: #2c313c;
+  --p-card: #1d2027;
+  --p-well: #12141a;
+  --p-chip: #232733;
+  --p-accent: #2f6feb;
+  --p-accent-hover: #3b7cf7;
+  --p-focus: #7aa2ff;
+  --p-break: #3fbf8f;
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --p-bg: #ffffff;
+  --p-text: #16202e;
+  --p-muted: #5b6779;
+  --p-line: #d6dde9;
+  --p-card: #f6f8fc;
+  --p-well: #ffffff;
+  --p-chip: #eef2f8;
+  --p-accent: #2f6bea;
+  --p-accent-hover: #245cd4;
+  --p-focus: #2456c8;
+  --p-break: #1d8f66;
+  color-scheme: light;
+}
+
+/* The CANVAS, not the page: with a scheme declared, Chromium paints the canvas behind a document
+ * whose root background is unset, which would fill the transparent parts of the surface. */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow: hidden;
+  background: var(--p-bg);
+  color: var(--p-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* Nothing is painted until `init` says which job this frame has. */
+body.view-boot {
+  background: transparent;
+}
+
+body.view-boot .bar,
+body.view-boot .face,
+body.view-boot .compose {
+  display: none;
+}
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.phase {
+  font-weight: 600;
+}
+
+.status {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.face {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--p-line);
+  border-radius: 12px;
+  background: var(--p-well);
+}
+
+/* The number is the whole point of this block: tabular figures keep it from jittering as the
+ * digits change, which a proportional font would do once a second. */
+.countdown {
+  font-size: 44px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+  color: var(--p-focus);
+}
+
+.task {
+  max-width: 100%;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.compose {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pick-label {
+  flex: 0 0 auto;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.field {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-well);
+  color: inherit;
+  font: inherit;
+}
+
+.field:focus {
+  outline: 1px solid var(--p-accent);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn {
+  flex: 1 1 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-chip);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--p-accent);
+  border-color: var(--p-accent);
+  color: #ffffff;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--p-accent-hover);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --- the gate -------------------------------------------------------------
+ * Shown while a finished phase waits for its answer. It replaces the controls rather than sitting
+ * beside them: with a question on screen, pressing 开始 would start a session underneath it.
+ */
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.ask-label {
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.ask-text {
+  width: 100%;
+  resize: none;
+  padding: 7px 8px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-well);
+  color: inherit;
+  font: inherit;
+}
+
+.ask-text:focus {
+  outline: 1px solid var(--p-accent);
+}
+
+.ask-actions {
+  display: flex;
+  gap: 6px;
+}

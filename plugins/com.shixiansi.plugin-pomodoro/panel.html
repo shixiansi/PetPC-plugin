@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>番茄钟插件</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<!-- The 番茄钟 slot's surface: the countdown, one line of controls, and the todo the session is
+     attached to.
+
+     It is ONE block beside the pet (the column the panel used to fill), not a tab: the timer is
+     something you glance at, and a glance should not cost the whole panel.
+
+     The countdown ticks LOCALLY from `endsAtMs` (the absolute instant the host sends) instead of
+     counting down a number we keep: a dropped event then cannot make it drift, and a late one
+     cannot double-count. The host remains the only clock that decides when a phase ended. -->
+<body id="root" class="view-boot" data-surface="boot">
+<header class="bar">
+  <span id="phase" class="phase">番茄钟</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<main class="face">
+  <div id="countdown" class="countdown">--:--</div>
+  <div id="task" class="task"></div>
+</main>
+
+<footer class="compose">
+  <label class="pick">
+    <span class="pick-label">专注哪件</span>
+    <select id="todo" class="field"></select>
+  </label>
+  <div class="actions">
+    <button id="start" type="button" class="btn primary" disabled>开始</button>
+    <button id="pause" type="button" class="btn" disabled>暂停</button>
+    <button id="resume" type="button" class="btn" disabled>继续</button>
+    <button id="stop" type="button" class="btn" disabled>停止</button>
+  </div>
+
+  <!-- THE GATE. A finished focus parks the rest until this is answered, and a finished break parks
+       the next focus - the plugin's version of the two questions the host used to ask as bubbles.
+       It takes the whole footer while it is up: with a question on screen, the controls are not the
+       next thing to press. -->
+  <section id="ask" class="ask" hidden>
+    <label id="ask-label" class="ask-label" for="ask-text"></label>
+    <textarea id="ask-text" class="ask-text" rows="2"></textarea>
+    <div class="ask-actions">
+      <button id="ask-ok" type="button" class="btn primary">确定</button>
+      <button id="ask-skip" type="button" class="btn">跳过</button>
+    </div>
+  </section>
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
