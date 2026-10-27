@@ -15,7 +15,49 @@
  */
 
 :root {
+  /* The palette. Two schemes, one set of names: the light block below redefines
+   * these and not a single rule in this file has to know which is in force. */
+  --p-bg: #191b21;
+  --p-text: #e8eaf0;
+  --p-text-2: #c8cedb;
+  --p-muted: #9aa3b2;
+  --p-muted-2: #8b93a1;
+  --p-line: #2c313c;
+  --p-card: #1d2027;
+  --p-inset: #16181e;
+  --p-well: #12141a;
+  --p-chip: #232733;
+  --p-accent: #2f6feb;
+  --p-accent-tint: #1e2a44;
   color-scheme: dark;
+}
+
+/*
+ * THE LIGHT SCHEME.
+ *
+ * The market window can be drawn light, and this document is mounted inside it. The
+ * host cannot reach in here (the frame is sandboxed and opaque-origin), so it TELLS
+ * this plugin: `?theme=light` on the frame URL for the first paint, and a `theme`
+ * message when the switch is flipped while the frame is running. app.js turns either
+ * into `data-theme` on <html>; this block does the rest.
+ *
+ * The pet mounts the same document with no scheme at all, which stays dark - the
+ * colour it has always been there.
+ */
+html[data-theme="light"] {
+  --p-bg: #f4f6fa;
+  --p-text: #16202e;
+  --p-text-2: #2b3543;
+  --p-muted: #5b6779;
+  --p-muted-2: #6b7789;
+  --p-line: #d6dde9;
+  --p-card: #ffffff;
+  --p-inset: #f7f9fd;
+  --p-well: #ffffff;
+  --p-chip: #eef2f8;
+  --p-accent: #2f6bea;
+  --p-accent-tint: #e3ecfd;
+  color-scheme: light;
 }
 
 * {
@@ -56,8 +98,8 @@ body {
 }
 
 body {
-  background: #191b21;
-  color: #e8eaf0;
+  background: var(--p-bg);
+  color: var(--p-text);
   font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
 }
 
@@ -95,7 +137,7 @@ body.view-background {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
-  color: #9aa3b2;
+  color: var(--p-muted);
   font-size: 12px;
 }
 
@@ -105,9 +147,9 @@ body.view-background {
   gap: 14px;
   flex: 0 0 auto;
   padding: 8px 10px;
-  border: 1px solid #2c313c;
+  border: 1px solid var(--p-line);
   border-radius: 10px;
-  background: #1d2027;
+  background: var(--p-card);
 }
 
 .switch {
@@ -136,9 +178,9 @@ body.view-background {
   min-height: 0;
   min-width: 0;
   padding: 10px;
-  border: 1px solid #2c313c;
+  border: 1px solid var(--p-line);
   border-radius: 10px;
-  background: #16181e;
+  background: var(--p-inset);
 }
 
 /* Only the SCROLLING region grows, so the column headers stay put - the same
@@ -153,7 +195,7 @@ body.view-background {
 }
 
 .engine {
-  color: #9aa3b2;
+  color: var(--p-muted);
   font-size: 12px;
   font-weight: 400;
 }
@@ -171,21 +213,21 @@ body.view-background {
   margin: 0 0 8px;
   padding: 6px 8px;
   overflow-x: auto;
-  border: 1px solid #2c313c;
+  border: 1px solid var(--p-line);
   border-radius: 8px;
-  background: #12141a;
+  background: var(--p-well);
   white-space: nowrap;
 }
 
 .engine-help code {
-  color: #c8cedb;
+  color: var(--p-text-2);
   font-family: Consolas, "Cascadia Mono", monospace;
   font-size: 12px;
 }
 
 .note {
   margin: 0;
-  color: #8b93a1;
+  color: var(--p-muted-2);
   font-size: 12px;
 }
 
@@ -207,14 +249,14 @@ body.view-background {
   justify-content: space-between;
   gap: 8px;
   padding: 7px 9px;
-  border: 1px solid #2c313c;
+  border: 1px solid var(--p-line);
   border-radius: 8px;
-  background: #232733;
+  background: var(--p-chip);
   cursor: pointer;
 }
 
 .role:hover {
-  background: #2c313c;
+  background: var(--p-line);
 }
 
 .role-name {
@@ -232,7 +274,7 @@ body.view-background {
  * as a count rather than as a warning. */
 .role-count {
   flex: 0 0 auto;
-  color: #8b93a1;
+  color: var(--p-muted-2);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -240,12 +282,12 @@ body.view-background {
 /* The active character is the one the pet speaks as: one click switches it, the
    same behaviour the standalone studio had. */
 .role.active {
-  border-color: #2f6feb;
-  background: #1e2a44;
+  border-color: var(--p-accent);
+  background: var(--p-accent-tint);
 }
 
 .empty {
-  color: #8b93a1;
+  color: var(--p-muted-2);
   font-size: 12px;
   padding: 6px 0;
 }
@@ -261,9 +303,9 @@ body.view-background {
 
 .line {
   padding: 9px 10px;
-  border: 1px solid #2c313c;
+  border: 1px solid var(--p-line);
   border-radius: 9px;
-  background: #1d2027;
+  background: var(--p-card);
 }
 
 .line-head {
@@ -278,13 +320,13 @@ body.view-background {
 }
 
 .badge {
-  color: #9aa3b2;
+  color: var(--p-muted);
   font-size: 12px;
 }
 
 .line-text {
   margin: 6px 0 8px;
-  color: #c8cedb;
+  color: var(--p-text-2);
   font-size: 12px;
 }
 
@@ -296,16 +338,16 @@ body.view-background {
 
 .btn {
   padding: 5px 10px;
-  border: 1px solid #2c313c;
+  border: 1px solid var(--p-line);
   border-radius: 8px;
-  background: #232733;
+  background: var(--p-chip);
   color: inherit;
   font: inherit;
   cursor: pointer;
 }
 
 .btn:hover:not(:disabled) {
-  background: #2c313c;
+  background: var(--p-line);
 }
 
 .btn:disabled {

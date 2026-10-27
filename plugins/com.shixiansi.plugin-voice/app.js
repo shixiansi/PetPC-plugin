@@ -659,6 +659,7 @@ function pendingFor(purpose) {
 
 function onInit(data) {
   initialised = true;
+  applyTheme(data.theme);
   granted.clear();
   for (const p of data.granted || []) granted.add(p);
   applyView(data.surface || {});
@@ -918,6 +919,9 @@ function onMessage(event) {
     case 'init':
       onInit(data);
       break;
+    case 'theme':
+      applyTheme(data.theme);
+      break;
     case 'response':
       onResponse(data);
       break;
@@ -928,6 +932,23 @@ function onMessage(event) {
       break;
   }
 }
+
+/**
+ * Applies the window's colour scheme.
+ *
+ * The market program owns the scheme and this document mirrors it: a sandboxed frame
+ * cannot see the host's CSS, so the host hands it over - `?theme=` on the frame URL
+ * (applied by the inline script in panel.html BEFORE the first paint), `init`, and a
+ * `theme` message when the switch is flipped while the workshop is open.
+ * `data-theme` on <html> is the whole interface to style.css.
+ *
+ * The pet mounts the same document with no scheme at all, which stays dark.
+ */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+}
+
+applyTheme(new URLSearchParams(location.search).get('theme'));
 
 function wireWorkshop() {
   const save = () => {

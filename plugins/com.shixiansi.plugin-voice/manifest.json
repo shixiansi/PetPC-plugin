@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-voice",
   "name": "语音插件",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "shixiansi",
   "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
   "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch"],
