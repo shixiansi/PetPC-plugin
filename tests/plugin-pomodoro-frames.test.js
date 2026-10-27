@@ -1,0 +1,223 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
+import { describe, expect, test } from 'vitest';
+
+// Behaviour tests for the pomodoro plugin's TWO FRAMES (2.1.0).
+//
+// What this file is for: 2.1.0 moved the clock out of the surface's document and into the host's
+// headless frame. That split is the kind of change that can look right in the source and be wrong in
+// the running document, so three sentences are asserted against the messages a frame actually posts:
+//
+//   1. the TIMER writes state and records, publishes `phase-ended`, and touches no DOM;
+//   2. the VIEW never writes state - it publishes a `command` and reads state back;
+//   3. the fact the voice plugin consumes carries the phase's DEADLINE and is one-shot.
+//
+// The third is the whole point: `timer.phaseEnded` had no emitter after the host retired its timer,
+// so the voice plugin's two lines were silent.
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const pluginDir = path.join(here, '..', 'plugins', 'com.shixiansi.plugin-pomodoro');
+const html = readFileSync(path.join(pluginDir, 'panel.html'), 'utf8');
+const source = readFileSync(path.join(pluginDir, 'app.js'), 'utf8');
+const machineSrc = readFileSync(path.join(pluginDir, 'machine.js'), 'utf8');
+const manifest = JSON.parse(readFileSync(path.join(pluginDir, 'manifest.json'), 'utf8'));
+
+const STATE_KEY = 'pomodoro-state-v2';
+const RECORDS_KEY = 'pomodoro-records-v2';
+
+// The machine as one expression, so the app's `import` can resolve against a window global. In the
+// browser the bundle supplies this; in jsdom there is no module loader.
+const MACHINE_NS =
+  ';(function(){' +
+  machineSrc.replace(/^export /gm, '') +
+  ';return {emptyState, isRunning, remainingMs, formatCountdown, phaseLabel, startFocus, pause,' +
+  ' resume, stop, reset, finishPhase, skipPhase, reconcile, isBreakPhase, phaseDurationMs,' +
+  ' ceilSeconds, formatSeconds, PHASE_IDLE, PHASE_FOCUS, PHASE_SHORT_BREAK, PHASE_LONG_BREAK,' +
+  ' RUN_RUNNING, RUN_PAUSED, RUN_STOPPED};})()';
+
+/** Boots one appearance of the plugin and returns the frame's outbox. */
+function mount({ slot, kind = 'surface', granted }) {
+  const dom = new JSDOM(html, {
+    url: 'https://plugin.invalid/panel.html',
+    runScripts: 'outside-only',
+  });
+  const { window } = dom;
+  const sent = [];
+  window.parent = window;
+  window.postMessage = (msg) => sent.push(msg);
+  window.__machine = window.eval(MACHINE_NS);
+
+  window.eval(
+    source.replace("import * as machine from './machine.js';", 'const machine = window.__machine;'),
+  );
+
+  const say = (data) => {
+    const event = new window.MessageEvent('message', { data });
+    Object.defineProperty(event, 'source', { value: window });
+    window.dispatchEvent(event);
+  };
+
+  return {
+    window,
+    sent,
+    init: () => say({ v: 1, type: 'init', theme: 'dark', granted, surface: { slot, kind } }),
+    respond: (id, result, ok = true) => say({ v: 1, type: 'response', id, ok, result }),
+  };
+}
+
+const granted = ['storage', 'plugin.share', 'plugin.config', 'pet.surface', 'pet.bubble', 'events'];
+const allOf = (sent, method) => sent.filter((m) => m.method === method);
+const lastOf = (sent, method) => [...sent].reverse().find((m) => m.method === method);
+
+/** The last state read the frame issued, so the test can answer it. */
+const lastStateRead = (sent) =>
+  allOf(sent, 'storage.get')
+    .filter((m) => m.payload.key === STATE_KEY)
+    .at(-1);
+
+// `enabled: true` on every fixture: reconcile() returns early unless the timer is enabled, and
+// emptyState() defaults it off - correct for a fresh install, wrong for a fixture that wants the
+// clock to run.
+const endedState = (phase, endsAt) => ({
+  enabled: true,
+  phase,
+  runState: 'running',
+  endsAt: endsAt || Date.now() - 1000,
+  phaseStartedAt: (endsAt || Date.now()) - 26 * 60 * 1000,
+  completedCount: 0,
+  currentTodoId: 't1',
+  currentTodoTitle: '写周报',
+  asking: '',
+});
+
+describe('pomodoro 2.1.0: the manifest asks for a headless frame', () => {
+  test('it declares background and holds a permission that gates one', () => {
+    expect(manifest.background).toBe(true);
+    expect(manifest.permissions).toContain('events');
+    expect(manifest.permissions).toContain('plugin.share');
+  });
+
+  test('it still declares its surface, so right-clicking the pet opens something', () => {
+    expect(Array.isArray(manifest.surface) && manifest.surface.length > 0).toBe(true);
+  });
+});
+
+describe('pomodoro 2.1.0: the timer frame', () => {
+  test('it reads state and records', () => {
+    const { sent, init } = mount({ slot: 'background', granted });
+    init();
+    expect(allOf(sent, 'storage.get').some((m) => m.payload.key === STATE_KEY)).toBe(true);
+    expect(allOf(sent, 'storage.get').some((m) => m.payload.key === RECORDS_KEY)).toBe(true);
+  });
+
+  test('it draws nothing: the document stays at its boot state', () => {
+    const { window, init } = mount({ slot: 'background', granted });
+    init();
+    expect(window.document.getElementById('countdown').textContent).toBe('--:--');
+    expect(window.document.getElementById('root').className).toBe('view-background');
+  });
+
+  test('a finished focus publishes the fact AND parks on the summary gate', async () => {
+    const endedAt = 1_700_000_000_000;
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: JSON.stringify(endedState('focus', endedAt)) });
+    sent.length = 0;
+
+    // One tick, and it is on a 1 s interval.
+    await new Promise((r) => setTimeout(r, 1200));
+
+    const fact = allOf(sent, 'share.set').find((m) => m.payload.name === 'phase-ended');
+    expect(fact, 'no phase-ended was published: the voice plugin stays silent').toBeTruthy();
+    expect(JSON.parse(fact.payload.value)).toEqual({ phase: 'focus', at: endedAt });
+
+    const wrote = allOf(sent, 'storage.set').find((m) => m.payload.key === STATE_KEY);
+    expect(wrote, 'the timer did not persist the ended state').toBeTruthy();
+    expect(JSON.parse(wrote.payload.value).asking).toBe('summary');
+  });
+
+  test('a finished break publishes "break", which is the other spoken line', async () => {
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: JSON.stringify(endedState('shortBreak')) });
+    sent.length = 0;
+
+    await new Promise((r) => setTimeout(r, 1200));
+
+    const fact = allOf(sent, 'share.set').find((m) => m.payload.name === 'phase-ended');
+    expect(fact).toBeTruthy();
+    expect(JSON.parse(fact.payload.value).phase).toBe('break');
+  });
+
+  test('the record id is derived from the end moment, so a refire cannot duplicate it', async () => {
+    const endedAt = 1_700_000_000_000;
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: JSON.stringify(endedState('focus', endedAt)) });
+    sent.length = 0;
+
+    await new Promise((r) => setTimeout(r, 1200));
+
+    const recWrite = allOf(sent, 'storage.set').find((m) => m.payload.key === RECORDS_KEY);
+    expect(recWrite, 'no record was written for a finished focus').toBeTruthy();
+    const records = JSON.parse(recWrite.payload.value);
+    expect(records).toHaveLength(1);
+    expect(records[0].id).toBe(`rec-${endedAt}`);
+  });
+});
+
+describe('pomodoro 2.1.0: the view frame', () => {
+  test('it never writes state', async () => {
+    const { sent, init, respond } = mount({ slot: '', granted });
+    init();
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({ enabled: true, phase: 'idle', asking: '' }),
+    });
+    sent.length = 0;
+
+    await new Promise((r) => setTimeout(r, 1200));
+
+    expect(allOf(sent, 'storage.set')).toEqual([]);
+  });
+
+  test('a button press leaves a command, not a state write', () => {
+    const { window, sent, init, respond } = mount({ slot: '', granted });
+    init();
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({ enabled: true, phase: 'idle', runState: 'stopped', asking: '' }),
+    });
+    sent.length = 0;
+
+    window.document
+      .getElementById('start')
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+    const cmd = lastOf(sent, 'share.set');
+    expect(cmd, 'a click did not publish a command').toBeTruthy();
+    expect(cmd.payload.name).toBe('command');
+    expect(JSON.parse(cmd.payload.value).op).toBe('start');
+    // The one-writer rule: no state write from this frame, ever.
+    expect(allOf(sent, 'storage.set')).toEqual([]);
+  });
+
+  test('the gate is read from the state, so a closed surface does not lose the question', () => {
+    // `granted` is required here as in every other case: an ungranted view issues no reads at all,
+    // which is correct behaviour and would make this test vacuous rather than failing.
+    const { window, sent, init, respond } = mount({ slot: '', granted });
+    init();
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({
+        enabled: true,
+        phase: 'shortBreak',
+        runState: 'stopped',
+        asking: 'summary',
+      }),
+    });
+    // The gate panel is up even though this frame never saw the phase end: the question was
+    // persisted by the timer, and this document is showing it for the first time.
+    expect(window.document.getElementById('ask').hidden).toBe(false);
+    expect(window.document.getElementById('ask-label').textContent).toBe('这一段专注写点什么？');
+  });
+});
