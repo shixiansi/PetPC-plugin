@@ -1,17 +1,17 @@
 {
   "id": "com.shixiansi.plugin-chat",
   "name": "对话插件",
-  "version": "1.5.14",
+  "version": "1.7.0",
   "author": "shixiansi",
   "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-  "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage",
-                  "todos.read", "todos.write", "timer.control"],
+  "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage"],
   "shareLLM": true,
   "panel": true,
   "panelSlot": "chat",
   "surface": [
-    { "dx": -75, "dy": -118, "w": 300, "h": 44, "radius": 14 },
-    { "dx": -75, "dy": -66, "w": 300, "h": 66, "radius": 16 }
+    { "dx": -75, "dy": -148, "w": 300, "h": 40,  "radius": 14 },
+    { "dx": -79, "dy": -60,  "w": 308, "h": 60, "maxH": 156, "radius": 16 },
+    { "dx": -79, "dy": 4,    "w": 308, "h": 64, "anchor": "bottom", "radius": 16 }
   ],
   "config": [
     { "key": "llmEnabled", "label": "开启对话（插件是否启用由宿主的启停开关决定；此值仅随迁移保留）", "type": "bool", "default": "false" },
@@ -23,7 +23,6 @@
     { "key": "llmTimeoutSec", "label": "超时（秒）", "type": "number", "default": "90" },
     { "key": "llmSystemPrompt", "label": "人设", "type": "text", "default": "" },
     { "key": "llmHistoryTurns", "label": "上下文条数", "type": "number", "default": "12" },
-    { "key": "llmContextTodos", "label": "让它知道我的待办和番茄钟", "type": "bool", "default": "true" },
     { "key": "llmProactive", "label": "允许主动说话（保留值；宿主的主动说话已整体移除，见 §11 C8）", "type": "bool", "default": "false" },
     { "key": "llmProactiveMinGapMin", "label": "主动说话最小间隔（分钟）", "type": "number", "default": "60" },
     { "key": "llmDailyBudget", "label": "每日上限（次）", "type": "number", "default": "200" },

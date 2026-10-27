@@ -16,34 +16,47 @@
 </script>
 <link rel="stylesheet" href="./style.css">
 </head>
-<!-- ONE document, THREE appearances.
-     The host mounts this file in two different places: inside the conversation
-     slot (the panel, where it fills a 380x520 area) and once per declared
-     floating rectangle (the 300x44 reply strip and the 300x66 input pill, both above
-     the pet). `app.js` reads `surface.kind` and `surface.rectIndex`
-     from the `init` frame and swaps the root class between `view-panel` /
-     `view-card` / `view-bar`, which is what turns one document into the right
-     shape for each block.
+<!-- ONE document, FOUR appearances, and each one is a FIXED job.
 
-     The two floating blocks are placed by the manifest, BOTH above the pet and both
-     centred on it: the reply strip on top, and the input pill underneath it with a tail
-     pointing down at the pet's head. They are 300 wide and the pet is 150, so the input is
-     readable and the tail stays centred. Nothing in this file decides any of that - the
-     numbers live in manifest.json and the host crops the window to them, tail band
-     included, which is why the tail is drawn inside the declared rectangle. -->
-<body id="root" class="view-panel" data-surface="panel" data-shape="view-panel">
+     The host mounts this file in the conversation slot (the panel) and once per
+     declared floating rectangle (see manifest.json's `surface`). `app.js` reads
+     `surface.kind` and `surface.rectIndex` from the `init` frame and swaps the root
+     class between `view-panel` / `view-question` / `view-answer` / `view-input`.
+
+     Why four fixed boxes instead of one box that changes job: a box that is
+     sometimes the question, sometimes the answer and sometimes the composer can
+     only be told what it is at runtime, so every piece of code that draws into it
+     has to ask "which appearance am I?". That question has been answered wrong
+     more than once in this plugin's history (see the rectIndex notes in app.js),
+     and the answer only ever arrived after a round trip through storage. With a
+     fixed job per box the question disappears: the question box draws the
+     question, the answer box draws the answer, and neither ever turns into the
+     other.
+
+     The three floating boxes, in DECLARATION order (the index IS the job):
+       0  question   300x48   above the pet, at the top of the stack
+       1  answer     300x100  directly on the pet's head, tail pointing at it
+       2  input      300x56   under the pet's feet, no tail
+
+     The root class starts as `view-boot`: nothing is painted until `init` says
+     which box this is. Without that the frames paint a miniature PANEL (title bar,
+     message list, composer) for as long as the handshake takes, which is visible
+     as a flicker in every floating block. -->
+<body id="root" class="view-boot" data-surface="boot" data-shape="view-boot">
 <header class="bar">
   <span class="title">对话插件</span>
   <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
 </header>
 
-<!-- The message list owns the scroll: it is the only element that grows, and
-     `overflow-y:auto` plus `min-height:0` keeps that growth inside the box
-     instead of pushing the composer out of it.
+<!-- The message list. It is the PANEL's transcript, the QUESTION box's single line
+     and the ANSWER box's single line - one element, three slices of the same array
+     (app.js's `renderHistory` decides which slice). The INPUT box hides it
+     outright: a line drawn there would be a node nobody can ever see.
 
-     In the PANEL it shows the whole transcript. In the floating reply card it
-     shows ONLY the latest reply - `app.js`'s `renderHistory` decides which, from
-     the same `history` array, so the record is never lost, only not shown. -->
+     It owns the scroll in the panel (`overflow-y:auto` + `min-height:0`), so growth
+     stays inside the box instead of pushing the composer out of it. The two
+     one-line boxes CLIP instead of scrolling - both are fixed rectangles the window
+     is cropped to, so there is nowhere for a scrollbar to go. -->
 <main id="reply" class="reply" aria-live="polite"></main>
 
 <footer class="compose">
