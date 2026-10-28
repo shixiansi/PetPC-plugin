@@ -199,6 +199,13 @@ function paint() {
   // The gate takes the whole footer: while a question is up, the controls are not the next thing to
   // press, and leaving them clickable would let the user start a second session under a question.
   if (els.ask) els.ask.hidden = !gate;
+  // The gate REPLACES the controls, which is what the stylesheet's own comment says it does and
+  // what this line forgot to implement: with a question on screen the transport row is dead anyway
+  // (every button is disabled), and keeping it pushed the gate's buttons past the bottom of the
+  // card - reported as 「界面被截断了」 with a screenshot showing both rows.
+  // `workshop || gate`: the control center's mount hides these rows for good (no timer runs
+  // there), so this must not un-hide them on every paint.
+  if (els.compose) els.compose.hidden = workshop || !!gate;
   for (const el of [els.todo, els.start, els.pause, els.resume, els.stop]) {
     if (el) el.disabled = el.disabled || !!gate;
   }
@@ -666,7 +673,7 @@ function pushBadge() {
  * without `maxH`, so the request was ACCEPTED (`surface.blocks ok` in the log) and then ignored -
  * the card stayed 260 tall and the buttons stayed cut. Hence `maxH: 480` in the rect.
  */
-const GATE_BLOCK_H = 430;
+const GATE_BLOCK_H = 360;
 let askedGateH = null;
 function fitToGate(open) {
   if (role !== 'view' || mountKind !== 'surface') return;
