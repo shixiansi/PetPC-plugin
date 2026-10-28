@@ -502,6 +502,22 @@ function checkSource(report, dir, info) {
   if (/html\[data-theme=["']light["']\]/.test(allCss) && !/get\(\s*['"]theme['"]\s*\)/.test(html)) {
     add('theme-consistency', 'WARN', '样式里有浅色主题，但 entry 没有读地址栏上的 ?theme=', '控制中心首帧会闪一下深色（只影响控制中心；桌宠永远是深色）');
   }
+
+  // A surface block is sized by the MANIFEST, not by its content, so content that grows is cut off
+  // silently - the card loses its last row and nothing reports it. Only a plugin that measures itself
+  // can ask for more room, and the host honours that only for a rect that declares `maxH`. Both
+  // halves are checked here because the failure is invisible at runtime (the pomodoro's 2.3.3-2.3.6
+  // story: five releases, each diagnosed from a screenshot).
+  const surfaceRects = info?.surface?.length ?? 0;
+  if (surfaceRects > 0) {
+    if (!called.has('surface.blocks')) {
+      add('surface-fixed-height', 'WARN', `声明了 ${surfaceRects} 块浮层面，但从不调用 surface.blocks`,
+        '卡片高度是声明死的：内容一多就会被裁掉，而且不会报错。内容可能变长就按 scrollHeight 请求高度（surface.blocks 的 sizes），并在矩形里声明 maxH');
+    } else if (!(info.surface || []).some((r) => Number(r.maxH) > 0)) {
+      add('surface-no-maxh', 'WARN', '调用了 surface.blocks，但矩形里没有声明 maxH',
+        '宿主只对声明了 maxH 的块应用 sizes —— 请求会被接受、然后被丢弃（日志里有一条 WARN，调用本身返回成功）');
+    }
+  }
 }
 
 /** 收集 request('method', …) 的调用点。只认字面量方法名，动态拼出来的会漏（记为 WARN）。 */
