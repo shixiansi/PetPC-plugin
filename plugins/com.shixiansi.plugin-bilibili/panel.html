@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>B 站刷视频插件</title>
+  <!--
+    The window's colour scheme, applied BEFORE the stylesheet paints. The host puts
+    `?theme=light|dark` on the frame URL for exactly this reason: a document that waited
+    for the bridge's `init` would flash the wrong scheme for a frame or two. app.js takes
+    over from here for a switch that happens while this frame is already running.
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    One document, two appearances, and which one this is comes from the `init` message
+    and nowhere else.
+
+    #background  the pet's headless frame. It draws NOTHING, ever: it exists so that a
+                 timer keeps running while no window is open. Every card below is
+                 `hidden` in this appearance - the host crops its window to zero pixels.
+    #workshop    the plugin market's view: status, one-video debug, the inbox, the
+                 login card, the log.
+  -->
+  <div id="root">
+    <div id="background" hidden></div>
+
+    <main id="workshop" class="workshop">
+      <header class="head">
+        <h1>B 站刷视频</h1>
+        <p class="sub">按你设的分区和偏好自己去刷；字幕交给大模型摘要、打分，够有用才叫桌宠说一句。</p>
+      </header>
+
+      <section class="card" id="status-card">
+        <h2>现在在做什么</h2>
+        <div class="chips">
+          <span class="chip" id="st-run" data-state="off">未知</span>
+          <span class="chip" id="st-next">下次：—</span>
+          <span class="chip" id="st-today">今日：0 / 0 条</span>
+          <span class="chip" id="st-push">打扰：0 / 0 次</span>
+          <span class="chip" id="st-model">模型：未知</span>
+          <span class="chip" id="st-account" data-state="off">账号：未登录</span>
+        </div>
+        <p class="note bad" id="st-paused" hidden></p>
+        <p class="note" id="st-note">还没有收到桌宠那边的状态。</p>
+        <div class="toolbar">
+          <button type="button" id="st-toggle">暂停自动刷</button>
+          <span class="spacer"></span>
+          <button type="button" class="outline" id="st-round">立刻跑一轮</button>
+        </div>
+        <p class="note">
+          自动刷靠的是桌宠里的常驻帧，关掉市场这个窗口也照跑；这个窗口只是看和调。
+        </p>
+      </section>
+
+      <section class="card" id="debug-card">
+        <h2>单条调试</h2>
+        <p class="note">
+          粘一个 BV 号跑一遍：取 cid → 拉字幕轨 → 下字幕 → 摘要 → 打分。
+          <b>不推送、不评论</b>，只看它到底怎么想的。
+        </p>
+        <div class="toolbar">
+          <input type="text" id="dbg-bvid" placeholder="BV1xx411c7mD" spellcheck="false" />
+          <button type="button" id="dbg-run">跑一遍</button>
+        </div>
+        <p class="note bad" id="dbg-error" hidden></p>
+        <ul class="steps" id="dbg-steps">
+          <li data-step="view" data-state="idle"><b>① 视频信息</b><span>未开始</span></li>
+          <li data-step="player" data-state="idle"><b>② 字幕轨</b><span>未开始</span></li>
+          <li data-step="subtitle" data-state="idle"><b>③ 字幕内容</b><span>未开始</span></li>
+          <li data-step="digest" data-state="idle"><b>④ 摘要打分</b><span>未开始</span></li>
+        </ul>
+        <div class="digest" id="dbg-digest" hidden>
+          <p id="dbg-summary"></p>
+          <ul id="dbg-points"></ul>
+          <p class="note" id="dbg-verdict"></p>
+        </div>
+      </section>
+
+      <section class="card" id="inbox-card">
+        <h2>收件箱</h2>
+        <p class="note">刷到过的都在这儿（含没推送的），最近 200 条。气泡只是「有新信」的提示。</p>
+        <p class="note" id="inbox-empty" hidden>还没有任何记录。可以先在下面「单条调试」跑一条。</p>
+        <ul class="inbox" id="inbox-list"></ul>
+        <div class="pager" id="inbox-pager" hidden>
+          <button type="button" id="inbox-prev">上一页</button>
+          <span class="label" id="inbox-page">第 0 / 0 页</span>
+          <button type="button" id="inbox-next">下一页</button>
+          <span class="spacer"></span>
+          <button type="button" class="danger" id="inbox-clear">清空收件箱</button>
+        </div>
+      </section>
+
+      <section class="card" id="login-card">
+        <h2>B 站账号</h2>
+        <p class="note">
+          评论和「需要登录才给字幕」的视频要它。<b>扫码最省事</b>：二维码由桌宠那边生成，凭据也由它直接
+          写进加密存储，这个页面从头到尾看不到明文。也可以把浏览器里 <code>www.bilibili.com</code>
+          的整串 Cookie 粘进来。
+        </p>
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab" id="login-tab-qr" data-tab="qr" role="tab">扫码登录</button>
+          <button type="button" class="tab" id="login-tab-paste" data-tab="paste" role="tab">粘贴 Cookie</button>
+        </div>
+
+        <div id="login-qr-pane">
+          <div class="qr-box">
+            <svg id="qr-svg" viewBox="0 0 1 1" role="img" aria-label="B 站登录二维码"></svg>
+            <p class="note" id="qr-hint">点「生成二维码」，然后用 B 站手机客户端扫。</p>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="qr-start">生成二维码</button>
+            <button type="button" class="outline" id="qr-cancel">取消</button>
+            <span class="spacer"></span>
+            <span class="chip" id="qr-status" data-state="off">未开始</span>
+          </div>
+        </div>
+
+        <div id="login-paste-pane" hidden>
+          <textarea id="login-cookie" placeholder="SESSDATA=xxxx; bili_jct=yyyy; DedeUserID=123456" spellcheck="false"></textarea>
+          <div class="toolbar">
+            <button type="button" id="login-save">保存并验证</button>
+            <button type="button" class="danger" id="login-clear">清除凭据</button>
+            <span class="spacer"></span>
+            <span class="chip" id="login-state" data-state="off">未登录</span>
+          </div>
+          <p class="note" id="login-note"></p>
+        </div>
+      </section>
+
+      <section class="card" id="log-card">
+        <h2>最近发生了什么</h2>
+        <p class="note" id="log-empty" hidden>还没有记录。</p>
+        <ol class="log" id="log-list"></ol>
+        <div class="toolbar">
+          <button type="button" class="danger" id="log-clear">清空日志</button>
+        </div>
+      </section>
+
+      <section class="card" id="privacy-card">
+        <h2>要说清楚的几件事</h2>
+        <ul class="facts">
+          <li>字幕文本会发给你在 <code>llmBaseUrl</code> / 对话插件里配置的模型端点；字幕原文不落盘，只留摘要。</li>
+          <li>只读公开数据与字幕，不下载音视频，不点赞、不投币、不收藏、不发弹幕。</li>
+          <li>评论是唯一会以你的账号对外发言的动作：默认关闭；打开后默认也只在收件箱里出草稿，你点「发送」才发。</li>
+          <li>Cookie 只在宿主的请求里出现，不进这个页面，也不进日志。</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

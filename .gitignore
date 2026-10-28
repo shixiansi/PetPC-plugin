@@ -1,0 +1,19 @@
+# The market repo is a *distribution* repo: dist/ carries the packaged plugin
+# zips on purpose (plugin-market design.md D1), so unlike the host repo it is
+# NOT ignored here. Everything below is scratch or OS/editor noise.
+node_modules/
+dist/*.tmp
+*.zip.tmp
+tmp/
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor noise
+.vscode/
+.idea/
+*.swp
+*~

@@ -1,0 +1,65 @@
+{
+  "id": "com.shixiansi.plugin-todo",
+  "name": "待办插件",
+  "version": "1.2.0",
+  "author": "shixiansi",
+  "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "plugin.share",
+    "pet.surface",
+    "pet.bubble",
+    "events"
+  ],
+  "background": true,
+  "panelSlot": "todos",
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -160,
+      "w": 380,
+      "h": 520,
+      "radius": 14
+    }
+  ],
+  "config": [
+    {
+      "key": "remindEnabled",
+      "label": "定时提醒",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "remindIntervalMin",
+      "label": "提醒间隔（分钟）",
+      "type": "number",
+      "default": "30"
+    },
+    {
+      "key": "remindJitterMin",
+      "label": "随机抖动（分钟，最多）",
+      "type": "number",
+      "default": "3"
+    },
+    {
+      "key": "remindFrom",
+      "label": "从几点开始（HH:MM）",
+      "type": "text",
+      "default": "09:00"
+    },
+    {
+      "key": "remindTo",
+      "label": "到几点结束（HH:MM）",
+      "type": "text",
+      "default": "22:00"
+    },
+    {
+      "key": "remindMaxItems",
+      "label": "一次最多提几件",
+      "type": "number",
+      "default": "3"
+    }
+  ],
+  "entry": "panel.html"
+}

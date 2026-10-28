@@ -1,0 +1,14 @@
+# No end-of-line translation, for anything.
+#
+# This repo's artefacts are hash-addressed: tools/package.ps1 zips the plugin
+# sources and records the SHA256 of the result in index.json, and the host
+# refuses to install a package whose bytes do not match that hash. Git's default
+# `core.autocrlf` behaviour would rewrite the line endings of manifest.json,
+# panel.html, app.js and style.css on checkout, so a fresh clone on Windows
+# would package *different bytes* than the committed zip and the published
+# index.json would never verify.
+#
+# `-text` disables that conversion in both directions, so what is committed is
+# exactly what is packaged. The plugin sources are checked in with LF endings,
+# and the .zip files are binary and were never converted anyway.
+* -text

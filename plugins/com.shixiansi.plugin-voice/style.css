@@ -1,0 +1,372 @@
+/* Style discipline for a plugin inside a clipped window region.
+ *
+ * No box-shadow, no filter, no transform: those paint outside an element's own
+ * border box, and the workshop is hosted inside a window whose region is decided
+ * by the host program. Decoration that reaches past it is simply cut off.
+ *
+ * TWO appearances share this file:
+ *
+ *   .view-background  the pet's headless frame. Nothing is drawn - the whole
+ *                     document is hidden - and the class exists so a DOM dump can
+ *                     tell which appearance a frame got.
+ *   .view-workshop    the two-column work surface, hosted by the plugin market.
+ *                     The columns are the studio's original layout: a character
+ *                     list beside five lines of takes.
+ */
+
+:root {
+  /* The palette. Two schemes, one set of names: the light block below redefines
+   * these and not a single rule in this file has to know which is in force. */
+  --p-bg: #191b21;
+  --p-text: #e8eaf0;
+  --p-text-2: #c8cedb;
+  --p-muted: #9aa3b2;
+  --p-muted-2: #8b93a1;
+  --p-line: #2c313c;
+  --p-card: #1d2027;
+  --p-inset: #16181e;
+  --p-well: #12141a;
+  --p-chip: #232733;
+  --p-accent: #2f6feb;
+  --p-accent-tint: #1e2a44;
+  color-scheme: dark;
+}
+
+/*
+ * THE LIGHT SCHEME.
+ *
+ * The market window can be drawn light, and this document is mounted inside it. The
+ * host cannot reach in here (the frame is sandboxed and opaque-origin), so it TELLS
+ * this plugin: `?theme=light` on the frame URL for the first paint, and a `theme`
+ * message when the switch is flipped while the frame is running. app.js turns either
+ * into `data-theme` on <html>; this block does the rest.
+ *
+ * The pet mounts the same document with no scheme at all, which stays dark - the
+ * colour it has always been there.
+ */
+html[data-theme="light"] {
+  --p-bg: #f4f6fa;
+  --p-text: #16202e;
+  --p-text-2: #2b3543;
+  --p-muted: #5b6779;
+  --p-muted-2: #6b7789;
+  --p-line: #d6dde9;
+  --p-card: #ffffff;
+  --p-inset: #f7f9fd;
+  --p-well: #ffffff;
+  --p-chip: #eef2f8;
+  --p-accent: #2f6bea;
+  --p-accent-tint: #e3ecfd;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * Two ways this document hides things, and BOTH are needed.
+ *
+ * `[hidden]` covers the `hidden` ATTRIBUTE, which is what the two appearances use
+ * (the background div and whichever view is not showing). It needs `!important`
+ * because the browser's own rule lives in the user-agent stylesheet, so ANY author rule
+ * that sets `display` outranks it and a `hidden` element stays visible.
+ *
+ * `.hidden` covers the `hidden` CLASS, which is what `renderEngineHelp` toggles. It was
+ * MISSING, and the failure was exactly the kind the comment above warns about:
+ * `classList.toggle('hidden', true)` ran on an element no rule matched, so the command
+ * to start the engine stayed on screen permanently - including while the engine was
+ * running, which makes the workshop look like it does not know what it is doing.
+ *
+ * They are two selectors rather than one because they match different things: an author
+ * rule for `.hidden` does not make the attribute work, and an attribute rule does not
+ * make the class work.
+ */
+[hidden] {
+  display: none !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--p-bg);
+  color: var(--p-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* The headless appearance draws nothing at all. */
+body.view-background {
+  background: transparent;
+}
+
+/* --- the workshop ---------------------------------------------------------- */
+
+.workshop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.status {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 10px;
+  background: var(--p-card);
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* Two columns, and this is the layout the pet's 380px panel could not hold -
+   which is why the workshop is hosted by the market's 980px window instead of
+   squeezed into a panel tab. */
+.cols {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.col-roles,
+.col-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 10px;
+  background: var(--p-inset);
+}
+
+/* Only the SCROLLING region grows, so the column headers stay put - the same
+   rule the pet's panel uses for its message list. */
+.col-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.engine {
+  color: var(--p-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* The command that starts the synthesis engine.
+ *
+ * Shown only when a probe has definitely failed. It is TEXT, not a button, and that is
+ * the point rather than a shortcut: starting a process is not a capability any plugin
+ * has - granting one would hand every installed plugin arbitrary code execution - so
+ * the plugin can explain the command and nothing more.
+ *
+ * It scrolls horizontally rather than wrapping: a shell command broken across two
+ * lines is one the user cannot copy in one go. */
+.engine-help {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-well);
+  white-space: nowrap;
+}
+
+.engine-help code {
+  color: var(--p-text-2);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+}
+
+.note {
+  margin: 0;
+  color: var(--p-muted-2);
+  font-size: 12px;
+}
+
+.roles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.role {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-chip);
+  cursor: pointer;
+}
+
+.role:hover {
+  background: var(--p-line);
+}
+
+.role-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* How many of the five lines this character can actually speak.
+ *
+ * It is shown for every character including the active one, because it answers the
+ * question that decides whether clicking is worth it: "if I switch, will anything
+ * change?" A character with 0/5 renders nothing and the pet keeps using the packaged
+ * clips - a normal state (the studio called it 待生成), not an error, so it is reported
+ * as a count rather than as a warning. */
+.role-count {
+  flex: 0 0 auto;
+  color: var(--p-muted-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The active character is the one the pet speaks as: one click switches it, the
+   same behaviour the standalone studio had. */
+.role.active {
+  border-color: var(--p-accent);
+  background: var(--p-accent-tint);
+}
+
+.empty {
+  color: var(--p-muted-2);
+  font-size: 12px;
+  padding: 6px 0;
+}
+
+.lines {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.line {
+  padding: 9px 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 9px;
+  background: var(--p-card);
+}
+
+.line-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.line-label {
+  font-weight: 600;
+}
+
+.badge {
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.line-text {
+  margin: 6px 0 8px;
+  color: var(--p-text-2);
+  font-size: 12px;
+}
+
+.line-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn {
+  padding: 5px 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-chip);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--p-line);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.tiny {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.btn.wide {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .cols {
+    grid-template-columns: 1fr;
+  }
+}

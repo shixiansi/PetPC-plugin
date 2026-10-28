@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>待办插件</title>
+<!--
+  The window's colour scheme, applied BEFORE the stylesheet paints: the host puts
+  `?theme=light|dark` on the frame URL so a light window does not flash a dark panel. app.js takes
+  over for a switch that happens while this frame is running.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<!-- ONE document, TWO jobs (the host mounts it twice, and `surface.kind`/`surface.slot` decide):
+       kind 'surface'   the list itself, in the column beside the pet
+       slot 'background' a HEADLESS frame that only runs the reminder loop
+
+     The background frame draws nothing at all - `body.bg` makes it transparent and hides every
+     element - because it is mounted with `display: none` by the host and must never take a pixel
+     or a click. It exists because a reminder has to fire while no interface is open, and only a
+     mounted frame receives anything.
+
+     The list is a surface rather than a panel tab because the host's panel is going away: the
+     column beside the pet (the rectangle the panel used to fill) is where a plugin's full view
+     lives now. -->
+<body id="root" class="view-boot" data-surface="boot">
+<header class="bar">
+  <span class="title">待办</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<!-- The list owns the scroll: it is the only element that grows, and `overflow-y:auto` with
+     `min-height:0` keeps that growth inside the box instead of pushing the composer out of it. -->
+<main id="list" class="list" aria-live="polite"></main>
+
+<footer class="compose">
+  <input id="title" class="field" type="text" placeholder="要做的事…" aria-label="新待办" disabled>
+  <button id="add" type="button" class="btn primary" disabled>添加</button>
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

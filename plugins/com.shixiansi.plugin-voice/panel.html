@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>语音插件</title>
+<!--
+  The market window's colour scheme, applied BEFORE the stylesheet paints: the host
+  puts `?theme=light|dark` on the frame URL so the workshop does not flash dark inside
+  a light window. app.js takes over for a switch that happens while it is running.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<!-- ONE document, TWO appearances.
+     The host mounts this file in two places, and `app.js` reads
+     `surface.slot` from the `init` frame to decide which one it is drawing:
+
+       surface.slot === 'background'  the pet's HEADLESS frame. No interface at
+                                      all: it subscribes to the timer/reminder
+                                      events and plays a clip. This is the
+                                      appearance that makes the plugin work while
+                                      the panel is closed.
+       surface.slot === 'workshop'    the WORKSHOP, hosted by the plugin market
+                                      program in that plugin's settings area.
+
+     The workshop lives in the market rather than in the pet's panel because it is
+     a two-column work surface (a character list beside five lines of takes) and
+     the pet's panel is a fixed 380x520 rectangle that cannot grow. That is the
+     same reason the standalone voice studio existed before this plugin replaced
+     it - the work surface did not shrink, it just changed host. -->
+<body id="root" class="view-workshop" data-view="workshop">
+<div id="bg" class="bg" hidden></div>
+
+<main id="workshop" class="workshop">
+  <header class="bar">
+    <span class="title">语音</span>
+    <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+  </header>
+
+  <!-- The two switches. They are the plugin's OWN settings now: the pet used to
+       hold them in config.json, and it no longer knows speech exists. -->
+  <div class="switches">
+    <label class="switch">
+      <input type="checkbox" id="on-pomodoro" disabled>
+      <span>番茄钟结束时朗读</span>
+    </label>
+    <label class="switch">
+      <input type="checkbox" id="on-reminder" disabled>
+      <span>待办提醒时朗读</span>
+    </label>
+    <label class="switch">
+      <input type="checkbox" id="on-master" disabled>
+      <span>总开关</span>
+    </label>
+  </div>
+
+  <div class="cols">
+    <!-- Left: the characters. Clicking one switches the pet to that voice
+         immediately, the same one-click behaviour the studio had. -->
+    <section class="col-roles">
+      <div class="col-head">
+        <span>角色</span>
+        <button id="reload-roles" type="button" class="btn tiny" disabled>重新读取</button>
+      </div>
+      <p id="role-note" class="note"></p>
+      <ul id="roles" class="roles"></ul>
+      <button id="adopt-all" type="button" class="btn wide" disabled>整套换成这个角色</button>
+      <p class="note">只把<strong>已经录好</strong>的句子换成这个角色，不会调用语音服务。</p>
+    </section>
+
+    <!-- Right: one row per line. -->
+    <section class="col-lines">
+      <div class="col-head">
+        <span>台词</span>
+        <span id="engine-state" class="engine">语音服务状态未知</span>
+      </div>
+      <!-- The command to start the engine yourself, shown only when a probe says it is
+           down. The plugin may not start it: "launch a process" as a capability would
+           hand every installed plugin arbitrary code execution, so the user runs this.
+           It is a <code> block rather than a button for the same reason - there is
+           nothing here that starts anything. -->
+      <p id="engine-help" class="engine-help hidden"><code>python api_v2.py -a 127.0.0.1 -p 9880</code></p>
+      <div id="lines" class="lines"></div>
+    </section>
+  </div>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

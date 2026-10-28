@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>对话插件</title>
+<!--
+  The market window's colour scheme, applied BEFORE the stylesheet paints: the host
+  puts `?theme=light|dark` on the frame URL so a light window does not flash a dark
+  panel. app.js takes over for a switch that happens while this frame is running.
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<!-- ONE document, FOUR appearances, and each one is a FIXED job.
+
+     The host mounts this file in the conversation slot (the panel) and once per
+     declared floating rectangle (see manifest.json's `surface`). `app.js` reads
+     `surface.kind` and `surface.rectIndex` from the `init` frame and swaps the root
+     class between `view-panel` / `view-question` / `view-answer` / `view-input`.
+
+     Why four fixed boxes instead of one box that changes job: a box that is
+     sometimes the question, sometimes the answer and sometimes the composer can
+     only be told what it is at runtime, so every piece of code that draws into it
+     has to ask "which appearance am I?". That question has been answered wrong
+     more than once in this plugin's history (see the rectIndex notes in app.js),
+     and the answer only ever arrived after a round trip through storage. With a
+     fixed job per box the question disappears: the question box draws the
+     question, the answer box draws the answer, and neither ever turns into the
+     other.
+
+     The three floating boxes, in DECLARATION order (the index IS the job):
+       0  question   300x48   above the pet, at the top of the stack
+       1  answer     300x100  directly on the pet's head, tail pointing at it
+       2  input      300x56   under the pet's feet, no tail
+
+     The root class starts as `view-boot`: nothing is painted until `init` says
+     which box this is. Without that the frames paint a miniature PANEL (title bar,
+     message list, composer) for as long as the handshake takes, which is visible
+     as a flicker in every floating block. -->
+<body id="root" class="view-boot" data-surface="boot" data-shape="view-boot">
+<header class="bar">
+  <span class="title">对话插件</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<!-- The message list. It is the PANEL's transcript, the QUESTION box's single line
+     and the ANSWER box's single line - one element, three slices of the same array
+     (app.js's `renderHistory` decides which slice). The INPUT box hides it
+     outright: a line drawn there would be a node nobody can ever see.
+
+     It owns the scroll in the panel (`overflow-y:auto` + `min-height:0`), so growth
+     stays inside the box instead of pushing the composer out of it. The two
+     one-line boxes CLIP instead of scrolling - both are fixed rectangles the window
+     is cropped to, so there is nowhere for a scrollbar to go. -->
+<main id="reply" class="reply" aria-live="polite"></main>
+
+<footer class="compose">
+  <textarea id="prompt" class="prompt" rows="1" placeholder="输入想说的话…" aria-label="消息" disabled></textarea>
+  <div class="actions">
+    <!-- The send button is an ICON, not the word 发送. Its accessible name is the
+         aria-label, so a screen reader still announces it; the glyph is an inline
+         SVG rather than a font or an image file because this document runs in an
+         opaque-origin sandbox and must not fetch anything. The path is
+         `ph:paper-plane-tilt-fill` from Iconify. -->
+    <button id="send" type="button" class="btn primary icon-only" aria-label="发送" title="发送" disabled>
+      <svg class="icon" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M231.4 44.34v.15l-58.2 191.94a15.88 15.88 0 0 1-14 11.51q-.69.06-1.38.06a15.86 15.86 0 0 1-14.42-9.15l-36.4-74.7a4 4 0 0 1 .77-4.58l57.92-57.92a8 8 0 0 0-11.31-11.31l-57.95 57.92a4 4 0 0 1-4.58.77l-74.77-36.39a16 16 0 0 1 2.49-29.8l191.94-58.2h.15a16 16 0 0 1 19.74 19.7"/>
+      </svg>
+    </button>
+    <button id="stop" type="button" class="btn" disabled>停止</button>
+    <button id="surface" type="button" class="btn" disabled>浮层面</button>
+  </div>
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "id": "com.example.overflow-card",
+  "name": "反向样本：放不下的卡片",
+  "version": "1.0.0",
+  "author": "example",
+  "description": "故意越界的最小插件：声明的矩形是 200×120，里面塞一个 300 高的列表。它不属于任何市场，只作为 preview --check 的常设反向样本——工具说 PASS 的时候，先用它确认工具还看得见东西。",
+  "permissions": [],
+  "surface": [
+    { "dx": 160, "dy": -160, "w": 200, "h": 120, "radius": 8 }
+  ],
+  "entry": "index.html"
+}

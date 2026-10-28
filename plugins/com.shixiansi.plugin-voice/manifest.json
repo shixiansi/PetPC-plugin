@@ -1,0 +1,33 @@
+{
+  "id": "com.shixiansi.plugin-voice",
+  "name": "语音插件",
+  "version": "1.0.2",
+  "author": "shixiansi",
+  "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
+  "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share"],
+  "shareRead": ["com.shixiansi.plugin-pomodoro/phase-ended"],
+  "background": true,
+  "netHosts": ["127.0.0.1:9880"],
+  "assets": [
+    "lines/focus_end.wav",
+    "lines/break_end.wav",
+    "lines/reminder_due.wav",
+    "lines/reminder_overdue.wav",
+    "lines/reminder_none.wav"
+  ],
+  "config": [
+    { "key": "ttsBaseUrl", "label": "语音服务地址", "type": "text", "default": "http://127.0.0.1:9880", "hostWhitelist": true },
+    { "key": "gptPath", "label": "GPT 权重路径", "type": "text", "default": "" },
+    { "key": "sovitsPath", "label": "SoVITS 权重路径", "type": "text", "default": "" },
+    { "key": "refPath", "label": "参考音频路径", "type": "text", "default": "" },
+    { "key": "promptText", "label": "参考音频文本（可留空）", "type": "text", "default": "" },
+    { "key": "promptLang", "label": "参考音频语言", "type": "text", "default": "zh" },
+    { "key": "speed", "label": "语速", "type": "number", "default": "1" },
+    { "key": "temperature", "label": "随机性", "type": "number", "default": "1" },
+    { "key": "topK", "label": "topK", "type": "number", "default": "15" },
+    { "key": "topP", "label": "topP", "type": "number", "default": "1" },
+    { "key": "repetitionPenalty", "label": "重复惩罚", "type": "number", "default": "1.35" },
+    { "key": "seed", "label": "随机种子（-1 为随机）", "type": "number", "default": "-1" }
+  ],
+  "entry": "panel.html"
+}

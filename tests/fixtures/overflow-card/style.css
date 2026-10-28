@@ -1,0 +1,8 @@
+/* 插件浮层面必须透明、且只读浅色配色（见手册第 7 节）；这里照做，好让这个样本"只有一处错"。 */
+:root { color-scheme: only light; background: transparent; }
+html, body { margin: 0; background: transparent; }
+body { font: 13px/1.5 system-ui, "Microsoft YaHei", sans-serif; color: #e6e8ee; }
+.card { padding: 8px; }
+h1 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+ul { margin: 0; padding: 0; list-style: none; }
+li { height: 20px; line-height: 20px; }

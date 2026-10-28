@@ -1,0 +1,14 @@
+{
+  "name": "pet-pc-plugins",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PetPC plugin market: the sample chat plugin, the packaging script and the static catalogue.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vitest": "^0.34.6"
+  }
+}

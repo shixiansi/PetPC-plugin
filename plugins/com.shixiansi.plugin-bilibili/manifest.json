@@ -1,0 +1,123 @@
+{
+  "id": "com.shixiansi.plugin-bilibili",
+  "name": "B 站刷视频插件",
+  "version": "1.0.0",
+  "author": "shixiansi",
+  "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
+  "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share"],
+  "background": true,
+  "shareRead": ["com.shixiansi.plugin-qq/bili-jobs"],
+  "netHosts": [
+    "api.bilibili.com",
+    "passport.bilibili.com",
+    "aisubtitle.hdslb.com",
+    "i0.hdslb.com",
+    "i1.hdslb.com",
+    "i2.hdslb.com",
+    "s1.hdslb.com",
+    "www.bilibili.com",
+    "m.bilibili.com",
+    "b23.tv",
+    "space.bilibili.com",
+    "bili2233.cn"
+  ],
+  "config": [
+    {
+      "key": "rids",
+      "label": "分区（可多选）",
+      "type": "select",
+      "multiple": true,
+      "default": "36,188,181",
+      "options": [
+        { "value": "36", "label": "知识" },
+        { "value": "188", "label": "科技" },
+        { "value": "181", "label": "影视" },
+        { "value": "1", "label": "动画" },
+        { "value": "13", "label": "番剧" },
+        { "value": "167", "label": "国创" },
+        { "value": "23", "label": "电影" },
+        { "value": "11", "label": "电视剧" },
+        { "value": "177", "label": "纪录片" },
+        { "value": "71", "label": "综艺" },
+        { "value": "3", "label": "音乐" },
+        { "value": "129", "label": "舞蹈" },
+        { "value": "4", "label": "游戏" },
+        { "value": "160", "label": "生活" },
+        { "value": "211", "label": "美食" },
+        { "value": "217", "label": "动物" },
+        { "value": "119", "label": "鬼畜" },
+        { "value": "155", "label": "时尚" },
+        { "value": "202", "label": "资讯" },
+        { "value": "5", "label": "娱乐" },
+        { "value": "234", "label": "运动" },
+        { "value": "223", "label": "汽车" }
+      ]
+    },
+    {
+      "key": "source",
+      "label": "来源（可多选）",
+      "type": "select",
+      "multiple": true,
+      "default": "ranking",
+      "options": [
+        { "value": "ranking", "label": "分区排行榜" },
+        { "value": "region", "label": "分区最新投稿" },
+        { "value": "search", "label": "关键词搜索（要填下面的关键词）" },
+        { "value": "up", "label": "指定 UP 主（要填下面的 UP 白名单）" }
+      ]
+    },
+    { "key": "keywordsInclude", "label": "关键词（逗号分隔）：source 含 search 时它就是搜索词，同时用来过滤；留空=不搜索也不过滤", "type": "text", "default": "" },
+    { "key": "keywordsExclude", "label": "排除关键词（逗号分隔）", "type": "text", "default": "手游,明星,吃瓜" },
+    { "key": "upWhitelist", "label": "UP 白名单（mid，逗号分隔，留空=不限）", "type": "text", "default": "" },
+    { "key": "upBlacklist", "label": "UP 黑名单（mid，逗号分隔）", "type": "text", "default": "" },
+    { "key": "minDurationSec", "label": "最短时长（秒）", "type": "number", "default": "60" },
+    { "key": "maxDurationSec", "label": "最长时长（秒，控制成本的主要旋钮）", "type": "number", "default": "1800" },
+    { "key": "minPlay", "label": "最低播放量（0=不限）", "type": "number", "default": "10000" },
+
+    { "key": "persona", "label": "人设（说话的语气与人称，进提示词）", "type": "text", "default": "你是一只话少、只讲事实的桌宠助手。自称「我」，不客套、不吹捧、不用「作为一个AI」这类句式。摘要只写视频里真有的内容，没听懂就直说没听懂。" },
+    { "key": "preferences", "label": "偏好（什么算对主人有用，进提示词）", "type": "text", "default": "" },
+    {
+      "key": "summaryLength",
+      "label": "摘要长度",
+      "type": "select",
+      "default": "medium",
+      "options": [
+        { "value": "short", "label": "短（3 句以内）" },
+        { "value": "medium", "label": "中（3–6 句）" },
+        { "value": "long", "label": "长（6–10 句）" }
+      ]
+    },
+    { "key": "pushThreshold", "label": "有用分阈值（0-100，低于它只入收件箱不打扰）", "type": "number", "default": "70" },
+    { "key": "llmModel", "label": "模型（留空=用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmBaseUrl", "label": "接口地址（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmApiKey", "label": "API Key（留空=借用对话插件的配置）", "type": "secret", "secret": true },
+
+    { "key": "enabled", "label": "自动刷（关掉只保留手动「单条调试」）", "type": "bool", "default": "false" },
+    { "key": "perRound", "label": "每轮刷几条（1-10）", "type": "number", "default": "3" },
+    { "key": "intervalMinutes", "label": "每轮间隔（分钟，30-720）", "type": "number", "default": "120" },
+    { "key": "activeHours", "label": "活跃时段（HH:MM-HH:MM，支持跨零点）", "type": "text", "default": "09:00-23:00" },
+    { "key": "dailyVideoCap", "label": "每日最多总结几条", "type": "number", "default": "12" },
+    { "key": "pushDailyCap", "label": "每日最多打扰几次", "type": "number", "default": "5" },
+    { "key": "minPushGapMin", "label": "两次推送最小间隔（分钟）", "type": "number", "default": "90" },
+    { "key": "summaryMaxCalls", "label": "每条视频最多调用几次模型（1-8；13 分钟的视频约需 5 次才读得完整）", "type": "number", "default": "6" },
+
+    { "key": "ownerUID", "label": "主人的 B 站 UID（数字，用于跳过你自己的视频）", "type": "text", "default": "" },
+    { "key": "biliCookie", "label": "B 站登录凭据（SESSDATA=… ; DedeUserID=…，加密保存、不会显示给插件）", "type": "secret", "secret": true },
+    { "key": "biliJct", "label": "CSRF 令牌（bili_jct，只有评论用到；单独无用）", "type": "text", "default": "" },
+    { "key": "commentEnabled", "label": "允许评论（总开关，默认关）", "type": "bool", "default": "false" },
+    {
+      "key": "commentMode",
+      "label": "评论模式",
+      "type": "select",
+      "default": "draft",
+      "options": [
+        { "value": "draft", "label": "只出草稿（你点「发送」才发）" },
+        { "value": "auto", "label": "自动发（过门槛才发）" }
+      ]
+    },
+    { "key": "commentMinScore", "label": "够多少分才评论", "type": "number", "default": "85" },
+    { "key": "commentMaxPerDay", "label": "每日最多评论几条", "type": "number", "default": "2" }
+  ],
+  "entry": "panel.html"
+}
+

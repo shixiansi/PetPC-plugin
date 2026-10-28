@@ -1,0 +1,566 @@
+/* Style discipline for a plugin that lives inside a clipped window region.
+ *
+ * This file deliberately uses no paint-outside-the-box decoration: no blurred
+ * drop shadows, no graphical effects, no glowing text, no scaling or rotation.
+ * Those all paint beyond the element's own border box, and this plugin's blocks
+ * are each carved out of the window by a region that only ever describes
+ * rectangles - anything drawn past the rectangle is simply cut off, so the
+ * decoration reads as a glitch rather than as depth.
+ *
+ * ONE document, FOUR appearances. The root class picks which one is drawn, and each
+ * one has a FIXED job - that is what makes "which box am I" a static answer instead
+ * of a runtime guess (see panel.html's header comment for the whole argument):
+ *
+ *   .view-boot      handshake not done yet      (paints NOTHING)
+ *   .view-panel     the conversation slot       (380x520, list + composer)
+ *   .view-question  floating block 0, the question       (300x40, a 2px white ring)
+ *   .view-answer    floating block 1, the answer         (308 wide, 60..156 tall, tail included)
+ *   .view-input     floating block 2, the composer pill  (308x64 for a 300x56 pill, no tail)
+ *
+ * THE THREE FLOATING BOXES AROUND THE PET (manifest.json's `surface`, logical px):
+ *
+ *   question  dx -75  dy -148  h  40              top of the stack, 2 lines
+ *   answer    dx -79  dy -60   h  60 maxH 156     300px bubble + 10px tail band, ON the pet's head
+ *   input     dx -79  dy  204  h  64              under the pet's feet, no tail
+ *
+ * The vertical budget is the constraint that shapes all of this: the pet is centred in a
+ * 520px-tall window, so there are only ~160px above the pet and ~160px below it. That is
+ * why the answer's ceiling is 156 and why the QUESTION box gives way to a long answer
+ * instead of pushing it off the top edge.
+ *
+ * THE TAIL and THE SHADOW are why the blocks are bigger than the shapes they draw: the
+ * host crops the window to the DECLARED rectangle (an iframe clips its own content too), so
+ * anything painted outside one is cut away. The tail lives in the bottom 10px of the answer
+ * block, whose bottom edge lands exactly on the pet's head (dy + h = 0); the drop shadow
+ * lives in the 4px SHADOW_PAD band that the answer and the input leave around their bubbles.
+ *
+ * The bubble is 300 wide while the pet is 150: it extends 75px to either side, and the host
+ * clamps the block into the window, which is why the tail follows `rect.tailX` (the pet's
+ * centre measured inside the block) rather than 50%.
+ *
+ * Layout rule: the message list is the only thing that grows, and it scrolls (panel) or
+ * clips (the one-line boxes) inside itself. Nothing may push the composer out of the box it
+ * was given, and nothing may resize the window: the host owns the geometry. */
+
+:root {
+  /* The palette. Two schemes, one set of names: the light block below redefines
+   * these, so not one rule in this file has to know which scheme is in force. */
+  --p-bg: #191b21;
+  --p-text: #e8eaf0;
+  --p-muted: #9aa3b2;
+  --p-line: #2c313c;
+  --p-line-2: #262b35;
+  --p-card: #1d2027;
+  --p-well: #12141a;
+  --p-chip: #232733;
+  --p-accent: #2f6feb;
+  --p-accent-hover: #3b7cf7;
+  --p-danger-bg: #3a2626;
+  --p-danger-fg: #ffb4b4;
+  color-scheme: dark;
+}
+
+/*
+ * THE LIGHT SCHEME. The workshop view of this document is hosted by the market
+ * program, which can be drawn light; the host tells this plugin via `?theme=` on the
+ * frame URL and a `theme` message (app.js applies both to `data-theme` on <html>).
+ *
+ * The pet mounts the same document with no scheme at all, which stays dark.
+ */
+html[data-theme="light"] {
+  --p-bg: #ffffff;
+  --p-text: #16202e;
+  --p-muted: #5b6779;
+  --p-line: #d6dde9;
+  --p-line-2: #e3e9f2;
+  --p-card: #f6f8fc;
+  --p-well: #ffffff;
+  --p-chip: #eef2f8;
+  --p-accent: #2f6bea;
+  --p-accent-hover: #245cd4;
+  --p-danger-bg: #fdeceb;
+  --p-danger-fg: #ab2419;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * The `hidden` attribute must WIN over any `display` an element is given here.
+ *
+ * The browser's own rule for `[hidden]` is `display: none`, but it lives in the
+ * user-agent stylesheet - so ANY author rule that sets `display` outranks it, and
+ * an element marked `hidden` in the markup stays visible. That is not a cosmetic
+ * detail in this plugin: the reply list used to be flanked by a dot-trail layer
+ * that was `position: absolute; inset: 0; display: flex`, and marking that layer
+ * `hidden` in the panel view left it a full-size layer on top of the whole
+ * conversation. It had no visible background, so the interface looked completely
+ * normal - and every click landed on that invisible layer instead of on the send
+ * box or the buttons, so the whole panel appeared dead.
+ *
+ * The dot layer is gone, but the rule stays: the pattern (`hidden` in the
+ * markup, `display` in the stylesheet) is what `#reply` still relies on - it is
+ * `display: flex` here and `hidden` in the input-pill view - so removing the rule
+ * would bring the same invisible-overlay bug straight back.
+ */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* The CANVAS, not the page. Chromium paints #121212 behind a document that leaves the root
+ * background unset while the system is in dark mode, and that colour is what filled the
+ * transparent part of every floating block: the tail was being drawn (#1d2027) on a #121212
+ * band, ten RGB steps apart, which reads as "no tail". `body` was already transparent; the
+ * canvas was not, so nothing on the body could fix it.
+ *
+ * Transparent here means the host's window shows through - which is the whole point of the
+ * region being a bounding box (AGENTS.md §3.2). The PANEL appearance is unaffected: it paints
+ * its own background on `body`. */
+/* The CANVAS, not the page.
+ *
+ * `:root` above declares `color-scheme: dark` for the palette, and with that Chromium paints
+ * the CANVAS #121212 — even when the root's own background is `transparent`. That colour was
+ * what filled the 10px tail band: a crimson probe square in the band proved the band IS
+ * paintable, so the paint came from behind the document, and the canvas was the only layer
+ * left.
+ *
+ * `only light` pins the canvas to the light default, which is transparent here. The PALETTE is
+ * unaffected: every colour in this file comes from custom properties, not from `color-scheme`.
+ *
+ * The selector MUST be `:root`, not `html`: `:root` is a pseudo-class and outranks a bare type
+ * selector, so `html { color-scheme: ... }` loses to the `:root` rule above no matter where it
+ * sits in the file. That is why the first attempt at this changed nothing on screen.
+ */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--p-bg);
+  color: var(--p-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* --- boot: the handshake has not said which box this is yet -----------------
+ * Nothing is painted. The frame is already at its final size (the host sizes the
+ * iframe before the document loads), so this is a transparent rectangle for a few
+ * dozen milliseconds instead of the miniature panel that `view-panel` used to draw.
+ * The panel itself never starts here: `applySurface` runs with `kind: 'panel'` on
+ * load, so the slot view is correct from its first paint. */
+body.view-boot {
+  background: transparent;
+}
+
+body.view-boot .bar,
+body.view-boot .reply,
+body.view-boot .compose {
+  display: none;
+}
+
+/* The header and the composer keep their natural height; the message list takes
+ * whatever is left (`flex: 1 1 auto` with `min-height: 0`). Without that
+ * min-height a flex item refuses to shrink below its content and the list
+ * would grow the page instead of scrolling in place. */
+.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.status {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.reply {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--p-line);
+  border-radius: 10px;
+  background: var(--p-well);
+}
+
+.msg {
+  max-width: 100%;
+  padding: 6px 9px;
+  border-radius: 9px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg.user {
+  align-self: flex-end;
+  background: var(--p-accent);
+  color: #ffffff;
+}
+
+.msg.assistant {
+  align-self: flex-start;
+  background: var(--p-chip);
+}
+
+.msg.system {
+  align-self: stretch;
+  background: var(--p-danger-bg);
+  color: var(--p-danger-fg);
+  font-size: 12px;
+}
+
+/* A text cursor for the reply in flight: opacity only, nothing that repaints
+ * outside the box. */
+.msg.assistant.streaming::after {
+  content: "▍";
+  opacity: 0.6;
+}
+
+.compose {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prompt {
+  width: 100%;
+  resize: none;
+  min-height: 30px;
+  max-height: 96px;
+  padding: 7px 8px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-well);
+  color: inherit;
+  font: inherit;
+}
+
+.prompt:focus {
+  outline: 1px solid var(--p-accent);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn {
+  flex: 1 1 auto;
+  padding: 6px 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-chip);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--p-line);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--p-accent);
+  border-color: var(--p-accent);
+  color: #ffffff;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--p-accent-hover);
+}
+
+/* The send button's glyph.
+ *
+ * It is an inline SVG rather than a font character or an image file: this
+ * document runs on an opaque origin and must not fetch anything, and a glyph
+ * from a system font would render differently - or as a tofu box - on a machine
+ * without that font. `currentColor` makes it follow the button's text colour, so
+ * the disabled state dims the icon through the existing `.btn:disabled` opacity
+ * without a second rule.
+ */
+.icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+/* A button whose only content is an icon still needs to be a comfortable
+ * target, so it is centred rather than sized by its (empty) text. */
+.btn.icon-only {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 44px;
+}
+
+/* --- block 0: the QUESTION box ---------------------------------------------
+ * 300x40 above the answer box, and it only exists while its exchange runs (the host hides it
+ * at open time and again when the reply ends - see app.js's hiddenSet).
+ *
+ * It is deliberately NOT the blue user bubble the panel uses. That bubble is a chat-app
+ * affordance inside a transcript; here there is no transcript, and a right-aligned blue blob
+ * in a 40px strip reads as a layout accident. Flat muted text on the well colour says "this is
+ * the context" and leaves the answer box as the thing being read.
+ *
+ * CENTRED, not top-aligned: a question is usually one line, and one line pinned to the top of a
+ * two-line box looked like a box that had failed to render the rest. 40px - 8px of padding
+ * leaves exactly two 16px lines, so the clamp below is the box's real capacity rather than a
+ * number that happens to be near it. */
+body.view-question {
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: var(--p-well);
+  /* The 2px white edge, as an INSET ring. A real `border` would eat 4px of a 40px box (two lines
+     would no longer fit), and an OUTSIDE ring would be cut away by the window region: this block has
+     no shadow band, because the 160px above the pet is already spoken for. */
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+}
+
+body.view-question .bar,
+body.view-question .compose {
+  display: none;
+}
+
+body.view-question .reply {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+body.view-question .msg {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--p-muted);
+  font-size: 12px;
+  line-height: 16px;
+  /* Two lines, ellipsised at the end: the START of a question is what identifies
+     it, and `-webkit-line-clamp` is the only clamp that draws the ellipsis. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- block 1: the ANSWER box ------------------------------------------------
+ * 300x100: a 90px bubble and a 10px tail band, sitting directly ON the pet's head
+ * (dy + h = 0, so the apex touches it). It draws ONE thing: the current answer.
+ *
+ * The bubble's body and its outline are ONE SVG path drawn behind the text (see
+ * app.js), not a bordered box plus a triangle: with two shapes each carried its
+ * own outline, so a white line ran across the tail's base and the tail looked
+ * bolted on.
+ *
+ * The text is anchored to the BOTTOM and clipped at the TOP: while an answer is
+ * still arriving, the newest words are the ones worth keeping in view, and losing
+ * the beginning of a long answer is the read order that hurts least. The whole
+ * answer is in the panel. */
+body.view-answer {
+  /* 10px on top = the 4px shadow band + 6px of breathing room; 14px at the bottom = the 10px tail
+     band + 4px of shadow band. So the text area is the block height minus 24, which is exactly what
+     app.js's ANSWER_CHROME assumes when it measures. */
+  padding: 10px 14px 14px;
+  border-radius: 16px;
+  background: transparent;
+  overflow: hidden;
+}
+
+body.view-answer .bar,
+body.view-answer .compose {
+  display: none;
+}
+
+body.view-answer .reply {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  /* NOT the well colour: the bubble is painted by the SVG path behind this
+     element, and an inner box in a different shade used to read as a second,
+     smaller bubble inside the first one. */
+  background: transparent;
+  /* The text starts at the TOP and grows downward.
+   *
+   * It used to be anchored to the bottom (`justify-content: flex-end`) so that a long answer
+   * kept its newest words in view while it streamed in. The cost was that every SHORT answer -
+   * the common case - floated at the bottom edge of a 90px bubble with a band of nothing above
+   * it, which reads as a box that failed to render. Now the text starts where a reader starts
+   * looking, and the answer `scrolls` instead: app.js keeps it pinned to the newest line as
+   * characters arrive, so nothing is lost while it is being typed.
+   *
+   * The scrollbar is hidden on purpose: the bubble is ~90px tall, and a real scrollbar would
+   * take an eighth of the width for something nobody drags. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  position: relative;
+  z-index: 2;
+}
+
+body.view-answer .reply::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+body.view-answer .msg {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* An error is the one thing that must NOT look like the answer it replaces. */
+body.view-answer .msg.system {
+  color: var(--p-danger-fg);
+}
+
+/* --- block 2: the INPUT pill -------------------------------------------------
+ * 300x56 under the pet's feet, 8px below it, and NO TAIL: the tail marks the box
+ * that points at the pet, and that is the answer box above.
+ *
+ * Without a tail the shape is a plain rounded rectangle, so it is drawn with CSS
+ * here instead of the SVG path the answer box needs. The 1px outline is not
+ * decoration: the band around the pill shows the user's wallpaper, so on a dark
+ * one a #1d2027 fill is within a few RGB steps of the background and the shape
+ * disappears. An outline works on every background.
+ *
+ * One textarea and one icon button, side by side. The message list, the header and
+ * the three secondary buttons are hidden rather than shrunk - they live in the
+ * panel, where there is room for them. The send button stays: it is the only way
+ * to submit from here. */
+body.view-input {
+  position: relative;
+  flex-direction: row;
+  align-items: stretch;
+  /* The 4px SHADOW_PAD band all round: the block is 308x64 for a 300x56 pill, so the pill's drop
+     shadow lands inside the window region instead of being cut away. */
+  padding: 4px;
+  gap: 0;
+  background: transparent;
+  border: 0;
+  overflow: hidden;
+}
+
+/* The pill ITSELF: inset by the shadow band, with the 2px white edge and the shadow.
+ *
+ * A pseudo-element rather than the body's own background, because the body is 4px bigger than the
+ * pill on every side - painting the body would fill the band and clip the shadow. */
+body.view-input::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: var(--p-card);
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+body.view-input .bar,
+body.view-input .reply {
+  display: none;
+}
+
+body.view-input .compose {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  height: 100%;
+  background: transparent;
+  border: 0;
+}
+
+/* The dashed rule inside the pill, around the field: it says "this is a text input"
+   even before any placeholder is read, and it is the one detail that makes the
+   bubble look composed rather than a floating bar. Inset with a 1px dashed
+   hairline, 10px radius. */
+body.view-input .prompt {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: none;
+  padding: 6px 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: transparent;
+}
+
+body.view-input .actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+body.view-input #stop,
+body.view-input #bubble,
+body.view-input #surface {
+  display: none;
+}
+
+/* The send button keeps a square-ish target instead of stretching: `.btn` is
+ * `flex: 1 1 auto`, which would let it claim as much room as the textarea. 44px
+ * is also the comfortable minimum for a touch or mouse target. */
+body.view-input #send {
+  width: 44px;
+  height: 100%;
+}
+
+@media (max-width: 200px) {
+  .msg {
+    padding: 3px 5px;
+    font-size: 11px;
+  }
+}
