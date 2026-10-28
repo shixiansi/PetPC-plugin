@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PetPC 插件自检工具 —— 一个文件，零必需依赖（jsdom 只在协议那一组需要）。
+// PetPC 插件自检工具 —— 零必需依赖（jsdom 只在协议那一组需要）。
 //
 // 用法：
 //   node plugin-check.mjs <插件目录> [更多目录…]
@@ -11,9 +11,13 @@
 //
 // 它检查什么、为什么那样判定，见同目录的 README.md。这里只重复一条：
 //
-//   **它不需要宿主程序，也不需要宿主的源码。** 方法表、权限表、上限都是本文件里的常量，
-//   与《插件开发手册》（docs/plugin-dev.md）第 4/6 节一一对应。宿主版本比这个文件新时，
-//   可能"少报"（它不认识新方法，所以不会替你检查）；反过来它不会误报已存在的方法。
+//   **它不需要宿主程序，也不需要宿主的源码。** 方法表、权限表、结果表都在同目录的
+//   `fake-host.mjs` 里，与《插件开发手册》（docs/plugin-dev.md）第 4/6 节一一对应。宿主版本比
+//   这个文件新时，可能"少报"（它不认识新方法，所以不会替你检查）；反过来它不会误报已存在的方法。
+//
+// 为什么方法表不在本文件里：`preview.html`（真浏览器里的排版预览）需要**同一套**假宿主与结果表，
+// 两套必然分叉，而分叉的假宿主比没有更坏——它会告诉你"没问题"。所以：一个 `fake-host.mjs`，
+// 两个执行环境（jsdom 与真 Chromium），协议知识只写一次。
 //
 // 四组检查：manifest（纯 JSON 规则）· package（文件在不在）· source（静态文本规则）·
 // protocol（把文档真的跑起来，用一个照抄宿主的假宿主驱动）。
@@ -23,68 +27,12 @@ import { dirname, join, resolve, relative, extname, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { PERMISSIONS, METHODS, createFakeHost } from './fake-host.mjs';
+
 // ---------------------------------------------------------------------------
-// 契约常量（与手册第 4/6 节一致；改这里就要改手册）
+// 契约常量：权限表 / 方法表 / 结果表在 `fake-host.mjs`（预览页共用那一份）。这里只剩 manifest
+// 的上限，因为它们只跟"清单合不合法"有关，跟协议无关。
 // ---------------------------------------------------------------------------
-
-const PERMISSIONS = {
-  'pet.bubble': '让桌宠弹出一句话的气泡',
-  events: '订阅待办与番茄钟的变化事件（关闭界面后也会送达）',
-  'net.fetch': '访问网络（仅限插件声明的域名）',
-  'net.credentials': '以你保存的网站登录凭据发请求（凭据本身不会显示给插件）',
-  storage: '在自己的私有目录里保存数据',
-  'pet.surface': '在桌宠旁显示自定义浮层面',
-  'llm.chat': '调用你已配置的大模型（流式返回）',
-  'plugin.config': '保存你自己的插件配置',
-  audio: '保存并播放音频（例如语音提醒）',
-  'net.ws': '保持一条到插件所声明地址的 WebSocket 长连接（收发消息）',
-  'llm.borrow': '使用其它插件已配置的大模型与密钥（密钥不会显示给你）',
-  process: '启动本机程序',
-  'plugin.share': '与其它插件交换消息（只能读清单里点名的键，只能写自己名下的键）',
-};
-
-/** 方法表：名字 → { perm, where }。where: 'pet' 只有桌宠服务、'both' 两个宿主都服务。 */
-const METHODS = {
-  'bubble.say': { perm: 'pet.bubble', where: 'pet' },
-  'events.subscribe': { perm: 'events', where: 'pet' },
-  'net.fetch': { perm: 'net.fetch', where: 'both', alsoAllows: ['net.credentials'] },
-  'storage.get': { perm: 'storage', where: 'both' },
-  'storage.set': { perm: 'storage', where: 'both' },
-  'storage.remove': { perm: 'storage', where: 'both' },
-  'storage.stat': { perm: 'storage', where: 'both' },
-  'storage.dir': { perm: 'storage', where: 'both' },
-  'storage.list': { perm: 'storage', where: 'both' },
-  'storage.move': { perm: 'storage', where: 'both' },
-  'memory.read': { perm: 'storage', where: 'pet' },
-  'memory.append': { perm: 'storage', where: 'pet' },
-  'config.get': { perm: 'plugin.config', where: 'both' },
-  'config.set': { perm: 'plugin.config', where: 'both' },
-  'surface.show': { perm: 'pet.surface', where: 'pet' },
-  'surface.hide': { perm: 'pet.surface', where: 'pet' },
-  'surface.blocks': { perm: 'pet.surface', where: 'pet' },
-  // Borrows the surface grant: same authority, and no 14th permission to authorise.
-  'pet.badge': { perm: 'pet.surface', where: 'pet' },
-  'llm.chat': { perm: 'llm.chat', where: 'pet' },
-  'llm.profile': { perm: 'llm.borrow', where: 'pet' },
-  'share.set': { perm: 'plugin.share', where: 'both' },
-  'share.get': { perm: 'plugin.share', where: 'both' },
-  'share.remove': { perm: 'plugin.share', where: 'both' },
-  'audio.save': { perm: 'audio', where: 'both' },
-  'audio.import': { perm: 'audio', where: 'both' },
-  'audio.list': { perm: 'audio', where: 'both' },
-  'audio.remove': { perm: 'audio', where: 'both' },
-  'audio.play': { perm: 'audio', where: 'both' },
-  'audio.stop': { perm: 'audio', where: 'both' },
-  'ws.open': { perm: 'net.ws', where: 'pet' },
-  'ws.send': { perm: 'net.ws', where: 'pet' },
-  'ws.close': { perm: 'net.ws', where: 'pet' },
-  'ws.state': { perm: 'net.ws', where: 'pet' },
-  'process.launch': { perm: 'process', where: 'pet' },
-  'process.state': { perm: 'process', where: 'pet' },
-};
-
-/** 宿主工具目录里可以被 llm.chat 的 tools 点名的名字（见手册 6.6）。 */
-const LLM_TOOL_NAMES = ['pet_say', 'memory_read', 'memory_append'];
 
 const LIMITS = {
   idLen: 96,
@@ -753,58 +701,43 @@ async function driveOnce({ html, dir, entryPath, mount, mode, granted, info }) {
   const doc = window.document;
 
   // 假宿主：插件 postMessage 到 window.parent，这里把 parent 指成自己并收消息。
+  // 协议本身在 `fake-host.mjs` 里（预览页用的是同一份），这里只提供"怎么把消息送进 window"。
   window.parent = window;
-  window.postMessage = (msg) => { onPluginMessage(msg); };
 
   window.addEventListener('error', (e) => result.errors.push(String(e.message || e.error)));
   window.addEventListener('unhandledrejection', (e) => result.errors.push('unhandled: ' + String(e.reason && e.reason.message || e.reason)));
 
-  const seenIds = new Set();
-  let pending = [];
-
-  function sendToPlugin(data) {
-    const event = new window.MessageEvent('message', { data });
-    Object.defineProperty(event, 'source', { value: window });
-    try { window.dispatchEvent(event); } catch (err) { result.errors.push('dispatch: ' + String(err?.message || err)); }
-  }
-
-  function onPluginMessage(msg) {
-    if (!msg || typeof msg !== 'object') return;
-    if (msg.v !== 1) { result.errors.push(`插件发来的消息 v=${JSON.stringify(msg.v)}（应为 1）`); return; }
-    if (msg.type === 'ready') {
-      result.ready = true;
-      sendToPlugin({ v: 1, type: 'init', pluginId: info.id, permissions: [...(info.declared ?? [])], granted: [...granted], theme: 'dark', surface: mount.surface });
-      result.gotInit = true; // 我们确实发了；插件是否处理由后续错误/请求观察
-      flush();
-      return;
-    }
-    if (msg.type === 'request') {
-      if (typeof msg.id !== 'string' || msg.id === '' || seenIds.has(msg.id)) result.badIds.push(String(msg.id));
-      seenIds.add(msg.id);
-      if (typeof msg.method !== 'string' || !METHODS[msg.method]) result.unknownMethods.push(String(msg.method));
-      result.requests.push({ id: msg.id, method: msg.method, payload: msg.payload });
-      answerLater(msg);
-      return;
-    }
-    if (msg.type === 'event') return;
-    result.errors.push(`插件发来了宿主不认识的 type=${JSON.stringify(msg.type)}`);
-  }
-
-  function answerLater(msg) {
-    pending.push(msg);
-  }
+  const host = createFakeHost({
+    manifest: info,
+    granted,
+    surface: mount.surface,
+    // 只有 `ok` 那一轮全部答应；其余三轮（`deny` / `granted=[]` / `tolerant`）收到的都是拒绝。
+    // 拒绝才是这套工具最有价值的部分——它逼出"权限被拒时插件会不会崩"。
+    // 注意 `granted=[]` 那一轮**也**会收到拒绝：要观察的是"它会不会先发出去"，而那件事在
+    // 请求到达这里时就已经记下了，回不回都不影响结论；一直不答反而会把插件吊在半路，
+    // 让它后面的界面分支根本走不到。
+    mode: mode === 'ok' ? 'ok' : 'deny',
+    deliver: (data) => {
+      const event = new window.MessageEvent('message', { data });
+      Object.defineProperty(event, 'source', { value: window });
+      window.dispatchEvent(event);
+    },
+    // 答复由 flush() 逐批送出：有些插件会串行地再发一个请求，立刻回会把时序搅乱。
+    autoRespond: false,
+  });
+  window.postMessage = (msg) => {
+    // 握手一到就开始答（不等下面的 sleep）：插件的请求链是"一个答复引出下一个请求"，
+    // 早答 90ms 与晚答 90ms 会让观测到的请求条数差一倍。
+    if (host.onMessage(msg) === 'ready') flush();
+  };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   async function flush() {
-    // 逐个答复，给插件时间在自己的回调里继续（有些插件会串行地再发一个请求）。
     for (let round = 0; round < 6; round++) {
-      const batch = pending.splice(0, pending.length);
+      const batch = host.takePending();
       if (batch.length === 0) { await sleep(15); continue; }
-      for (const msg of batch) {
-        if (mode === 'ok') sendToPlugin({ v: 1, type: 'response', id: msg.id, ok: true, result: okResult(msg.method) });
-        else sendToPlugin({ v: 1, type: 'response', id: msg.id, ok: false, error: `模拟拒绝：未获权限 ${METHODS[msg.method]?.perm ?? '（未知）'}` });
-      }
+      for (const msg of batch) host.respond(msg);
       await sleep(15);
     }
   }
@@ -820,40 +753,24 @@ async function driveOnce({ html, dir, entryPath, mount, mode, granted, info }) {
     result.moduleNotes = runModuleGraph(window, file);
   }
   if (mode === 'tolerant') {
-    sendToPlugin({ v: 1, type: 'theme', theme: 'light' });
-    sendToPlugin({ v: 1, type: 'surface', rect: { x: 0, y: 0, w: 320, h: 120, r: 12, tailX: 0, hidden: false, room: 160 } });
-    sendToPlugin({ v: 1, type: 'unknown-message' });
-    sendToPlugin({ v: 2, type: 'init', surface: mount.surface });
+    host.send({ v: 1, type: 'theme', theme: 'light' });
+    host.send({ v: 1, type: 'surface', rect: { x: 0, y: 0, w: 320, h: 120, r: 12, tailX: 0, hidden: false, room: 160 } });
+    host.send({ v: 1, type: 'unknown-message' });
+    host.send({ v: 2, type: 'init', surface: mount.surface });
   }
   await sleep(40);
   if (mode === 'ok' || mode === 'deny') await flush();
   // granted=[] 的那一轮不出手：什么都不答，看它会不会在"没被授权"的情况下自己发请求。
   await sleep(80);
   if (dom.window?.close) { try { dom.window.close(); } catch { /* ignore */ } }
-  return result;
-}
 
-/** 每类方法给一个"看起来成功"的答案，让插件能继续往下走。 */function okResult(method) {
-  switch (method) {
-    case 'storage.get': return { value: '' };
-    case 'storage.stat': return { exists: false, bytes: 0 };
-    case 'storage.dir': return { dir: 'C:\\模拟\\plugin-data\\example' };
-    case 'storage.list': return { dir: 'C:\\模拟', files: [], dirs: [] };
-    case 'storage.move': return { ok: true, moved: true };
-    case 'config.get': return { values: {}, secrets: {} };
-    case 'llm.profile': return { ownReady: false, borrowAllowed: false, ready: false, source: 'none', model: '' };
-    case 'llm.chat': return { requestId: 'sim', text: '（模拟回复）' };
-    case 'events.subscribe': return [];
-    case 'ws.state': return { state: 'closed', received: 0, sent: 0 };
-    case 'ws.open': return { ok: true, state: 'connecting', url: '' };
-    case 'process.launch': return { pid: 4242 };
-    case 'process.state': return { known: true, running: false, exitCode: 0 };
-    case 'audio.list': return [];
-    case 'audio.save':
-    case 'audio.import': return { name: 'sim', bytes: 0 };
-    case 'share.get': return { value: '', at: 0, key: '' };
-    default: return { ok: true };
-  }
+  result.ready = host.ready;
+  result.gotInit = host.ready; // init 是 ready 的回应，发了就等于收到了 ready
+  result.requests = host.requests;
+  result.badIds = host.badIds;
+  result.unknownMethods = host.unknownMethods;
+  result.errors.push(...host.errors);
+  return result;
 }
 
 // ---------------------------------------------------------------------------

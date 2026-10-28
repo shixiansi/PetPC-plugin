@@ -17,10 +17,15 @@
     content: attr(data-label); position: absolute; left: 0; top: -18px; font-size: 11px; color: #8b93a1;
   }
   iframe { display: block; border: 0; background: transparent; }
+  /* The headless frame: hidden, and still running. Exactly what the host does
+     (frontend/src/plugin-host.js `openBackground`): `display:none` keeps the document alive, so the
+     plugin's state machine keeps ticking while its card is open. */
+  #bgwrap[hidden] { display: none; }
   #side { flex: 0 0 420px; border-left: 1px solid #262a33; display: flex; flex-direction: column; min-height: 0; }
   #bar { padding: 8px; border-bottom: 1px solid #262a33; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
   #bar select, #bar button, #bar input { font: inherit; background: #1d2027; color: inherit; border: 1px solid #333844; border-radius: 6px; padding: 3px 6px; }
   #bar button { cursor: pointer; }
+  #mounts { padding: 0 8px 6px; font-size: 11px; color: #8b93a1; }
   #report { padding: 8px; border-bottom: 1px solid #262a33; font-family: ui-monospace, Consolas, monospace; font-size: 11px; white-space: pre-wrap; }
   #report.ok { color: #4ade80; }
   #report.bad { color: #f87171; }
@@ -28,12 +33,18 @@
   #log div { padding: 1px 0; border-bottom: 1px solid #1b1e25; }
   .dir-out { color: #93c5fd; }
   .dir-in { color: #fbbf24; }
+  .err { color: #f87171; }
+  .who { color: #6b7280; }
 </style>
 </head>
 <body>
 <div id="stage">
-  <div id="card" data-label="declared rect"><iframe id="frame" title="plugin"></iframe></div>
+  <div id="card" data-label="declared rect"><iframe id="frame" title="plugin surface"></iframe></div>
 </div>
+<!-- 常驻帧：看不见，但在跑。清单声明 `background: true` 时挂上它——番茄钟的计时器与状态机就在
+     这里，浮层面只是视图。少了这个帧，点「确定」只会留下一条没人读的 command，界面上就是
+     "点了没反应"（那正是这个预览器第一版看不见的东西）。 -->
+<div id="bgwrap" hidden><iframe id="bgframe" title="plugin background"></iframe></div>
 <div id="side">
   <div id="bar">
     <label>rect <select id="rect"></select></label>
@@ -47,19 +58,35 @@
     <button id="reload">重载</button>
     <button id="cfg">发 config.changed</button>
   </div>
+  <div id="mounts">挂载中…</div>
   <div id="report">等待插件…</div>
   <div id="log"></div>
 </div>
-<script>
+<script type="module">
 // ---------------------------------------------------------------------------
-// The fake host. It speaks the SAME protocol as frontend/src/plugin-host.js and
-// tools/plugin-market/cc/src/lib/plugin-frame.ts - and it never decides permissions: `granted` is
-// data, exactly like the real host, so the refusal path can be previewed by unchecking a box.
+// 预览页 = 假宿主 + 一把尺子。
 //
-// Why this file exists at all: jsdom has no layout, so every test in market/tests asserts DOM and
-// messages but cannot see that a button is 8px below the bottom of the card. Five releases of the
-// pomodoro shipped that way. A real browser is the only thing that can answer "does it fit".
+// 假宿主**不在这个文件里**：它和 `plugin-check.mjs` 用的是同一份 `fake-host.mjs`
+// （同一个协议、同一张方法表、同一张结果表）。两套假宿主必然分叉，而分叉的假宿主比没有更坏。
+//
+// 这个文件只做三件 jsdom 做不到的事：
+//   1. iframe 的尺寸**正好**是清单里声明的矩形，外面画一圈虚线标出边界（真宿主就是这么裁的）；
+//   2. 每次消息之后 + 插件每次重画，量一遍每个可见元素的 bottom/right 与文档的 scrollHeight；
+//   3. 把结论同时写进右栏（给人看）与 `body[data-report]`（给 `--check` 读）。
+//
+// 挂几个帧？**照真宿主来**：清单声明 `background: true` 就再挂一个隐藏的常驻帧。这件事不是
+// 精致度问题，是"按钮按了有没有用"的问题——番茄钟的计时器与状态机住在常驻帧里，浮层面只发一条
+// `command` 出去。只挂一个帧，点「确定」会留下一条没人读的命令，屏幕上什么都不会发生，而这个
+// 工具会一本正经地告诉你"布局没问题"。
+//
+// 与真宿主的两处**故意**的差异：
+//   · 这里不加 `sandbox="allow-scripts"`：真宿主的帧是 opaque origin，而量排版要读
+//     `contentDocument`，所以预览页必须同源。opaque origin 里会抛错的 API（localStorage、
+//     document.cookie、new WebSocket…）由 `plugin-check.mjs` 的静态红线那组拦。
+//   · 这里不做原生窗口裁剪（SetWindowRgn）：那正是"画一圈虚线"要代替的东西。
 // ---------------------------------------------------------------------------
+import { createFakeHost, createMemoryStore, previewAnswers } from '/testkit/fake-host.mjs';
+
 const q = new URLSearchParams(location.search);
 const params = {
   plugin: q.get('plugin') || '',
@@ -69,10 +96,14 @@ const params = {
   granted: (q.get('granted') || 'storage,plugin.config,plugin.share,events,pet.surface,pet.bubble').split(',').filter(Boolean),
   deny: q.get('deny') === '1',
   state: q.get('state') || 'idle',
+  // `--click "#ask-ok"`：等握手与首帧都稳定之后点一下，再继续量/继续截。
+  click: q.get('click') || '',
 };
 
 const els = {
   frame: document.getElementById('frame'),
+  bgframe: document.getElementById('bgframe'),
+  bgwrap: document.getElementById('bgwrap'),
   card: document.getElementById('card'),
   rect: document.getElementById('rect'),
   slot: document.getElementById('slot'),
@@ -80,140 +111,97 @@ const els = {
   deny: document.getElementById('deny'),
   reload: document.getElementById('reload'),
   cfg: document.getElementById('cfg'),
+  mounts: document.getElementById('mounts'),
   report: document.getElementById('report'),
   log: document.getElementById('log'),
 };
 
 let manifest = null;
 let rects = [];
+/** [{ el, label, host }] — `frames[0]` 是被量的那个（浮层面）。 */
+let frames = [];
 
-function logLine(dir, text) {
-  const row = document.createElement('div');
-  row.className = dir === 'out' ? 'dir-out' : 'dir-in';
-  row.textContent = `${dir === 'out' ? '→' : '←'} ${text}`;
-  els.log.prepend(row);
-}
+// 两个帧共用这两份：一个私有存储、一个 share 托盘。真宿主就是这个形状。
+const store = createMemoryStore();
+const tray = createMemoryStore();
 
-/** The state the plugin reads out of storage, per `--state`. */
-function stateFor(kind) {
-  const base = {
-    phase: 'focus', runState: 'running', endsAt: Date.now() + 5 * 60 * 1000,
-    remainingOnHalt: 0, currentTodoId: '', currentTodoTitle: '', asking: '',
-    pendingRecordId: '', focusCount: 1,
-  };
-  if (kind === 'gate') {
-    // A finished focus parked on the summary gate: this is the screen that broke four times.
-    return { ...base, runState: 'paused', endsAt: 0, remainingOnHalt: 300, asking: 'summary', pendingRecordId: 'r1' };
-  }
-  if (kind === 'idle') {
-    return { ...base, phase: 'idle', runState: 'stopped', endsAt: 0, remainingOnHalt: 0 };
-  }
-  return base;
-}
-
-/** What the host answers. Deliberately dumb: only the methods these plugins actually call. */
-function resultFor(method, payload) {
-  if (params.deny) return { ok: false, error: `模拟拒绝：未获权限 ${method}` };
-  switch (method) {
-    case 'storage.get': {
-      const key = (payload && payload.key) || '';
-      if (key === 'pomodoro-state-v2') return { ok: true, result: { value: JSON.stringify(stateFor(params.state)) } };
-      if (key === 'pomodoro-records-v2') {
-        return { ok: true, result: { value: JSON.stringify([{ id: 'r1', endedAt: Date.now() - 60000, minutes: 5, phase: 'focus', summary: '' }]) } };
-      }
-      return { ok: true, result: { value: '' } };
-    }
-    case 'storage.stat': return { ok: true, result: { exists: true, bytes: 10 } };
-    case 'storage.dir': return { ok: true, result: { dir: 'C:\\预览' } };
-    case 'storage.list': return { ok: true, result: { dir: 'C:\\预览', files: [], dirs: [] } };
-    case 'storage.set': return { ok: true, result: { ok: true } };
-    case 'storage.move': return { ok: true, result: { ok: true, moved: true } };
-    case 'config.get': return { ok: true, result: { values: { showCountdown: 'true', focusMinutes: '5', shortBreakMinutes: '5', longBreakMinutes: '15', longBreakEvery: '4', autoStartNextPhase: 'true' }, secrets: {} } };
-    case 'config.set': return { ok: true, result: { ok: true } };
-    case 'share.get': return { ok: true, result: { value: '', at: 0, key: '' } };
-    case 'share.set': return { ok: true, result: { ok: true } };
-    case 'events.subscribe': return { ok: true, result: [] };
-    case 'surface.blocks': return { ok: true, result: { ok: true } };
-    case 'surface.show': return { ok: true, result: { ok: true } };
-    case 'surface.hide': return { ok: true, result: { ok: true } };
-    case 'pet.badge': return { ok: true, result: { text: (payload && payload.text) || '' } };
-    case 'bubble.say': return { ok: true, result: { ok: true } };
-    case 'llm.profile': return { ok: true, result: { ownReady: false, borrowAllowed: false, ready: false, source: 'none', model: '' } };
-    case 'llm.chat': return { ok: true, result: { requestId: 'preview', text: '（预览回复）' } };
-    case 'ws.state': return { ok: true, result: { state: 'closed', received: 0, sent: 0 } };
-    case 'process.state': return { ok: true, result: { known: true, running: false, exitCode: 0 } };
-    default: return { ok: true, result: { ok: true } };
-  }
-}
-
-function sendToPlugin(msg) {
-  els.frame.contentWindow.postMessage(msg, '*');
-}
-
-function onMessage(event) {
-  if (event.source !== els.frame.contentWindow) return; // only OUR frame, like the real host
-  const msg = event.data;
-  if (!msg || msg.v !== 1) { logLine('in', `丢弃（v≠1）：${JSON.stringify(msg)}`); return; }
-  logLine('in', `${msg.type} ${msg.method || ''}${msg.id ? ' #' + msg.id : ''}`);
-  if (msg.type === 'ready') {
-    sendToPlugin({
-      v: 1, type: 'init', pluginId: params.plugin, permissions: (manifest && manifest.permissions) || [],
-      granted: params.granted, theme: 'dark',
-      surface: {
-        kind: params.kind, slot: params.slot, rectIndex: params.rect, rectCount: rects.length || 1,
-        rect: { x: 0, y: 0, w: currentRect().w, h: currentRect().h, r: currentRect().radius || 0, tailX: 0, hidden: false, room: 160 },
-      },
-    });
-    scheduleReport();
-    return;
-  }
-  if (msg.type === 'request') {
-    const res = resultFor(msg.method, msg.payload);
-    sendToPlugin({ v: 1, type: 'response', id: msg.id, ...res });
-    scheduleReport();
-  }
-}
-
-// --- the layout check -------------------------------------------------------
-//
-// THE POINT OF THIS PAGE. Every element that paints outside the declared rect is listed by id with
-// the numbers, because that is the bug class jsdom cannot see: a card 260 tall whose last row sits at
-// 268 is not "a styling nit", it is an invisible button.
 function currentRect() {
   const r = rects[params.rect] || { w: 380, h: 260, radius: 14 };
   return { w: Math.round(r.w), h: Math.round(r.h), radius: r.radius || 0 };
 }
 
+function applySize() {
+  const { w, h } = currentRect();
+  els.frame.style.width = w + 'px';
+  els.frame.style.height = h + 'px';
+  els.card.style.width = w + 'px';
+  els.card.style.height = h + 'px';
+  els.card.dataset.label = `declared rect ${w}×${h}`;
+}
+
+function logLine(who, dir, text) {
+  const row = document.createElement('div');
+  row.className = dir === 'out' ? 'dir-out' : dir === 'err' ? 'err' : 'dir-in';
+  const tag = document.createElement('span');
+  tag.className = 'who';
+  tag.textContent = `[${who}] `;
+  row.append(tag, `${dir === 'out' ? '→' : dir === 'err' ? '!' : '←'} ${text}`);
+  els.log.prepend(row);
+}
+
+// --- 尺子 -------------------------------------------------------------------
+//
+// 这个页面的全部价值。每个画到声明矩形外面的元素都按 id 与数值列出来，因为那正是 jsdom
+// 看不见的一类 bug：一张 260 高的卡片，最后一行落在 268，不是"样式小瑕疵"，是一个看不见的按钮。
 let reportQueued = false;
 function scheduleReport() {
   if (reportQueued) return;
   reportQueued = true;
-  requestAnimationFrame(() => { reportQueued = false; runReport(); });
+  // 用 setTimeout 而不是 requestAnimationFrame：无头 + `--virtual-time-budget` 下 rAF 可能
+  // 一帧都不再派发，于是 `reportQueued` 永远卡在 true，整页只量了最初那一次——同一个插件就会
+  // 一会儿 PASS 一会儿 FAIL（实测 6 次里 2 次报"全在框内"）。定时器在这个模式下一定会跑。
+  setTimeout(() => { reportQueued = false; runReport(); }, 0);
+}
+
+// 插件的每一次重画都要触发一次测量。只靠定时器不够：`--dump-dom` / `--shot` 落在"插件已经
+// 画好、报告还停在上一帧"的那几百毫秒里，同一个插件就会一会儿 PASS 一会儿 FAIL——一个会抖的
+// 检查器比没有更坏，所以这里是"谁变了谁负责重报"，定时器退化成兜底。
+let frameObserver = null;
+function observeFrame(el) {
+  try {
+    const doc = el.contentDocument;
+    if (!doc || !doc.documentElement) return;
+    if (frameObserver) frameObserver.disconnect();
+    frameObserver = new MutationObserver(scheduleReport);
+    frameObserver.observe(doc.documentElement, { subtree: true, childList: true, attributes: true, characterData: true });
+  } catch { /* 读不到就是读不到：还有定时器兜底 */ }
 }
 
 function runReport() {
   const { w, h } = currentRect();
-  const doc = els.frame.contentDocument;
   const lines = [];
+  const el = frames[0] && frames[0].el;
+  let doc = null;
+  try { doc = el && el.contentDocument; } catch { doc = null; }
   if (!doc || !doc.body) { els.report.className = ''; els.report.textContent = '插件还没加载完…'; return; }
-  const body = doc.body;
   if (doc.documentElement.scrollHeight > h + 1) {
     lines.push(`内容比卡片高：scrollHeight=${doc.documentElement.scrollHeight} > ${h}`);
   }
+  const win = el.contentWindow;
   const walk = (node) => {
-    for (const el of node.children) {
-      const style = els.frame.contentWindow.getComputedStyle(el);
-      const visible = style.display !== 'none' && style.visibility !== 'hidden' && el.getClientRects().length > 0;
+    for (const child of node.children) {
+      const style = win.getComputedStyle(child);
+      const visible = style.display !== 'none' && style.visibility !== 'hidden' && child.getClientRects().length > 0;
       if (visible) {
-        const r = el.getBoundingClientRect();
-        const id = el.id ? '#' + el.id : el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '');
+        const r = child.getBoundingClientRect();
+        const id = child.id ? '#' + child.id : child.tagName.toLowerCase() + (child.className ? '.' + String(child.className).split(' ')[0] : '');
         if (r.bottom > h + 0.5) lines.push(`${id} 底边 ${Math.round(r.bottom)} > ${h}（被下边缘裁掉 ${Math.round(r.bottom - h)}px）`);
         if (r.right > w + 0.5) lines.push(`${id} 右边 ${Math.round(r.right)} > ${w}`);
       }
-      walk(el);
+      walk(child);
     }
   };
-  walk(body);
+  walk(doc.body);
   if (lines.length === 0) {
     els.report.className = 'ok';
     els.report.textContent = `✓ 全部在 ${w}×${h} 之内`;
@@ -221,12 +209,44 @@ function runReport() {
     els.report.className = 'bad';
     els.report.textContent = `✗ ${lines.length} 处越界：\n` + lines.join('\n');
   }
-  // Exposed for `--dump-dom`: the CLI reads this attribute instead of parsing the pretty text.
+  // `--check` 读的是这两个地方：标题给人一眼看出，data-report 给机器读（--dump-dom）。
   document.title = lines.length === 0 ? 'PREVIEW-OK' : 'PREVIEW-FAIL';
   document.body.dataset.report = JSON.stringify(lines);
 }
 
-// --- boot -------------------------------------------------------------------
+// --- 接线 -------------------------------------------------------------------
+function surfaceFor() {
+  const { w, h, radius } = currentRect();
+  return {
+    kind: params.kind, slot: params.slot, rectIndex: params.rect, rectCount: rects.length || 1,
+    rect: { x: 0, y: 0, w, h, r: radius, tailX: 0, hidden: false, room: 160 },
+  };
+}
+
+function makeFrame(el, label, surface) {
+  const host = createFakeHost({
+    manifest,
+    granted: params.granted,
+    surface,
+    theme: 'dark',
+    mode: params.deny ? 'deny' : 'ok',
+    answers: (method, payload) => previewAnswers(method, payload, { state: params.state, manifest, store, share: tray }),
+    deliver: (msg) => el.contentWindow.postMessage(msg, '*'),
+  });
+  return { el, label, host };
+}
+
+function onFrameMessage(event) {
+  const frame = frames.find((f) => f.el.contentWindow === event.source);
+  if (!frame) return; // 只认我们自己挂的那几个帧，和真宿主一样
+  const fromLog = frame.host.log.length;
+  const fromErr = frame.host.errors.length;
+  frame.host.onMessage(event.data);
+  for (const line of frame.host.log.slice(fromLog)) logLine(frame.label, line.dir, line.text);
+  for (const err of frame.host.errors.slice(fromErr)) logLine(frame.label, 'err', err);
+  scheduleReport();
+}
+
 async function boot() {
   manifest = await (await fetch('/plugin/manifest.json')).json();
   rects = manifest.surface || [];
@@ -247,13 +267,39 @@ async function boot() {
   }
   els.rect.value = String(params.rect);
   applySize();
-  window.addEventListener('message', onMessage);
-  els.frame.addEventListener('load', () => { logLine('in', '（iframe 载入完成）'); scheduleReport(); });
-  els.frame.src = `/plugin/${manifest.entry}?theme=dark`;
+
+  frames = [makeFrame(els.frame, 'surface', surfaceFor())];
+  // 清单说要常驻帧，就给它一个：隐藏、但在跑。番茄钟的状态机住在这里。
+  // 例外是 `workshop`：那是控制中心的挂载方式，而控制中心**不跑常驻帧**（它不服务 events，
+  // 见 tools/plugin-market/cc/src/lib/plugin-frame.ts）。在预览里给它一个，等于给了一个
+  // 真机没有的计时器，页面上会显示一个永远不会动的界面的"活"版本——那就是假宿主在撒谎。
+  const wantsBackground = manifest.background === true && params.slot !== 'workshop';
+  if (wantsBackground) {
+    frames.push(makeFrame(els.bgframe, 'bg', { kind: 'panel', slot: 'background' }));
+  }
+  els.mounts.textContent = '挂载：' + frames.map((f) => f.label).join(' + ')
+    + (wantsBackground ? '（bg 是隐藏的常驻帧，它才是计时器）'
+      : params.slot === 'workshop' ? '（workshop = 控制中心，不挂常驻帧）'
+        : '（清单没有声明 background）');
+
+  window.addEventListener('message', onFrameMessage);
+  for (const frame of frames) {
+    frame.el.addEventListener('load', () => {
+      logLine(frame.label, 'in', '（iframe 载入完成）');
+      if (frame === frames[0]) observeFrame(frame.el);
+      scheduleReport();
+    });
+    frame.el.src = `/plugin/${manifest.entry}?theme=dark`;
+  }
+
   els.reload.addEventListener('click', () => location.reload());
   els.cfg.addEventListener('click', () => {
-    sendToPlugin({ v: 1, type: 'event', name: 'config.changed', payload: { pluginId: params.plugin } });
-    logLine('out', 'event config.changed');
+    // 两个帧都收：真宿主的 config.changed 是广播。
+    for (const frame of frames) {
+      frame.host.send({ v: 1, type: 'event', name: 'config.changed', payload: { pluginId: params.plugin } });
+      const line = frame.host.log[frame.host.log.length - 1];
+      if (line) logLine(frame.label, line.dir, line.text);
+    }
   });
   for (const el of [els.rect, els.slot, els.kind]) {
     el.addEventListener('change', () => {
@@ -270,16 +316,23 @@ async function boot() {
     location.href = u.toString();
   });
   new ResizeObserver(scheduleReport).observe(els.frame);
-  setInterval(scheduleReport, 500); // the plugin repaints on its own clock; keep the report fresh
-}
+  setInterval(scheduleReport, 500); // 兜底：插件自己按时钟重画时，结论也要跟着刷新
 
-function applySize() {
-  const { w, h } = currentRect();
-  els.frame.style.width = w + 'px';
-  els.frame.style.height = h + 'px';
-  els.card.style.width = w + 'px';
-  els.card.style.height = h + 'px';
-  els.card.dataset.label = `declared rect ${w}×${h}`;
+  if (params.click) {
+    // 等握手 + 首帧稳定再点：太早点到的是"还没渲染"的节点，截出来的图没有意义。
+    setTimeout(() => {
+      let target = null;
+      try { target = els.frame.contentDocument.querySelector(params.click); } catch { target = null; }
+      if (!target) { logLine('surface', 'err', `--click 找不到 ${params.click}`); return; }
+      logLine('surface', 'in', `（点击 ${params.click}）`);
+      target.click();
+      scheduleReport();
+      // 一次点击要走完一圈：浮层面发 command → 常驻帧下一秒读到并应用 → 写回 state →
+      // 浮层面下一秒读回来重画。所以点完还得让它跑两拍，否则截图会停在"已经点了、还没生效"。
+      setTimeout(scheduleReport, 1200);
+      setTimeout(scheduleReport, 2400);
+    }, 700);
+  }
 }
 
 boot().catch((err) => {

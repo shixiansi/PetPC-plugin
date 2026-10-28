@@ -961,12 +961,14 @@ com.example.hello-1.0.0.zip
 
 ## 12. 自检清单
 
-> **能自动查的，工具都查了**：[`docs/plugin-testkit/`](plugin-testkit/README.md) 里那一个文件
-> 拷进你的仓就能跑——manifest 的每条规则、包里的文件在不在、静态红线（没申请权限就调能力、
-> 用 `localStorage`、样式里非 inset 的 `box-shadow`）、以及**把文档真的跑一遍**
+> **能自动查的，工具都查了**：[`docs/plugin-testkit/`](plugin-testkit/README.md) 里那四个文件
+> 拷进你的仓就能跑（`plugin-check.mjs` + 它用的假宿主 `fake-host.mjs`，加上预览器
+> `preview.mjs` / `preview.html`）——manifest 的每条规则、包里的文件在不在、静态红线（没申请权限
+> 就调能力、用 `localStorage`、样式里非 inset 的 `box-shadow`）、以及**把文档真的跑一遍**
 > （握手、请求 `id` 唯一、宿主拒绝一切时不崩、`granted=[]` 时不乱发请求）。
 > **排版也查得到**：[`preview.mjs`](plugin-testkit/README.md) 用你机器上的 Edge/Chrome 把插件装进
-> 声明的矩形里跑一遍，越界就 FAIL（--check），也能截图（--shot）、能点（--state gate 直达「等你回答」那一屏）。
+> 声明的矩形里跑一遍，越界就 FAIL（--check），也能截图（--shot）、能点（--click）、能直达
+> 「等你回答」那一屏（--state gate）。
 > 下面这张清单是它查不到的部分（观感、真实宿主行为），以及给你自己过一遍用的。
 
 在你认为"做完了"之前，逐条确认：

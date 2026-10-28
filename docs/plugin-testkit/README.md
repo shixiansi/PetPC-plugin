@@ -1,4 +1,4 @@
-# 插件自检工具（`plugin-check.mjs`）
+# 插件自检工具（`plugin-check.mjs` / `preview.mjs`）
 
 > 目的：**在没有宿主、没有宿主源码的情况下**，检查一个插件"装上去会不会出问题"。
 > 它是《[插件开发手册](../plugin-dev.md)》的可执行版本：手册说"应该怎样"，这里检查"是否真的这样"。
@@ -19,17 +19,30 @@ node plugin-check.mjs . --json
 
 退出码：`0` 没有 FAIL · `1` 有 FAIL · `2` 用法错误。
 
-## 怎么用一个文件
+## 这个目录里有四个文件
 
-把这个文件拷进你自己的插件仓（或随便放一个目录），用它指向插件目录：
+| 文件 | 是什么 |
+| --- | --- |
+| `plugin-check.mjs` | 四组检查的入口：manifest / package / source / protocol |
+| `fake-host.mjs` | **假宿主**（协议 + 方法表 + 权限表 + 结果表）。上面那个和下面的预览页都用这一份 |
+| `preview.html` | 预览页：把插件装进声明的矩形里，量排版、列越界元素 |
+| `preview.mjs` | 起服务器 / 无头断言 / 截图（用你机器上的 Edge 或 Chrome） |
+
+为什么假宿主单独一个文件：`plugin-check.mjs` 在 jsdom 里跑，`preview.html` 在真浏览器里跑，
+两者**必须**说同一套协议。两套假宿主必然分叉，而分叉的假宿主比没有更坏——它会告诉你"没问题"。
+
+## 怎么用这几个文件
+
+把**整个目录**拷进你自己的插件仓（或随便放一个目录），用它指向插件目录：
 
 ```
 你的插件仓/
 ├── plugins/com.example.hello/     ← 被检查的目录（里面是 manifest.json 与页面文件）
-└── tools/plugin-check.mjs          ← 拷过来的这个文件
+└── tools/plugin-testkit/          ← 拷过来的这个目录（四个文件都留着）
 ```
 
-- **零必需依赖**：前三组只用 Node 内置模块。
+- **零必需依赖**：`plugin-check.mjs` 的前三组只用 Node 内置模块；`preview.mjs` 只用你机器上
+  已经有的 Edge/Chrome。
 - **协议那一组需要 DOM**：`npm i -D jsdom`。装不到时它报 `SKIP` 并说明原因，**不会**假装通过。
   jsdom 会先在你的插件目录里找，再在本文件旁边找。
 
@@ -89,7 +102,7 @@ node plugin-check.mjs . --json
 
 | 查不到 | 为什么 | 怎么办 |
 | --- | --- | --- |
-| 内容会不会溢出声明的矩形 | jsdom 不做排版 | 真机上把窗口拖到 1.5× 缩放看一眼 |
+| 内容会不会溢出声明的矩形 | jsdom 不做排版 | **用同目录的 `preview.mjs`**（真浏览器，`--check` 越界就 FAIL） |
 | 颜色对比、深浅主题的实际观感 | 同上 | 真机 |
 | 宿主真的怎么回应某个请求 | 假宿主只回"成功"或"拒绝"两种 | 装到真机上，看控制中心左栏的**日志**页（每次插件请求都有一行） |
 | 动态拼出来的方法名 | 静态查不到 | 改成字面量，或自己写一条协议测试（见下） |
@@ -103,17 +116,27 @@ node plugin-check.mjs . --json
 ```js
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
+import { createFakeHost } from './fake-host.mjs';   // 和 plugin-check 用的是同一个假宿主
 
-// 1. 建 DOM，把 parent 指成自己，收集插件发出的消息
+// 1. 建 DOM，把 parent 指成自己
 const dom = new JSDOM(readFileSync('panel.html', 'utf8'), { runScripts: 'dangerously', url: 'https://plugin.invalid/panel.html' });
 const { window } = dom;
-const sent = [];
 window.parent = window;
-window.postMessage = (m) => sent.push(m);
+const host = createFakeHost({
+  manifest: JSON.parse(readFileSync('manifest.json', 'utf8')),
+  granted: ['storage', 'plugin.config'],
+  surface: { kind: 'panel', slot: 'workshop' },
+  deliver: (data) => {
+    const event = new window.MessageEvent('message', { data });
+    Object.defineProperty(event, 'source', { value: window });
+    window.dispatchEvent(event);
+  },
+});
+window.postMessage = (msg) => host.onMessage(msg);
 // 2. 载入你的脚本（jsdom 不执行 <script type="module">，测试里直接 eval 即可）
 window.eval(readFileSync('app.js', 'utf8'));
-// 3. 按宿主协议发 init，然后断言
-//    { v:1, type:'init', pluginId, permissions, granted, surface:{kind:'panel',slot:'workshop'} }
+// 3. 插件自己发的 ready 会走 host.onMessage → init 自动回过去，然后断言
+//    host.requests 里有你要的那条（method / payload），host.errors 为空
 ```
 
 （本仓官方插件的 `tests/*.test.js` 就是这么写的，可以直接参考。）
@@ -128,6 +151,7 @@ window.eval(readFileSync('app.js', 'utf8'));
 ## 与手册的关系
 
 工具的常量表（13 项权限、35 个方法、各处上限）与手册第 4/6 节是同一份契约的两处副本。
+权限表与方法表在 `fake-host.mjs` 里（预览页共用那一份），上限在 `plugin-check.mjs` 里。
 **改一处就要改另一处**——这条写在 `AGENTS.md §3.3`。工具落后于宿主时它会"少报"
 （不认识新方法），但不会替你误报已存在的方法。
 
@@ -143,12 +167,20 @@ window.eval(readFileSync('app.js', 'utf8'));
 # 人工看：起一个本地服务器，浏览器里点、切 rect、看消息流水与排版结论
 node docs/plugin-testkit/preview.mjs plugins/com.shixiansi.plugin-pomodoro --open
 
-# 断言：无头跑一遍，越界就 FAIL（退出码 1）
+# 断言：无头跑一遍，越界就 FAIL（退出码 1）；不给 --rect 就逐块矩形都查
 node docs/plugin-testkit/preview.mjs plugins/… --check --state gate
 
 # 截图：给人和 agent 看（一张 380×260 的卡片 + 右侧面板）
 node docs/plugin-testkit/preview.mjs plugins/… --shot gate.png --state gate
+
+# 点一下再截图（"点了之后界面变成什么样"）
+node docs/plugin-testkit/preview.mjs plugins/… --shot after.png --state gate --click "#ask-ok"
 ```
+
+退出码：`0` 全部在框内（或没找到浏览器 → `SKIP`）· `1` 有元素越界 · `2` 用法/环境问题。
+
+没有声明 `surface` 的插件（只有常驻帧，或者铺满宿主窗口的面板）会报 `SKIP`：那种界面没有
+"放不放得下"这回事，拿一个它没答应过的尺寸去量它，只会得到一个假结论。
 
 `--state gate|running|idle` 决定假宿主回什么状态：`gate` 就是「等你回答」那一屏（一段专注结束、
 停在那里等回答），不必真的等五分钟。`--rect N` 选第几块矩形，`--slot` / `--kind` 选挂载方式，
@@ -168,5 +200,42 @@ FAIL  com.shixiansi.plugin-pomodoro rect 0（380×260，state=gate）：6 处越
 这就是 2026-10-28 番茄钟卡片连翻五次车的那一类问题（按钮被切 → 只剩数字 → 全黑），
 前四次这个工具都能直接抓住。
 
+### 点一下，看它有没有效果
+
+预览页挂的是**两个帧**，和真宿主一样：清单声明 `background: true` 时，除了那张卡片，还会挂一个
+**隐藏的常驻帧**（右栏顶上写着「挂载：surface + bg」）。番茄钟的计时器和状态机住在常驻帧里，
+卡片只是视图——所以点「确定」是走完整一圈的：
+
+```
+卡片里的按钮 → share.set 一条 command → 常驻帧下一秒读到并应用 → 写回 state
+            → 卡片下一秒读回 state 并重画
+```
+
+```bash
+# 门开着（一段专注结束、等你回答）
+node docs/plugin-testkit/preview.mjs plugins/… --shot before.png --state gate
+
+# 点「确定」之后：门关掉，休息开始跑
+node docs/plugin-testkit/preview.mjs plugins/… --shot after.png --state gate --click "#ask-ok"
+```
+
+两张图放一起看，就是"这个按钮到底有没有用"的答案。`--click` 收任何 CSS 选择器
+（`#ask-skip`、`.btn-primary`……），点完会等两拍（常驻帧 1s + 卡片 1s）再量、再截。
+
+**它还能量出"点了没反应"到底是多久没反应。** 番茄钟那次，两帧预览量出来的是 **0.824s**——
+按下到那一屏真的变之间，屏幕上什么都没有，于是报告是「点确认和跳过没有反应」「要点好几次才有效」。
+这个数字进了插件（2.3.10 让按钮按下即写「已提交…」，确认提前到 0.583s）。**在它之前，这类问题
+一次都没被量到过**，因为没有任何一处同时有排版引擎和两个帧。
+
+**唯一的例外是 `--slot workshop`**：那是控制中心的挂载方式，而控制中心不跑常驻帧
+（它不服务 `events`）。所以在那个预览里不给常驻帧——否则页面上会出现一个真机没有的"活的"计时器。
+
+**常设反向样本**：`tests/fixtures/overflow-card/` 是一个故意放不下的最小插件（声明 200×120、
+内容 300 高）。工具说 PASS 的时候，先用它确认工具还看得见东西：
+
+```bash
+node docs/plugin-testkit/preview.mjs tests/fixtures/overflow-card --check   # 必须 FAIL，退出码 1
+```
+
 **它看不见什么**：真机的窗口区域裁剪（原生 `SetWindowRgn`）、跨进程的 `config.changed` 时序、
-"好不好看"。这三样仍需人装上去看一眼。
+"好不好看"。这些仍需人装上去看一眼。
