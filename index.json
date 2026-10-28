@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-28T06:43:31Z",
+  "updatedAt": "2026-10-28T07:02:54Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -16,12 +16,12 @@
     {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
-      "version": "1.7.3",
+      "version": "1.7.4",
       "author": "shixiansi",
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-      "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage"],
-      "download": "dist/com.shixiansi.plugin-chat-1.7.3.zip",
-      "sha256": "633a791d1168a1067193fa8f8e161d6c977901a672ae010bd702527c76fc664d"
+      "permissions": ["llm.chat", "pet.surface", "plugin.config", "storage"],
+      "download": "dist/com.shixiansi.plugin-chat-1.7.4.zip",
+      "sha256": "746e2a9a1c513a87c17a15a76c25a800ebcbcc4cbf7017db43e5aa2ff03c217d"
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
@@ -47,12 +47,12 @@
     {
       "id": "com.shixiansi.plugin-todo",
       "name": "待办插件",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "author": "shixiansi",
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
       "permissions": ["storage", "plugin.config", "plugin.share", "pet.surface", "pet.bubble", "events"],
-      "download": "dist/com.shixiansi.plugin-todo-1.1.0.zip",
-      "sha256": "31d76df197a1efb08fcf2d9ae70aafe924472dd17f43e74fafae15f9c91cddb6"
+      "download": "dist/com.shixiansi.plugin-todo-1.1.1.zip",
+      "sha256": "5d4f6f7221cf93d1538cfb8a7e5706560e583829e3aea648cc457d136e74e2db"
     },
     {
       "id": "com.shixiansi.plugin-voice",

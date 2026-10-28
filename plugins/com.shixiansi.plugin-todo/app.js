@@ -290,7 +290,14 @@ function tickReminders() {
   const max = Math.max(1, Math.min(5, Number(settings.remindMaxItems) || 3));
   const names = open.slice(0, max).map((t) => t.title);
   const more = open.length > names.length ? `，还有 ${open.length - names.length} 件` : '';
-  request('bubble.say', { text: `别忘了：${names.join('、')}${more}` });
+  // `todoAction` asks the host for the 「看看待办」 button. This line IS about the list, so it asks;
+  // every other `bubble.say` caller (a chat reply, a video recommendation) leaves it off, and the
+  // host then draws no button at all.
+  request('bubble.say', {
+    text: `别忘了：${names.join('、')}${more}`,
+    todoAction: true,
+  });
+
 
   lastSaid = Date.now();
   if (granted.has('storage')) {
