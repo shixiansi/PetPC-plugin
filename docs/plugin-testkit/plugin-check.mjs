@@ -62,6 +62,8 @@ const METHODS = {
   'surface.show': { perm: 'pet.surface', where: 'pet' },
   'surface.hide': { perm: 'pet.surface', where: 'pet' },
   'surface.blocks': { perm: 'pet.surface', where: 'pet' },
+  // Borrows the surface grant: same authority, and no 14th permission to authorise.
+  'pet.badge': { perm: 'pet.surface', where: 'pet' },
   'llm.chat': { perm: 'llm.chat', where: 'pet' },
   'llm.profile': { perm: 'llm.borrow', where: 'pet' },
   'share.set': { perm: 'plugin.share', where: 'both' },

@@ -345,6 +345,7 @@ function applyOutcome(out) {
   if (!out.endedPhase) {
     saveState();
     paint();
+    pushBadge();
     return;
   }
 
@@ -411,13 +412,16 @@ function tick() {
     state = out.state;
     saveState();
     paint();
+    pushBadge();
     return;
   }
   if (out.endedPhase) {
     applyOutcome(out);
+    pushBadge();
     return;
   }
   paint();
+  pushBadge();
 }
 
 /**
@@ -594,6 +598,39 @@ function onInit(data) {
   }
   paint();
   paintRecords();
+}
+
+// --- the line on the pet itself ----------------------------------------------
+
+/** "24:59" - the countdown as the pet shows it. */
+function clockText(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+}
+
+/**
+ * Draws the countdown on the pet's own box (host capability `pet.badge`), when the user turned it
+ * on in the settings (`showCountdown`).
+ *
+ * TIMER ONLY: the workshop's frames have no pet under them, and a second writer would fight this
+ * one for the same line.
+ *
+ * Sent only when the VISIBLE text changes. A push every tick would be one IPC round trip per second
+ * for a string that is identical 59 times out of 60 - and the host folds repeats, so the log would
+ * report fewer calls than really happened.
+ *
+ * `pet.badge` borrows the `pet.surface` grant (see the host's app_pet_badge.go): same authority,
+ * and updating does not ask the user to authorise a 14th permission.
+ */
+let badgeText = null;
+function pushBadge() {
+  if (!initialised || role !== 'timer' || !granted.has('pet.surface')) return;
+  const on = cfg.showCountdown === true && machine.isRunning(state);
+  const wanted = on ? clockText(Number(state.endsAt) - Date.now()) : '';
+  if (wanted === badgeText) return;
+  badgeText = wanted;
+  request('pet.badge', { text: wanted });
 }
 
 /** Re-reads the declared settings (timer role). See onInit for why this exists. */

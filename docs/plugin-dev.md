@@ -558,6 +558,7 @@ body[data-surface='boot'] { background: transparent; }
 | `surface.show` | `{}` | `{ok:true}` | 打开你自己的浮层面（manifest 声明的那些矩形） |
 | `surface.hide` | `{}` | `{ok:true}` | 关闭 |
 | `surface.blocks` | `{hidden?:[索引], sizes?:{"索引": 高度}}` | `{ok:true}` | 显示/隐藏某些块，或请求某个块长高 |
+| `pet.badge` | `{text}`（≤16 字符，空串=清除） | `{text}` | 在**宠物自己的框内、头顶正中**画一行字（番茄钟的倒计时就是这么来的）。它不占宠物旁那个槽位，所以待办列表开着时也能显示。文字是**字符串**：宿主不解析、不知道是谁写的。**借用 `pet.surface` 的授权**（同一件事：插件可以在宠物身上画自己的像素），所以不需要额外权限 |
 
 `surface.blocks` 的细节（**这是浮层面唯一能改几何的方式**）：
 
@@ -1033,6 +1034,7 @@ com.example.hello-1.0.0.zip
 | `surface.show` | `pet.surface` | 打开你的浮层面 |
 | `surface.hide` | `pet.surface` | 关闭你的浮层面 |
 | `surface.blocks` | `pet.surface` | 显示/隐藏块、请求长高 |
+| `pet.badge` | `pet.surface` | 宠物头顶的一行字（借 surface 的授权，见 6.5） |
 | `llm.chat` | `llm.chat` | 用你自己的配置调模型（流式） |
 | `llm.profile` | `llm.borrow` | 现在能用谁的模型 |
 | `share.set` | `plugin.share` | 发布一个值（只能是你名下的） |

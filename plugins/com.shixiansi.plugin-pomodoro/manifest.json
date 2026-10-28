@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-pomodoro",
   "name": "番茄钟插件",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "author": "shixiansi",
   "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
   "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
@@ -41,6 +41,12 @@
       "label": "一个阶段结束后自动开始下一段（关掉的话每段都要你点一下）",
       "type": "bool",
       "default": "true"
+    },
+    {
+      "key": "showCountdown",
+      "label": "在宠物头顶显示剩余时间",
+      "type": "bool",
+      "default": "false"
     }
   ],
   "assets": ["machine.js"],

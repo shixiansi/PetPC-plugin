@@ -218,7 +218,12 @@ describe('pomodoro 2.2.0: the records, and the control center', () => {
     const declared = (manifest.config || []).map((c) => c.key).sort();
     const readByMachine = ['autoStartNextPhase', 'focusMinutes', 'longBreakEvery',
       'longBreakMinutes', 'shortBreakMinutes'].sort();
-    expect(declared).toEqual(readByMachine);
+    // 2.3.0 added `showCountdown`, which the MACHINE does not read - it is the page's own setting
+    // (draw the countdown on the pet via `pet.badge`). The assertion's point is unchanged: nothing
+    // is declared that nothing reads, so the page's keys are listed here too rather than being
+    // dropped from the comparison.
+    const readByPage = ['showCountdown'];
+    expect(declared).toEqual([...readByMachine, ...readByPage].sort());
     // And the defaults are the ones the machine already assumed: upgrading must not move a
     // running user's 25-minute session to something else.
     const def = Object.fromEntries((manifest.config || []).map((c) => [c.key, c.default]));
@@ -226,6 +231,8 @@ describe('pomodoro 2.2.0: the records, and the control center', () => {
     expect(def.shortBreakMinutes).toBe('5');
     expect(def.longBreakMinutes).toBe('15');
     expect(def.longBreakEvery).toBe('4');
+    // Off by default: a new thing drawn on the pet is opt-in, not something an update switches on.
+    expect(def.showCountdown).toBe('false');
   });
 
   test('the view renders the sessions it reads, newest first', () => {
