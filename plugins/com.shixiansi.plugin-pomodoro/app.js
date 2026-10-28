@@ -86,6 +86,9 @@ let role = 'boot';
 // True when this document is mounted by the CONTROL CENTER (surface.slot === 'workshop').
 // It changes what is honest to show: no timer runs here, so no timer controls.
 let workshop = false;
+// What the host mounted us as (surface / panel). Only the surface has a declared rect that the
+// host will re-crop on request - see fitToGate.
+let mountKind = 'surface';
 // Counts the view's one-second ticks so the records are re-read on a slower beat.
 let recordsTick = 0;
 let cfg = {
@@ -170,6 +173,7 @@ function paint() {
   // The gate is READ from the state, not remembered here: the timer owns it, and the view is a
   // second document that can be closed and reopened while a question is still waiting.
   const gate = state.asking || '';
+  fitToGate(!!gate);
 
   if (els.phase) els.phase.textContent = machine.phaseLabel(state.phase);
   if (els.status) {
@@ -207,6 +211,7 @@ function paint() {
 function paintAsk() {
   if (role === 'timer') return;
   const gate = state.asking || '';
+  fitToGate(!!gate);
   if (els.askLabel) {
     els.askLabel.textContent = gate === 'summary'
       ? '这一段专注写点什么？'
@@ -406,7 +411,13 @@ function publishPhaseEnded(phase, at) {
 function tick() {
   if (!initialised || role !== 'timer') return;
   readCommand();
-  if (asking) return; // a parked phase must not advance while a question is up
+  if (asking) {
+    // A parked phase must not ADVANCE while a question is up - but it still has time left, and the
+    // card keeps showing it, so the head must too. Returning here without pushing is what made the
+    // clock disappear exactly when a phase ended and the summary gate opened.
+    pushBadge();
+    return;
+  }
   const out = machine.reconcile(state, cfg, Date.now());
   if (out.clockJump) {
     state = out.state;
@@ -541,6 +552,7 @@ function onInit(data) {
   // nobody reads. They are hidden rather than left dead, and the line above the records says
   // where the timer actually is.
   workshop = role === 'view' && surface.slot === 'workshop';
+  mountKind = surface.kind || 'surface';
 
   if (role === 'view') {
     els.root.className = workshop ? 'view-workshop' : 'view-face';
@@ -602,13 +614,6 @@ function onInit(data) {
 
 // --- the line on the pet itself ----------------------------------------------
 
-/** "24:59" - the countdown as the pet shows it. */
-function clockText(ms) {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
-}
-
 /**
  * Draws the countdown on the pet's own box (host capability `pet.badge`), when the user turned it
  * on in the settings (`showCountdown`).
@@ -628,13 +633,43 @@ function pushBadge() {
   if (!initialised || role !== 'timer' || !granted.has('pet.surface')) return;
   // `settingOn`, not `=== true`: the value arrives as the STRING `"true"` (see machine.js), so the
   // strict comparison was false for ever and the badge was pushed as an empty string.
-  const on = machine.settingOn(cfg.showCountdown) && machine.isRunning(state);
-  const wanted = on ? clockText(Number(state.endsAt) - Date.now()) : '';
+  //
+  // The countdown is shown for the whole life of a PHASE, not only while it is running: paused and
+  // "parked waiting for your answer" both still have time left, and the card beside the pet keeps
+  // showing it. Requiring `isRunning` cleared the head at exactly the moment the user looks at the
+  // card and sees 05:00 - reported as 「没有显示时间」 with a screenshot of a parked break.
+  // `remainingMs` is the machine's own answer for all three states (running uses `endsAt`, the
+  // halted ones use `remainingOnHalt`).
+  const idle = state.phase === machine.PHASE_IDLE;
+  const left = idle ? 0 : machine.remainingMs(state, Date.now());
+  const wanted = machine.settingOn(cfg.showCountdown) && left > 0 ? machine.formatCountdown(left) : '';
   if (wanted === badgeText) return;
   badgeText = wanted;
   request('pet.badge', { text: wanted });
 }
 
+/**
+ * Asks the host for a taller block while the summary gate is up.
+ *
+ * WHY: the card's rectangle is DECLARED in the manifest (380x260) and the iframe is exactly that
+ * tall, so anything beyond it is cut off - reported as 「界面被截断了」 with the 取消/跳过 row sliced
+ * in half. The gate adds a question, a textarea and two buttons (about 170px), which cannot fit.
+ *
+ * `surface.blocks` is the host's mechanism for exactly this: it re-crops the window to the new
+ * height. Only the surface mount has block geometry - the panel/workshop mounts are full-page and
+ * asking there would be refused ("surface is not open").
+ *
+ * Empty `sizes` restores the declared height, so the card shrinks back when the gate closes.
+ */
+const GATE_BLOCK_H = 430;
+let askedGateH = null;
+function fitToGate(open) {
+  if (role !== 'view' || mountKind !== 'surface') return;
+  const want = open ? GATE_BLOCK_H : 0;
+  if (want === askedGateH) return;
+  askedGateH = want;
+  request('surface.blocks', want ? { sizes: { 0: want } } : { sizes: {} });
+}
 /** Re-reads the declared settings (timer role). See onInit for why this exists. */
 function refreshConfig() {
   if (!initialised || role !== 'timer' || pendingConfig) return;

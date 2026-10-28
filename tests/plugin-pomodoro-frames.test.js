@@ -388,3 +388,62 @@ describe('pomodoro 2.3.1: the countdown on the pet', () => {
     }
   });
 });
+describe('pomodoro 2.3.2: the countdown covers the whole phase', () => {
+  // The rule the CARD has always used is `remainingMs(state)` - running, paused and parked all have
+  // time left. The head used `isRunning`, so the moment a phase ended and the summary gate opened
+  // the clock vanished while the card still said 05:00. Reported as 「没有显示时间」 with a
+  // screenshot of exactly that state.
+  test('a parked phase still shows its remaining time', async () => {
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(allOf(sent, 'config.get').at(-1).id, { values: { showCountdown: 'true' } });
+
+    // Parked: the break ended, the summary gate is up, and the machine keeps the remainder.
+    const parked = {
+      ...endedState('shortBreak'),
+      asking: 'summary',
+      runState: 'paused',
+      endsAt: 0,
+      remainingOnHalt: 5 * 60,
+      pendingRecordId: 'r1',
+    };
+    respond(lastStateRead(sent).id, { value: JSON.stringify(parked) });
+
+    const deadline = Date.now() + 3000;
+    let badge = null;
+    while (!badge && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      badge = allOf(sent, 'pet.badge').filter((m) => m.payload.text).at(-1);
+    }
+    expect(badge, 'a parked phase pushed no time at all').toBeTruthy();
+    expect(badge.payload.text).toMatch(/^0?5:00$/);
+  });
+});
+describe('pomodoro 2.3.3: the gate is not cut off', () => {
+  // The card's rectangle is declared (380x260) and the iframe is exactly that tall, so the summary
+  // gate's question + textarea + buttons were sliced in half - reported as 「界面被截断了」. The
+  // host's `surface.blocks {sizes}` is what re-crops the window; the plugin has to ask.
+  test('the summary gate asks for a taller block, and gives it back', async () => {
+    const { sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+    respond(allOf(sent, 'storage.get').at(-1).id, { value: JSON.stringify({ phase: 'idle', enabled: true }) });
+
+    const asked = allOf(sent, 'surface.blocks').filter((m) => m.payload.sizes && m.payload.sizes['0']);
+    expect(asked.length, 'the gate never asked for a taller block').toBe(0);
+
+    // Now the gate opens: the break is parked and the card has to ask for room.
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({ ...endedState('focus'), asking: 'summary', pendingRecordId: 'r1', endsAt: 0, remainingOnHalt: 300 }),
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    const grown = allOf(sent, 'surface.blocks').filter((m) => m.payload.sizes && m.payload.sizes['0']);
+    expect(grown.length, 'the summary gate did not ask for more height').toBeGreaterThan(0);
+    expect(grown.at(-1).payload.sizes['0']).toBeGreaterThan(300);
+
+    // And answering it gives the room back: empty sizes means "the declared height".
+    respond(lastStateRead(sent).id, { value: JSON.stringify({ phase: 'idle', asking: '' }) });
+    await new Promise((r) => setTimeout(r, 200));
+    const shrunk = allOf(sent, 'surface.blocks').filter((m) => m.payload.sizes && Object.keys(m.payload.sizes).length === 0);
+    expect(shrunk.length, 'the card never went back to its declared height').toBeGreaterThan(0);
+  });
+});
