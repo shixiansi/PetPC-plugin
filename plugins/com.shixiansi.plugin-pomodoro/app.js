@@ -660,6 +660,11 @@ function pushBadge() {
  * asking there would be refused ("surface is not open").
  *
  * Empty `sizes` restores the declared height, so the card shrinks back when the gate closes.
+ *
+ * AND THE MANIFEST HAS TO ALLOW IT: the host honours `sizes` only for a block whose declaration
+ * carries `maxH` (0 means "cannot grow"), and clamps the request into [h, maxH]. 2.3.3 shipped
+ * without `maxH`, so the request was ACCEPTED (`surface.blocks ok` in the log) and then ignored -
+ * the card stayed 260 tall and the buttons stayed cut. Hence `maxH: 480` in the rect.
  */
 const GATE_BLOCK_H = 430;
 let askedGateH = null;
