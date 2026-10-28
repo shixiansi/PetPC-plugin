@@ -1,32 +1,126 @@
 {
   "id": "com.shixiansi.plugin-qqbot",
-  "name": "QQ 官方机器人",
-  "version": "1.0.0",
+  "name": "QQ \u5b98\u65b9\u673a\u5668\u4eba",
+  "version": "1.0.1",
   "author": "shixiansi",
-  "description": "把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。",
-  "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
+  "description": "\u628a\u5927\u6a21\u578b\u63a5\u8fdb QQ \u5b98\u65b9\u673a\u5668\u4eba\uff08QQ \u5f00\u653e\u5e73\u53f0 q.qq.com\uff09\uff1aWebSocket \u7f51\u5173\u6536\u7fa4\u804a @ \u6d88\u606f\u4e0e\u5355\u804a\u6d88\u606f\uff0c\u7528\u88ab\u52a8\u56de\u590d\u63a5\u53e3\u7b54\u590d\u3002AppID \u4e0e AppSecret \u5728\u5f00\u653e\u5e73\u53f0\u7ba1\u7406\u7aef\u83b7\u53d6\uff0c\u6a21\u578b\u9ed8\u8ba4\u501f\u7528\u5bf9\u8bdd\u63d2\u4ef6\u7684\u914d\u7f6e\u3002",
+  "permissions": [
+    "net.ws",
+    "net.fetch",
+    "llm.chat",
+    "llm.borrow",
+    "storage",
+    "plugin.config"
+  ],
   "background": true,
-  "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
+  "netHosts": [
+    "api.bot.qq.com",
+    "api.sgroup.qq.com"
+  ],
   "config": [
-    { "key": "appId", "label": "AppID（开放平台管理端）", "type": "text", "default": "" },
-    { "key": "appSecret", "label": "AppSecret（开放平台管理端；只存在本机，不会外泄）", "type": "text", "default": "" },
-    { "key": "apiDomain", "label": "API 域名（留空=api.bot.qq.com；沙箱环境填 sandbox.api.sgroup.qq.com 的域名部分）", "type": "text", "default": "", "hostWhitelist": true },
-    { "key": "intentsPreset", "label": "订阅事件", "type": "select", "options": [
-      { "value": "group+c2c", "label": "群聊 @ 消息 + 单聊（推荐）" },
-      { "value": "group", "label": "仅群聊 @ 消息" },
-      { "value": "c2c", "label": "仅单聊" },
-      { "value": "guild", "label": "频道公域 @ 消息（需要机器人有频道权限）" }
-    ], "default": "group+c2c" },
-    { "key": "groupAllow", "label": "只在这些群生效（群 OpenID，逗号分隔；留空=所有群）", "type": "text", "default": "" },
-    { "key": "replyMaxChars", "label": "回复字数上限", "type": "number", "default": "300" },
-    { "key": "contextTurns", "label": "每个会话记住几条往来", "type": "number", "default": "8" },
-    { "key": "cooldownSec", "label": "同一会话最小回复间隔（秒）", "type": "number", "default": "3" },
-    { "key": "persona", "label": "人格设定（留空=默认简洁友好的助手；写了就整段替换默认）", "type": "text", "default": "" },
-    { "key": "echoUnknownEvents", "label": "在日志里记录其它收到的事件（好友添加/移除等）", "type": "bool", "default": "true" },
-    { "key": "llmBaseUrl", "label": "接口地址（留空=借用对话插件的配置）", "type": "text", "default": "" },
-    { "key": "llmModel", "label": "模型（留空=借用对话插件的配置）", "type": "text", "default": "" },
-    { "key": "llmApiKey", "label": "API Key（留空=借用对话插件的配置）", "type": "secret", "secret": true },
-    { "key": "llmDailyBudget", "label": "每日请求上限（次，0=不限）", "type": "number", "default": "200" }
+    {
+      "key": "appId",
+      "label": "AppID\uff08\u5f00\u653e\u5e73\u53f0\u7ba1\u7406\u7aef\uff09",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "appSecret",
+      "label": "AppSecret\uff08\u5f00\u653e\u5e73\u53f0\u7ba1\u7406\u7aef\uff1b\u53ea\u5b58\u5728\u672c\u673a\uff0c\u4e0d\u4f1a\u5916\u6cc4\uff09",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "apiDomain",
+      "label": "API \u57df\u540d\uff08\u7559\u7a7a=api.bot.qq.com\uff1b\u6c99\u7bb1\u73af\u5883\u586b sandbox.api.sgroup.qq.com \u7684\u57df\u540d\u90e8\u5206\uff09",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "intentsPreset",
+      "label": "\u8ba2\u9605\u4e8b\u4ef6",
+      "type": "select",
+      "options": [
+        {
+          "value": "group+c2c",
+          "label": "\u7fa4\u804a @ \u6d88\u606f + \u5355\u804a\uff08\u63a8\u8350\uff09"
+        },
+        {
+          "value": "group",
+          "label": "\u4ec5\u7fa4\u804a @ \u6d88\u606f"
+        },
+        {
+          "value": "c2c",
+          "label": "\u4ec5\u5355\u804a"
+        },
+        {
+          "value": "guild",
+          "label": "\u9891\u9053\u516c\u57df @ \u6d88\u606f\uff08\u9700\u8981\u673a\u5668\u4eba\u6709\u9891\u9053\u6743\u9650\uff09"
+        }
+      ],
+      "default": "group+c2c"
+    },
+    {
+      "key": "groupAllow",
+      "label": "\u53ea\u5728\u8fd9\u4e9b\u7fa4\u751f\u6548\uff08\u7fa4 OpenID\uff0c\u9017\u53f7\u5206\u9694\uff1b\u7559\u7a7a=\u6240\u6709\u7fa4\uff09",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "replyMaxChars",
+      "label": "\u56de\u590d\u5b57\u6570\u4e0a\u9650",
+      "type": "number",
+      "default": "300"
+    },
+    {
+      "key": "contextTurns",
+      "label": "\u6bcf\u4e2a\u4f1a\u8bdd\u8bb0\u4f4f\u51e0\u6761\u5f80\u6765",
+      "type": "number",
+      "default": "8"
+    },
+    {
+      "key": "cooldownSec",
+      "label": "\u540c\u4e00\u4f1a\u8bdd\u6700\u5c0f\u56de\u590d\u95f4\u9694\uff08\u79d2\uff09",
+      "type": "number",
+      "default": "3"
+    },
+    {
+      "key": "persona",
+      "label": "\u4eba\u683c\u8bbe\u5b9a\uff08\u7559\u7a7a=\u9ed8\u8ba4\u7b80\u6d01\u53cb\u597d\u7684\u52a9\u624b\uff1b\u5199\u4e86\u5c31\u6574\u6bb5\u66ff\u6362\u9ed8\u8ba4\uff09",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "echoUnknownEvents",
+      "label": "\u5728\u65e5\u5fd7\u91cc\u8bb0\u5f55\u5176\u5b83\u6536\u5230\u7684\u4e8b\u4ef6\uff08\u597d\u53cb\u6dfb\u52a0/\u79fb\u9664\u7b49\uff09",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "llmBaseUrl",
+      "label": "\u63a5\u53e3\u5730\u5740\uff08\u7559\u7a7a=\u501f\u7528\u5bf9\u8bdd\u63d2\u4ef6\u7684\u914d\u7f6e\uff09",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmModel",
+      "label": "\u6a21\u578b\uff08\u7559\u7a7a=\u501f\u7528\u5bf9\u8bdd\u63d2\u4ef6\u7684\u914d\u7f6e\uff09",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmApiKey",
+      "label": "API Key\uff08\u7559\u7a7a=\u501f\u7528\u5bf9\u8bdd\u63d2\u4ef6\u7684\u914d\u7f6e\uff09",
+      "type": "secret",
+      "secret": true
+    },
+    {
+      "key": "llmDailyBudget",
+      "label": "\u6bcf\u65e5\u8bf7\u6c42\u4e0a\u9650\uff08\u6b21\uff0c0=\u4e0d\u9650\uff09",
+      "type": "number",
+      "default": "200"
+    }
   ],
   "entry": "panel.html",
   "assets": [
