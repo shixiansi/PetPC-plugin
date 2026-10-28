@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>插件预览</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; display: flex; height: 100vh; font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    background: #14161b; color: #e6e8ee;
+  }
+  /* The stage is deliberately NOT the card's size: the card is drawn to scale with a dashed outline,
+     because "the card is 380x260" is the fact every clipping bug was about and it has to be visible. */
+  #stage { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #card { position: relative; outline: 1px dashed #4b5563; outline-offset: 0; }
+  #card::after {
+    content: attr(data-label); position: absolute; left: 0; top: -18px; font-size: 11px; color: #8b93a1;
+  }
+  iframe { display: block; border: 0; background: transparent; }
+  #side { flex: 0 0 420px; border-left: 1px solid #262a33; display: flex; flex-direction: column; min-height: 0; }
+  #bar { padding: 8px; border-bottom: 1px solid #262a33; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #bar select, #bar button, #bar input { font: inherit; background: #1d2027; color: inherit; border: 1px solid #333844; border-radius: 6px; padding: 3px 6px; }
+  #bar button { cursor: pointer; }
+  #report { padding: 8px; border-bottom: 1px solid #262a33; font-family: ui-monospace, Consolas, monospace; font-size: 11px; white-space: pre-wrap; }
+  #report.ok { color: #4ade80; }
+  #report.bad { color: #f87171; }
+  #log { flex: 1 1 auto; overflow: auto; padding: 8px; font-family: ui-monospace, Consolas, monospace; font-size: 11px; }
+  #log div { padding: 1px 0; border-bottom: 1px solid #1b1e25; }
+  .dir-out { color: #93c5fd; }
+  .dir-in { color: #fbbf24; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="card" data-label="declared rect"><iframe id="frame" title="plugin"></iframe></div>
+</div>
+<div id="side">
+  <div id="bar">
+    <label>rect <select id="rect"></select></label>
+    <label>slot <select id="slot">
+      <option value="pomodoro">pomodoro</option><option value="todos">todos</option>
+      <option value="chat">chat</option><option value="workshop">workshop</option>
+      <option value="background">background</option>
+    </select></label>
+    <label>kind <select id="kind"><option value="surface">surface</option><option value="panel">panel</option></select></label>
+    <label><input type="checkbox" id="deny" /> 拒绝一切</label>
+    <button id="reload">重载</button>
+    <button id="cfg">发 config.changed</button>
+  </div>
+  <div id="report">等待插件…</div>
+  <div id="log"></div>
+</div>
+<script>
+// ---------------------------------------------------------------------------
+// The fake host. It speaks the SAME protocol as frontend/src/plugin-host.js and
+// tools/plugin-market/cc/src/lib/plugin-frame.ts - and it never decides permissions: `granted` is
+// data, exactly like the real host, so the refusal path can be previewed by unchecking a box.
+//
+// Why this file exists at all: jsdom has no layout, so every test in market/tests asserts DOM and
+// messages but cannot see that a button is 8px below the bottom of the card. Five releases of the
+// pomodoro shipped that way. A real browser is the only thing that can answer "does it fit".
+// ---------------------------------------------------------------------------
+const q = new URLSearchParams(location.search);
+const params = {
+  plugin: q.get('plugin') || '',
+  rect: Number(q.get('rect') || 0),
+  slot: q.get('slot') || 'pomodoro',
+  kind: q.get('kind') || 'surface',
+  granted: (q.get('granted') || 'storage,plugin.config,plugin.share,events,pet.surface,pet.bubble').split(',').filter(Boolean),
+  deny: q.get('deny') === '1',
+  state: q.get('state') || 'idle',
+};
+
+const els = {
+  frame: document.getElementById('frame'),
+  card: document.getElementById('card'),
+  rect: document.getElementById('rect'),
+  slot: document.getElementById('slot'),
+  kind: document.getElementById('kind'),
+  deny: document.getElementById('deny'),
+  reload: document.getElementById('reload'),
+  cfg: document.getElementById('cfg'),
+  report: document.getElementById('report'),
+  log: document.getElementById('log'),
+};
+
+let manifest = null;
+let rects = [];
+
+function logLine(dir, text) {
+  const row = document.createElement('div');
+  row.className = dir === 'out' ? 'dir-out' : 'dir-in';
+  row.textContent = `${dir === 'out' ? '→' : '←'} ${text}`;
+  els.log.prepend(row);
+}
+
+/** The state the plugin reads out of storage, per `--state`. */
+function stateFor(kind) {
+  const base = {
+    phase: 'focus', runState: 'running', endsAt: Date.now() + 5 * 60 * 1000,
+    remainingOnHalt: 0, currentTodoId: '', currentTodoTitle: '', asking: '',
+    pendingRecordId: '', focusCount: 1,
+  };
+  if (kind === 'gate') {
+    // A finished focus parked on the summary gate: this is the screen that broke four times.
+    return { ...base, runState: 'paused', endsAt: 0, remainingOnHalt: 300, asking: 'summary', pendingRecordId: 'r1' };
+  }
+  if (kind === 'idle') {
+    return { ...base, phase: 'idle', runState: 'stopped', endsAt: 0, remainingOnHalt: 0 };
+  }
+  return base;
+}
+
+/** What the host answers. Deliberately dumb: only the methods these plugins actually call. */
+function resultFor(method, payload) {
+  if (params.deny) return { ok: false, error: `模拟拒绝：未获权限 ${method}` };
+  switch (method) {
+    case 'storage.get': {
+      const key = (payload && payload.key) || '';
+      if (key === 'pomodoro-state-v2') return { ok: true, result: { value: JSON.stringify(stateFor(params.state)) } };
+      if (key === 'pomodoro-records-v2') {
+        return { ok: true, result: { value: JSON.stringify([{ id: 'r1', endedAt: Date.now() - 60000, minutes: 5, phase: 'focus', summary: '' }]) } };
+      }
+      return { ok: true, result: { value: '' } };
+    }
+    case 'storage.stat': return { ok: true, result: { exists: true, bytes: 10 } };
+    case 'storage.dir': return { ok: true, result: { dir: 'C:\\预览' } };
+    case 'storage.list': return { ok: true, result: { dir: 'C:\\预览', files: [], dirs: [] } };
+    case 'storage.set': return { ok: true, result: { ok: true } };
+    case 'storage.move': return { ok: true, result: { ok: true, moved: true } };
+    case 'config.get': return { ok: true, result: { values: { showCountdown: 'true', focusMinutes: '5', shortBreakMinutes: '5', longBreakMinutes: '15', longBreakEvery: '4', autoStartNextPhase: 'true' }, secrets: {} } };
+    case 'config.set': return { ok: true, result: { ok: true } };
+    case 'share.get': return { ok: true, result: { value: '', at: 0, key: '' } };
+    case 'share.set': return { ok: true, result: { ok: true } };
+    case 'events.subscribe': return { ok: true, result: [] };
+    case 'surface.blocks': return { ok: true, result: { ok: true } };
+    case 'surface.show': return { ok: true, result: { ok: true } };
+    case 'surface.hide': return { ok: true, result: { ok: true } };
+    case 'pet.badge': return { ok: true, result: { text: (payload && payload.text) || '' } };
+    case 'bubble.say': return { ok: true, result: { ok: true } };
+    case 'llm.profile': return { ok: true, result: { ownReady: false, borrowAllowed: false, ready: false, source: 'none', model: '' } };
+    case 'llm.chat': return { ok: true, result: { requestId: 'preview', text: '（预览回复）' } };
+    case 'ws.state': return { ok: true, result: { state: 'closed', received: 0, sent: 0 } };
+    case 'process.state': return { ok: true, result: { known: true, running: false, exitCode: 0 } };
+    default: return { ok: true, result: { ok: true } };
+  }
+}
+
+function sendToPlugin(msg) {
+  els.frame.contentWindow.postMessage(msg, '*');
+}
+
+function onMessage(event) {
+  if (event.source !== els.frame.contentWindow) return; // only OUR frame, like the real host
+  const msg = event.data;
+  if (!msg || msg.v !== 1) { logLine('in', `丢弃（v≠1）：${JSON.stringify(msg)}`); return; }
+  logLine('in', `${msg.type} ${msg.method || ''}${msg.id ? ' #' + msg.id : ''}`);
+  if (msg.type === 'ready') {
+    sendToPlugin({
+      v: 1, type: 'init', pluginId: params.plugin, permissions: (manifest && manifest.permissions) || [],
+      granted: params.granted, theme: 'dark',
+      surface: {
+        kind: params.kind, slot: params.slot, rectIndex: params.rect, rectCount: rects.length || 1,
+        rect: { x: 0, y: 0, w: currentRect().w, h: currentRect().h, r: currentRect().radius || 0, tailX: 0, hidden: false, room: 160 },
+      },
+    });
+    scheduleReport();
+    return;
+  }
+  if (msg.type === 'request') {
+    const res = resultFor(msg.method, msg.payload);
+    sendToPlugin({ v: 1, type: 'response', id: msg.id, ...res });
+    scheduleReport();
+  }
+}
+
+// --- the layout check -------------------------------------------------------
+//
+// THE POINT OF THIS PAGE. Every element that paints outside the declared rect is listed by id with
+// the numbers, because that is the bug class jsdom cannot see: a card 260 tall whose last row sits at
+// 268 is not "a styling nit", it is an invisible button.
+function currentRect() {
+  const r = rects[params.rect] || { w: 380, h: 260, radius: 14 };
+  return { w: Math.round(r.w), h: Math.round(r.h), radius: r.radius || 0 };
+}
+
+let reportQueued = false;
+function scheduleReport() {
+  if (reportQueued) return;
+  reportQueued = true;
+  requestAnimationFrame(() => { reportQueued = false; runReport(); });
+}
+
+function runReport() {
+  const { w, h } = currentRect();
+  const doc = els.frame.contentDocument;
+  const lines = [];
+  if (!doc || !doc.body) { els.report.className = ''; els.report.textContent = '插件还没加载完…'; return; }
+  const body = doc.body;
+  if (doc.documentElement.scrollHeight > h + 1) {
+    lines.push(`内容比卡片高：scrollHeight=${doc.documentElement.scrollHeight} > ${h}`);
+  }
+  const walk = (node) => {
+    for (const el of node.children) {
+      const style = els.frame.contentWindow.getComputedStyle(el);
+      const visible = style.display !== 'none' && style.visibility !== 'hidden' && el.getClientRects().length > 0;
+      if (visible) {
+        const r = el.getBoundingClientRect();
+        const id = el.id ? '#' + el.id : el.tagName.toLowerCase() + (el.className ? '.' + String(el.className).split(' ')[0] : '');
+        if (r.bottom > h + 0.5) lines.push(`${id} 底边 ${Math.round(r.bottom)} > ${h}（被下边缘裁掉 ${Math.round(r.bottom - h)}px）`);
+        if (r.right > w + 0.5) lines.push(`${id} 右边 ${Math.round(r.right)} > ${w}`);
+      }
+      walk(el);
+    }
+  };
+  walk(body);
+  if (lines.length === 0) {
+    els.report.className = 'ok';
+    els.report.textContent = `✓ 全部在 ${w}×${h} 之内`;
+  } else {
+    els.report.className = 'bad';
+    els.report.textContent = `✗ ${lines.length} 处越界：\n` + lines.join('\n');
+  }
+  // Exposed for `--dump-dom`: the CLI reads this attribute instead of parsing the pretty text.
+  document.title = lines.length === 0 ? 'PREVIEW-OK' : 'PREVIEW-FAIL';
+  document.body.dataset.report = JSON.stringify(lines);
+}
+
+// --- boot -------------------------------------------------------------------
+async function boot() {
+  manifest = await (await fetch('/plugin/manifest.json')).json();
+  rects = manifest.surface || [];
+  els.slot.value = params.slot;
+  els.kind.value = params.kind;
+  els.deny.checked = params.deny;
+  rects.forEach((r, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${i} (${Math.round(r.w)}×${Math.round(r.h)})`;
+    els.rect.append(o);
+  });
+  if (rects.length === 0) {
+    const o = document.createElement('option');
+    o.value = '0';
+    o.textContent = '0 (panel)';
+    els.rect.append(o);
+  }
+  els.rect.value = String(params.rect);
+  applySize();
+  window.addEventListener('message', onMessage);
+  els.frame.addEventListener('load', () => { logLine('in', '（iframe 载入完成）'); scheduleReport(); });
+  els.frame.src = `/plugin/${manifest.entry}?theme=dark`;
+  els.reload.addEventListener('click', () => location.reload());
+  els.cfg.addEventListener('click', () => {
+    sendToPlugin({ v: 1, type: 'event', name: 'config.changed', payload: { pluginId: params.plugin } });
+    logLine('out', 'event config.changed');
+  });
+  for (const el of [els.rect, els.slot, els.kind]) {
+    el.addEventListener('change', () => {
+      const u = new URL(location.href);
+      u.searchParams.set('rect', els.rect.value);
+      u.searchParams.set('slot', els.slot.value);
+      u.searchParams.set('kind', els.kind.value);
+      location.href = u.toString();
+    });
+  }
+  els.deny.addEventListener('change', () => {
+    const u = new URL(location.href);
+    u.searchParams.set('deny', els.deny.checked ? '1' : '0');
+    location.href = u.toString();
+  });
+  new ResizeObserver(scheduleReport).observe(els.frame);
+  setInterval(scheduleReport, 500); // the plugin repaints on its own clock; keep the report fresh
+}
+
+function applySize() {
+  const { w, h } = currentRect();
+  els.frame.style.width = w + 'px';
+  els.frame.style.height = h + 'px';
+  els.card.style.width = w + 'px';
+  els.card.style.height = h + 'px';
+  els.card.dataset.label = `declared rect ${w}×${h}`;
+}
+
+boot().catch((err) => {
+  els.report.className = 'bad';
+  els.report.textContent = '预览启动失败：' + err.message;
+  document.title = 'PREVIEW-ERROR';
+});
+</script>
+</body>
+</html>

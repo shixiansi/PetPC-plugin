@@ -130,3 +130,43 @@ window.eval(readFileSync('app.js', 'utf8'));
 工具的常量表（13 项权限、35 个方法、各处上限）与手册第 4/6 节是同一份契约的两处副本。
 **改一处就要改另一处**——这条写在 `AGENTS.md §3.3`。工具落后于宿主时它会"少报"
 （不认识新方法），但不会替你误报已存在的方法。
+
+## 预览：装之前先看一眼（`preview.mjs` + `preview.html`）
+
+自检工具查的是 manifest、包、静态红线与协议——**它看不见排版**（jsdom 没有布局引擎，
+`getBoundingClientRect()` 恒为 0）。所以"卡片放不放得下"必须用真浏览器看，这里就是那个工具。
+
+**零依赖、零下载**：用你机器上已经有的 Edge 或 Chrome（Edge 就是产品 WebView2 的引擎），
+不需要 npm 装任何东西，也不需要构建宿主。
+
+```bash
+# 人工看：起一个本地服务器，浏览器里点、切 rect、看消息流水与排版结论
+node docs/plugin-testkit/preview.mjs plugins/com.shixiansi.plugin-pomodoro --open
+
+# 断言：无头跑一遍，越界就 FAIL（退出码 1）
+node docs/plugin-testkit/preview.mjs plugins/… --check --state gate
+
+# 截图：给人和 agent 看（一张 380×260 的卡片 + 右侧面板）
+node docs/plugin-testkit/preview.mjs plugins/… --shot gate.png --state gate
+```
+
+`--state gate|running|idle` 决定假宿主回什么状态：`gate` 就是「等你回答」那一屏（一段专注结束、
+停在那里等回答），不必真的等五分钟。`--rect N` 选第几块矩形，`--slot` / `--kind` 选挂载方式，
+`--deny` 把每个请求都拒绝（用来看权限被拒时界面会不会崩）。
+
+**它检查什么**（页面上实时显示，也是 `--check` 的判据）：每个可见元素的
+`getBoundingClientRect()` 是否超出声明矩形（下边、右边），以及 `scrollHeight` 是否超过卡片高度。
+越界就列出元素与差值：
+
+```
+FAIL  com.shixiansi.plugin-pomodoro rect 0（380×260，state=gate）：6 处越界
+  ✗ 内容比卡片高：scrollHeight=277 > 260
+  ✗ #ask-ok 底边 277 > 260（被下边缘裁掉 17px）
+  ✗ #ask-skip 底边 277 > 260（被下边缘裁掉 17px）
+```
+
+这就是 2026-10-28 番茄钟卡片连翻五次车的那一类问题（按钮被切 → 只剩数字 → 全黑），
+前四次这个工具都能直接抓住。
+
+**它看不见什么**：真机的窗口区域裁剪（原生 `SetWindowRgn`）、跨进程的 `config.changed` 时序、
+"好不好看"。这三样仍需人装上去看一眼。
