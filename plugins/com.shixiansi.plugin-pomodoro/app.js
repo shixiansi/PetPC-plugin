@@ -52,6 +52,7 @@ const els = {
   root: document.getElementById('root') || document.body,
   phase: document.getElementById('phase'),
   status: document.getElementById('status'),
+  face: document.getElementById('face'),
   countdown: document.getElementById('countdown'),
   task: document.getElementById('task'),
   todo: document.getElementById('todo'),
@@ -205,6 +206,11 @@ function paint() {
   // `workshop || gate`: the control center's mount hides these rows for good (no timer runs
   // there), so this must not un-hide them on every paint.
   if (els.compose) els.compose.hidden = workshop || !!gate;
+  // The big countdown panel gives way to the gate, and that is the fix for 「按钮都不见了」: the
+  // panel is `flex: 1 1 auto`, so it grew into the space the gate needed and pushed the gate's own
+  // controls below the bottom of the card. The number is still on the pet's head (pet.badge) and the
+  // status bar still says 等你回答, so nothing is lost by hiding it here.
+  if (els.face) els.face.hidden = !!gate;
   for (const el of [els.todo, els.start, els.pause, els.resume, els.stop]) {
     if (el) el.disabled = el.disabled || !!gate;
   }

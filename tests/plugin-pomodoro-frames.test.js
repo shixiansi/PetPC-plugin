@@ -493,3 +493,30 @@ describe('pomodoro 2.3.6: the card beside the pet holds the countdown and the ga
     expect(window.document.getElementById('ask-text').hidden).toBe(false);
   });
 });
+describe('pomodoro 2.3.8: the gate owns the card', () => {
+  // The countdown panel is `flex: 1 1 auto`, so while the gate was up it grew into the gate's space
+  // and pushed the gate's own buttons below the bottom edge - 「现在只有数字了」. The number is on the
+  // pet's head anyway (pet.badge), so the panel steps aside while a question is waiting.
+  test('a question hides the big countdown panel and shows the gate', async () => {
+    const { window, sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: JSON.stringify({ phase: 'idle' }) });
+    await new Promise((r) => setTimeout(r, 150));
+    expect(window.document.getElementById('face').hidden, 'the panel is hidden with no gate').toBe(false);
+
+    const before = allOf(sent, 'storage.get').length;
+    const deadline = Date.now() + 3000;
+    let fresh = null;
+    while (!fresh && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      const now = allOf(sent, 'storage.get');
+      if (now.length > before) fresh = now.at(-1);
+    }
+    respond(fresh.id, {
+      value: JSON.stringify({ ...endedState('focus'), asking: 'summary', pendingRecordId: 'a', endsAt: 0, remainingOnHalt: 300 }),
+    });
+    await new Promise((r) => setTimeout(r, 250));
+    expect(window.document.getElementById('face').hidden, 'the panel is still eating the card').toBe(true);
+    expect(window.document.getElementById('ask').hidden, 'the gate did not appear').toBe(false);
+  });
+});
