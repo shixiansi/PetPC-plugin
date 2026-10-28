@@ -317,9 +317,20 @@ function publishPhaseEnded(phase, at) {
   });
 }
 
-/** One second of the machine. TIMER ONLY. */
+/**
+ * One second of the timer: collect any command the view left, then advance the machine.
+ *
+ * The command read comes FIRST and BEFORE the gate guard below, because `answer` is exactly the
+ * command that arrives while a gate is up. Reading it after `if (asking) return` would make the
+ * summary question unanswerable - the one state the whole two-frame design has to get right.
+ *
+ * There is no second timer for the command channel. A `setInterval(readCommand, 1000)` next to this
+ * one was scheduled behind `if (!ticker)`, which this function had already set, so it never ran and
+ * EVERY button press was silently dropped. One timer, one place to look.
+ */
 function tick() {
   if (!initialised || role !== 'timer') return;
+  readCommand();
   if (asking) return; // a parked phase must not advance while a question is up
   const out = machine.reconcile(state, cfg, Date.now());
   if (out.clockJump) {
@@ -465,9 +476,6 @@ function onInit(data) {
 
   if (role === 'timer') {
     if (!ticker) ticker = window.setInterval(tick, 1000);
-    // The command channel is polled on its own cadence: the tick already runs once a second, and a
-    // second timer for it would be two things to reason about for no gain. This is that read.
-    if (!ticker) ticker = window.setInterval(readCommand, 1000);
   } else {
     // The view does not tick the machine - it re-reads the state the timer wrote. Its countdown is
     // local (derived from the absolute `endsAt`), so a slow read cannot make the number drift.
