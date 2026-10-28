@@ -518,5 +518,10 @@ describe('pomodoro 2.3.8: the gate owns the card', () => {
     await new Promise((r) => setTimeout(r, 250));
     expect(window.document.getElementById('face').hidden, 'the panel is still eating the card').toBe(true);
     expect(window.document.getElementById('ask').hidden, 'the gate did not appear').toBe(false);
+    // THE REGRESSION THAT COST THREE ROUNDS: the gate is a CHILD of `#compose`, so hiding the footer
+    // hides the question. The footer must stay; only the picker and the transport row go.
+    expect(window.document.getElementById('compose').hidden, 'the footer (which contains the gate) was hidden').toBe(false);
+    expect(window.document.querySelector('#compose .actions').hidden, 'the transport row is still up').toBe(true);
+    expect(window.document.querySelector('#compose .pick').hidden, 'the picker is still up').toBe(true);
   });
 });

@@ -53,6 +53,9 @@ const els = {
   phase: document.getElementById('phase'),
   status: document.getElementById('status'),
   face: document.getElementById('face'),
+  // The two rows the gate replaces (it lives inside the same footer, so the footer stays).
+  pick: document.querySelector('#compose .pick'),
+  actions: document.querySelector('#compose .actions'),
   countdown: document.getElementById('countdown'),
   task: document.getElementById('task'),
   todo: document.getElementById('todo'),
@@ -199,13 +202,14 @@ function paint() {
   // The gate takes the whole footer: while a question is up, the controls are not the next thing to
   // press, and leaving them clickable would let the user start a second session under a question.
   if (els.ask) els.ask.hidden = !gate;
-  // The gate REPLACES the controls, which is what the stylesheet's own comment says it does and
-  // what this line forgot to implement: with a question on screen the transport row is dead anyway
-  // (every button is disabled), and keeping it pushed the gate's buttons past the bottom of the
-  // card - reported as 「界面被截断了」 with a screenshot showing both rows.
-  // `workshop || gate`: the control center's mount hides these rows for good (no timer runs
-  // there), so this must not un-hide them on every paint.
-  if (els.compose) els.compose.hidden = workshop || !!gate;
+  // The gate LIVES INSIDE #compose (`<footer>` wraps the picker, the transport row AND `#ask`), so
+  // hiding the footer hides the question itself. That single line produced three separate reports -
+  // 「界面被截断了」, 「现在只有数字了」, 「直接全黑了」 - because each time something else took the
+  // space the gate should have had. Hide the CONTROLS instead: the picker and the transport row are
+  // what the gate replaces, and both are dead while a question is waiting.
+  if (els.compose) els.compose.hidden = workshop;
+  if (els.pick) els.pick.hidden = workshop || !!gate;
+  if (els.actions) els.actions.hidden = workshop || !!gate;
   // The big countdown panel gives way to the gate, and that is the fix for 「按钮都不见了」: the
   // panel is `flex: 1 1 auto`, so it grew into the space the gate needed and pushed the gate's own
   // controls below the bottom of the card. The number is still on the pet's head (pet.badge) and the
