@@ -54,7 +54,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.7.1';
+const BUILD = '1.7.2';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -924,7 +924,11 @@ function armAutoHide() {
   autoHideTimer = window.setTimeout(() => {
     autoHideTimer = null;
     if (composerFocused()) return; // the user came back
-    if (asking) return; // another question is in flight
+    // `busy`, NOT `asking`. `asking` is cleared only by the ANSWER frame's own end-of-exchange
+    // timer (`endExchange` returns immediately in every other role), so in THIS frame it stayed
+    // true for ever after the first message - and the hide was skipped every single time. `busy` is
+    // set and cleared by the frame that actually sent the request, which is this one.
+    if (busy) return; // another question is in flight
     request('surface.hide', {});
   }, wait);
 }
