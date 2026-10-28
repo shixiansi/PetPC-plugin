@@ -112,6 +112,9 @@ let pendingCommand = null;
 let lastPublishedAt = 0;
 let seq = 0;
 let ticker = null;
+// The settings poll (see onInit): the timer frame lives for the whole session, so the config has
+// to be re-read or a change made in the control center never arrives.
+let configTicker = null;
 
 function nextId() {
   seq += 1;
@@ -563,6 +566,18 @@ function onInit(data) {
 
   if (role === 'timer') {
     if (!ticker) ticker = window.setInterval(tick, 1000);
+    // The settings are read AGAIN, slowly, for the whole life of this frame - and that is a
+    // bug fix rather than caution: the timer frame is mounted once and stays mounted, so a
+    // `config.get` on mount alone means the settings a user changes in the control center
+    // never reach the machine. Reported as "设置了 5 分钟，停止后下一个番茄钟还是 25 分钟":
+    // the config was read at 25 and the frame never asked again.
+    //
+    // Three seconds, not thirty: the user changes the number and presses 开始 right after, and
+    // a stale config then is indistinguishable from "the setting does nothing". It is a single
+    // `config.get` (DEBUG in the host log, and repeats are folded), so the cost is nil.
+    if (granted.has('plugin.config') && !configTicker) {
+      configTicker = window.setInterval(refreshConfig, 3000);
+    }
   } else {
     // The view does not tick the machine - it re-reads the state the timer wrote. Its countdown is
     // local (derived from the absolute `endsAt`), so a slow read cannot make the number drift.
@@ -572,6 +587,12 @@ function onInit(data) {
   paintRecords();
 }
 
+/** Re-reads the declared settings (timer role). See onInit for why this exists. */
+function refreshConfig() {
+  if (!initialised || role !== 'timer' || pendingConfig) return;
+  if (!granted.has('plugin.config')) return;
+  pendingConfig = request('config.get', {});
+}
 /** The view's one-second read: state from storage, then draw.
  *
  *  The records are re-read on a slower beat (every 5th tick): they change only when a session
