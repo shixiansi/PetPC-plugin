@@ -32,7 +32,11 @@ const RECORDS_KEY = 'pomodoro-records-v2';
 const MACHINE_NS =
   ';(function(){' +
   machineSrc.replace(/^export /gm, '') +
-  ';return {emptyState, isRunning, remainingMs, formatCountdown, phaseLabel, startFocus, pause,' +
+  // `settingOn` must be listed here like every other export: this list IS the module as the page
+  // sees it, so an export that is missing makes `machine.settingOn` undefined inside the plugin -
+  // which is a TypeError swallowed by the interval callback, i.e. a feature that silently does
+  // nothing while the test that called it looks fine.
+  ';return {settingOn, emptyState, isRunning, remainingMs, formatCountdown, phaseLabel, startFocus, pause,' +
   ' resume, stop, reset, finishPhase, skipPhase, reconcile, isBreakPhase, phaseDurationMs,' +
   ' ceilSeconds, formatSeconds, PHASE_IDLE, PHASE_FOCUS, PHASE_SHORT_BREAK, PHASE_LONG_BREAK,' +
   ' RUN_RUNNING, RUN_PAUSED, RUN_STOPPED};})()';
@@ -340,5 +344,47 @@ describe('pomodoro 2.1.0: the view frame', () => {
     // persisted by the timer, and this document is showing it for the first time.
     expect(window.document.getElementById('ask').hidden).toBe(false);
     expect(window.document.getElementById('ask-label').textContent).toBe('这一段专注写点什么？');
+  });
+});
+
+describe('pomodoro 2.3.1: the countdown on the pet', () => {
+  // THE BUG THIS PINS. 2.3.0 built its settings object key by key and forgot `showCountdown`, and
+  // the comparison it did use was `=== true` while the value arrives as the STRING "true". Either
+  // mistake alone was enough: the badge was pushed as "" for ever. Nothing failed - the host logged
+  // `pet.badge ok（payload 11 B → 11 B）` (11 bytes is `{"text":""}`) and the pet stayed bare. The
+  // user found it, so the assertion here is about the TEXT, not about the call happening.
+  test('a running focus pushes the remaining time, from the STRING setting', async () => {
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+
+    const cfgRead = allOf(sent, 'config.get').at(-1);
+    expect(cfgRead, 'the timer never read its settings').toBeTruthy();
+    // Deliberately the string form: that is what the manifest declares and what the store returns.
+    respond(cfgRead.id, { values: { showCountdown: 'true', focusMinutes: '5' } });
+
+    const running = { ...endedState('focus'), endsAt: Date.now() + 5 * 60 * 1000, asking: '' };
+    respond(lastStateRead(sent).id, { value: JSON.stringify(running) });
+
+    const deadline = Date.now() + 3000;
+    let badge = null;
+    while (!badge && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      badge = allOf(sent, 'pet.badge').at(-1);
+    }
+    expect(badge, 'nothing was pushed for the pet while a focus was running').toBeTruthy();
+    expect(badge.payload.text, 'the badge text was empty - the setting did not reach the page').toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  test('switched off, it clears the line instead of drawing a countdown', async () => {
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(allOf(sent, 'config.get').at(-1).id, { values: { showCountdown: 'false' } });
+    const running = { ...endedState('focus'), endsAt: Date.now() + 5 * 60 * 1000, asking: '' };
+    respond(lastStateRead(sent).id, { value: JSON.stringify(running) });
+
+    await new Promise((r) => setTimeout(r, 1500));
+    for (const m of allOf(sent, 'pet.badge')) {
+      expect(m.payload.text, 'a switched-off countdown drew something').toBe('');
+    }
   });
 });

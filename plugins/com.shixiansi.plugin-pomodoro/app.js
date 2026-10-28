@@ -626,7 +626,9 @@ function clockText(ms) {
 let badgeText = null;
 function pushBadge() {
   if (!initialised || role !== 'timer' || !granted.has('pet.surface')) return;
-  const on = cfg.showCountdown === true && machine.isRunning(state);
+  // `settingOn`, not `=== true`: the value arrives as the STRING `"true"` (see machine.js), so the
+  // strict comparison was false for ever and the badge was pushed as an empty string.
+  const on = machine.settingOn(cfg.showCountdown) && machine.isRunning(state);
   const wanted = on ? clockText(Number(state.endsAt) - Date.now()) : '';
   if (wanted === badgeText) return;
   badgeText = wanted;
@@ -725,12 +727,20 @@ function onResponse(data) {
     pendingConfig = null;
     const values = data.ok && data.result && data.result.values;
     if (values && typeof values === 'object') {
+      // Every declared key has to be copied here, and booleans have to go through `settingOn`:
+      // this object is REBUILT, so a key that is forgotten is silently undefined for ever - which
+      // is exactly how 2.3.0 lost `showCountdown` (the badge pushed "" and nothing was drawn, while
+      // the log happily said `pet.badge ok（payload 11 B → 11 B）`). And `values.x !== false` was
+      // true for the string "false", so 自动开始 could not be turned off.
       cfg = {
         focusMinutes: Number(values.focusMinutes) || cfg.focusMinutes,
         shortBreakMinutes: Number(values.shortBreakMinutes) || cfg.shortBreakMinutes,
         longBreakMinutes: Number(values.longBreakMinutes) || cfg.longBreakMinutes,
         longBreakEvery: Number(values.longBreakEvery) || cfg.longBreakEvery,
-        autoStartNextPhase: values.autoStartNextPhase !== false,
+        autoStartNextPhase: values.autoStartNextPhase === undefined
+          ? cfg.autoStartNextPhase
+          : machine.settingOn(values.autoStartNextPhase),
+        showCountdown: machine.settingOn(values.showCountdown),
       };
     }
     return;

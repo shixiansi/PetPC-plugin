@@ -16,6 +16,24 @@ export const PHASE_FOCUS = 'focus';
 export const PHASE_SHORT_BREAK = 'shortBreak';
 export const PHASE_LONG_BREAK = 'longBreak';
 
+/**
+ * A declared setting read as a boolean.
+ *
+ * WHY THIS EXISTS. Settings arrive from `config.get` as STRINGS (`"true"` / `"false"`), because the
+ * manifest's `default` is a string and the store keeps what it is given. Both ways of ignoring that
+ * shipped, and both were wrong:
+ *
+ *   - `cfg.x === true` is never true: 2.3.0's countdown compared `"true" === true`, so it pushed an
+ *     empty string for ever (the log said `pet.badge ok（payload 11 B → 11 B）` - 11 bytes is
+ *     `{"text":""}`) and nothing was ever drawn on the pet;
+ *   - `if (cfg.x)` is ALWAYS true: the "auto start next phase" switch could be turned off in the
+ *     settings page and the timer would ignore it.
+ *
+ * One helper for both directions, so the next setting cannot repeat either mistake.
+ */
+export function settingOn(v) {
+  return v === true || v === 'true' || v === 1 || v === '1';
+}
 export const RUN_RUNNING = 'running';
 export const RUN_PAUSED = 'paused';
 export const RUN_STOPPED = 'stopped';
@@ -234,7 +252,7 @@ export function finishPhase(st0, cfg, endedAt, now, missed) {
     return out;
   }
 
-  if (cfg.autoStartNextPhase) {
+  if (settingOn(cfg.autoStartNextPhase)) {
     st.runState = RUN_RUNNING;
     st.endsAt = now + phaseDurationMs(cfg, next);
     st.phaseStartedAt = now;
