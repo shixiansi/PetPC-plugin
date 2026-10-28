@@ -316,6 +316,10 @@ body[data-surface='boot'] { background: transparent; }
 - 宿主两个程序都写日志（`%AppData%\PetPC\logs\pet.log` 与 `logs\market.log`），
   控制中心左栏的**日志**页能按等级/子系统/关键词筛。**每一次插件请求都有一行**
   （方法、payload 字节数、返回字节数、耗时、结果或错误原文）——排错先看它。
+  等级由方法决定：**动作**（气泡 / 浮层 / 音频 / 模型 / 网络 / 进程 / 订阅）记 `INFO`，
+  **读写你自己的数据**（`storage.*` / `share.*` / `config.*` / `memory.*`）记 `DEBUG`，
+  失败一律 `WARN`。同一方法 5 秒内的重复会**合并成一行并带次数**（`同类另有 N 次已合并`），
+  所以不要拿它当调用计数器。
 - `response` 的 `error` 是宿主自己写的中文句子（如 `插件 X 未获权限 llm.chat`），
   把它显示出来，不要翻译成"出错了"。
 
