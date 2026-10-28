@@ -4,10 +4,10 @@
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
-      "name": "B 站刷视频插件",
+      "name": "B \u7ad9\u5237\u89c6\u9891\u63d2\u4ef6",
       "version": "1.0.0",
       "author": "shixiansi",
-      "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
+      "description": "\u6309\u4f60\u6307\u5b9a\u7684\u5206\u533a\u4e0e\u504f\u597d\u81ea\u5df1\u53bb\u5237 B \u7ad9\uff1a\u628a\u5b57\u5e55\u62c9\u4e0b\u6765\u8ba9\u5927\u6a21\u578b\u6458\u8981\u3001\u6253\u5206\uff0c\u89c9\u5f97\u6709\u7528\u624d\u53eb\u684c\u5ba0\u5f39\u4e00\u53e5\uff0c\u5361\u7247\u7559\u5728\u6536\u4ef6\u7bb1\uff1b\u4eba\u8bbe\u3001\u6761\u6570\u3001\u9891\u7387\u7531\u4f60\u5b9a\uff0c\u8bc4\u8bba\u9ed8\u8ba4\u53ea\u51fa\u8349\u7a3f\u3002",
       "permissions": [
         "net.fetch",
         "net.credentials",
@@ -37,10 +37,10 @@
     },
     {
       "id": "com.shixiansi.plugin-chat",
-      "name": "对话插件",
+      "name": "\u5bf9\u8bdd\u63d2\u4ef6",
       "version": "1.7.5",
       "author": "shixiansi",
-      "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
+      "description": "\u5728\u9762\u677f\u91cc\u4e0e\u684c\u5ba0\u65c1\u548c\u5927\u6a21\u578b\u5bf9\u8bdd\u7684\u5b98\u65b9\u63d2\u4ef6\uff1b\u81ea\u5df1\u7684 AI \u914d\u7f6e\u4e0e\u5bc6\u94a5\u7531\u81ea\u5df1\u4fdd\u5b58\u3002",
       "permissions": [
         "llm.chat",
         "pet.surface",
@@ -52,10 +52,10 @@
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
-      "name": "番茄钟插件",
+      "name": "\u756a\u8304\u949f\u63d2\u4ef6",
       "version": "2.3.11",
       "author": "shixiansi",
-      "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
+      "description": "\u684c\u5ba0\u65c1\u7684\u756a\u8304\u949f\uff1a\u81ea\u5df1\u7684\u72b6\u6001\u673a\u4e0e\u8bb0\u5f55\uff0c\u8ba1\u65f6\u5728\u5e38\u9a7b\u5e27\u91cc\u8dd1\uff0c\u6d6e\u5c42\u9762\u53ea\u662f\u89c6\u56fe\uff0c\u8bb0\u5f55\u5728\u63d2\u4ef6\u9875\u91cc\u770b\u3002",
       "permissions": [
         "storage",
         "plugin.config",
@@ -69,10 +69,10 @@
     },
     {
       "id": "com.shixiansi.plugin-qq",
-      "name": "QQ 群聊插件",
+      "name": "QQ \u7fa4\u804a\u63d2\u4ef6",
       "version": "1.12.0",
       "author": "shixiansi",
-      "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
+      "description": "\u628a\u5927\u6a21\u578b\u63a5\u8fdb QQ \u7fa4\uff1a\u7528 Milky \u534f\u8bae\u7aef\uff08Yogurt \u7b49\uff09\u7684\u957f\u8fde\u63a5\u63a5\u6536\u7fa4\u6d88\u606f\uff0c\u88ab @ \u65f6\u501f\u7528\u5bf9\u8bdd\u63d2\u4ef6\u7684\u6a21\u578b\u914d\u7f6e\u56de\u7b54\u3002\u5b83\u4f1a\u8bb0\u7fa4\u91cc\u7684\u8981\u70b9\u548c\u7fa4\u53cb\u3001\u6709\u9ad8\u4f4e\u7684\u793e\u4ea4\u80fd\u91cf\u3001\u4f1a\u81ea\u5df1\u6311\u8868\u60c5\u5305\u5e76\u6536\u85cf\u7fa4\u91cc\u7684\u65b0\u56fe\u3002",
       "permissions": [
         "net.ws",
         "net.fetch",
@@ -93,10 +93,10 @@
     },
     {
       "id": "com.shixiansi.plugin-qqbot",
-      "name": "QQ 官方机器人",
+      "name": "QQ \u5b98\u65b9\u673a\u5668\u4eba",
       "version": "1.0.0",
       "author": "shixiansi",
-      "description": "把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。",
+      "description": "\u628a\u5927\u6a21\u578b\u63a5\u8fdb QQ \u5b98\u65b9\u673a\u5668\u4eba\uff08QQ \u5f00\u653e\u5e73\u53f0 q.qq.com\uff09\uff1aWebSocket \u7f51\u5173\u6536\u7fa4\u804a @ \u6d88\u606f\u4e0e\u5355\u804a\u6d88\u606f\uff0c\u7528\u88ab\u52a8\u56de\u590d\u63a5\u53e3\u7b54\u590d\u3002AppID \u4e0e AppSecret \u5728\u5f00\u653e\u5e73\u53f0\u7ba1\u7406\u7aef\u83b7\u53d6\uff0c\u6a21\u578b\u9ed8\u8ba4\u501f\u7528\u5bf9\u8bdd\u63d2\u4ef6\u7684\u914d\u7f6e\u3002",
       "permissions": [
         "net.ws",
         "net.fetch",
@@ -109,14 +109,15 @@
         "api.bot.qq.com"
       ],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.0.zip",
-      "sha256": "8ce013c37b824d8dfd3c36a62a02d4135c918b61eb0ec10048aa161f37f342a7"
+      "sha256": "4ee924b03cc036550ac66da989a6346796be760c52b7c8533e6304cafc7e15d4",
+      "updatedAt": "2026-10-29T00:25:00Z"
     },
     {
       "id": "com.shixiansi.plugin-todo",
-      "name": "待办插件",
+      "name": "\u5f85\u529e\u63d2\u4ef6",
       "version": "1.2.0",
       "author": "shixiansi",
-      "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
+      "description": "\u684c\u5ba0\u7684\u5f85\u529e\u4e0e\u63d0\u9192\uff1a\u5217\u8868\u3001\u52fe\u9009\u3001\u5230\u671f\u63d0\u9192\u90fd\u5728\u8fd9\u91cc\u3002",
       "permissions": [
         "storage",
         "plugin.config",
@@ -130,10 +131,10 @@
     },
     {
       "id": "com.shixiansi.plugin-voice",
-      "name": "语音插件",
+      "name": "\u8bed\u97f3\u63d2\u4ef6",
       "version": "1.0.2",
       "author": "shixiansi",
-      "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
+      "description": "\u8ba9\u684c\u5ba0\u5728\u756a\u8304\u949f\u7ed3\u675f\u4e0e\u5f85\u529e\u63d0\u9192\u65f6\u8bf4\u8bdd\u7684\u5b98\u65b9\u63d2\u4ef6\uff1b\u53f0\u8bcd\u3001\u97f3\u8272\u4e0e\u5f00\u5173\u90fd\u7531\u5b83\u81ea\u5df1\u7ba1\u3002",
       "permissions": [
         "audio",
         "events",
