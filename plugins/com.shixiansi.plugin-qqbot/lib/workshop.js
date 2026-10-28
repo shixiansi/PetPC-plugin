@@ -78,9 +78,13 @@ function renderState(state, extra) {
     els.chipState.dataset.state = kind;
   }
   if (els.chipSelf) {
-    els.chipSelf.textContent = gw.bot && (gw.bot.username || gw.bot.id)
-      ? `机器人：${gw.bot.username || gw.bot.id}`
-      : '机器人：未鉴权';
+    // 工坊页与后台是两个进程，gw.bot 在工坊页里永远是 null。
+    // 机器人名从 READY 事件写入 storage 'bot/info' 的 extra 里读取。
+    if (extra && extra.username) {
+      els.chipSelf.textContent = `机器人：${extra.username}`;
+    } else {
+      els.chipSelf.textContent = '机器人：未鉴权';
+    }
   }
   if (state === 'error' && extra && extra.reason && els.statusError) {
     els.statusError.hidden = false;
@@ -192,7 +196,14 @@ async function renderLog() {
 }
 
 async function renderWorkshop() {
-  renderState(gw.state);
+  // 工坊页与后台是两个进程，gw.state 在工坊页里永远是 'closed'。
+  // 机器人是否在线，以 storage 'bot/info' 是否存在为准（后台 READY 时写入）。
+  let botInfo = null;
+  if (granted.has('storage')) {
+    botInfo = await loadBotInfo();
+  }
+  renderState(botInfo ? 'open' : 'closed', botInfo ? { username: botInfo.username || botInfo.id || '' } : {});
+
   // 没授予 storage 时这两块就是空的；控件降级而不是停在半截。
   if (granted.has('storage')) {
     await renderSessions();
