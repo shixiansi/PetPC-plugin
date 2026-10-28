@@ -16,7 +16,7 @@
 // 关键的官方协议事实（写代码时逐条对照过开放平台文档，2026-10 版）：
 //   - AccessToken 用 appId+appSecret POST /app/getAppAccessToken 换取，7200 秒有效，
 //     每次调用带 `Authorization: QQBot <token>`；
-//   - 网关地址 GET /gateway 返回 `wss://api.bot.qq.com/websocket`；
+//   - 网关地址 GET /gateway 返回腾讯分配的正式网关（如 `wss://api.sgroup.qq.com/websocket`），不一定是 api.bot.qq.com，必须把它加进 manifest netHosts；
 //   - Hello(op10) 给心跳间隔 → Identify(op2, token="QQBot <token>", intents) →
 //     READY(op0, t=READY, d.session_id) → 之后按周期发心跳(op1, d=最新 s)；
 //   - 断线重连可以 Resume(op6, session_id+seq) 补发遗漏事件；服务端要求重连(op7)、

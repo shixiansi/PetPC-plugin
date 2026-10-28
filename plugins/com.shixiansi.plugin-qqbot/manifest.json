@@ -6,7 +6,7 @@
   "description": "把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。",
   "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
   "background": true,
-  "netHosts": ["api.bot.qq.com"],
+  "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
   "config": [
     { "key": "appId", "label": "AppID（开放平台管理端）", "type": "text", "default": "" },
     { "key": "appSecret", "label": "AppSecret（开放平台管理端；只存在本机，不会外泄）", "type": "text", "default": "" },

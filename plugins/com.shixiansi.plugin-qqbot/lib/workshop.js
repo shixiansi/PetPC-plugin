@@ -198,14 +198,17 @@ async function renderWorkshop() {
     await renderSessions();
     await renderLog();
   }
-  // 模型是谁的：诚实显示，借的就是借的。
+  // 模型是谁的：控制中心不提供 llm.profile，只在桌宠背景帧才查；
+  // 工坊页只做降级展示，不发 llm.profile 请求（否则每 5 秒一条 WARN）。
   if (els.chipModel) {
-    if (granted.has('llm.borrow') || granted.has('llm.chat')) {
+    if (view === 'background' && (granted.has('llm.borrow') || granted.has('llm.chat'))) {
       const profile = await llmProfile();
       const src = profile.source === 'own' ? '自己的配置' : profile.source === 'borrowed' ? `借用 ${profile.lender ? profile.lender.name : '对话插件'}` : '未配置';
       els.chipModel.textContent = `模型：${profile.ready ? `${profile.model || '默认'}（${src}）` : `不可用（${src}）`}`;
-    } else {
+    } else if (view === 'background') {
       els.chipModel.textContent = '模型：未获授权（llm.chat）';
+    } else {
+      els.chipModel.textContent = '模型：在桌宠那边（工坊页只做展示）';
     }
   }
 }
