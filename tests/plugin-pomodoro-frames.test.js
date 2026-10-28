@@ -525,3 +525,210 @@ describe('pomodoro 2.3.8: the gate owns the card', () => {
     expect(window.document.querySelector('#compose .pick').hidden, 'the picker is still up').toBe(true);
   });
 });
+
+describe('pomodoro 2.3.10: 点完「确定」立刻有反馈', () => {
+  // THE BUG THIS PINS. 从按下到那一屏真的变，要走两拍：视图 `share.set` 一条 command → 计时器
+  // 下一秒读到并应用、写回 state → 视图下一秒读回、重画。两帧实测 0.8s。这 0.8s 里屏幕上什么
+  // 都没变，于是报告是「点确认和跳过没有反应」「要点好几次才有效」——第二次点没有意义（同一条
+  // command 被覆盖），但那是人看见按钮不动时会做的事。所以按钮自己认下这一下。
+  const gateState = () =>
+    JSON.stringify({ ...endedState('focus'), asking: 'summary', pendingRecordId: 'r1', endsAt: 0, remainingOnHalt: 300 });
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  test('按下的那一刻：按钮禁用、写成已提交…、状态栏说明在等确认', () => {
+    const { window, sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: gateState() });
+
+    const ok = window.document.getElementById('ask-ok');
+    const skip = window.document.getElementById('ask-skip');
+    expect(ok.disabled, 'the gate button starts enabled').toBe(false);
+
+    ok.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+    expect(ok.disabled, '按下去没有任何反馈，用户就会继续点').toBe(true);
+    expect(skip.disabled).toBe(true);
+    expect(ok.textContent).toBe('已提交…');
+    expect(window.document.getElementById('status').textContent).toContain('已提交');
+    // Still a command, never a state write: the view has no authority over the state.
+    expect(allOf(sent, 'storage.set')).toEqual([]);
+  });
+
+  test('计时器确认之后（门关掉）按钮回到原样，不留一个"已提交…"', async () => {
+    const { window, sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: gateState() });
+    const ok = window.document.getElementById('ask-ok');
+    ok.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    expect(ok.disabled).toBe(true);
+
+    // The timer answered: the next state has no question in it. The view's own quick reads
+    // (command() schedules four of them) are what make this arrive without waiting a full second.
+    const before = allOf(sent, 'storage.get').length;
+    const deadline = Date.now() + 2000;
+    let fresh = null;
+    while (!fresh && Date.now() < deadline) {
+      await sleep(50);
+      const now = allOf(sent, 'storage.get');
+      if (now.length > before) fresh = now.at(-1);
+    }
+    respond(fresh.id, { value: JSON.stringify({ ...endedState('focus'), phase: 'shortBreak', runState: 'running', asking: '', endsAt: Date.now() + 300000 }) });
+    await sleep(100);
+
+    expect(ok.disabled, '按钮还禁用着，用户会以为卡住了').toBe(false);
+    expect(ok.textContent).toBe('确定');
+    expect(window.document.getElementById('ask').hidden).toBe(true);
+    expect(window.document.getElementById('status').textContent).toBe('进行中');
+  });
+
+  test('计时器一直不确认：3 秒后按钮回来，并且明说没有回应', async () => {
+    const { window, sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: gateState() });
+    const ok = window.document.getElementById('ask-ok');
+    ok.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+    // Keep answering the state reads with the SAME parked state: the timer never applied anything.
+    const answeredIds = new Set();
+    const deadline = Date.now() + 4200;
+    while (Date.now() < deadline) {
+      await sleep(100);
+      for (const read of allOf(sent, 'storage.get')) {
+        if (answeredIds.has(read.id)) continue;
+        answeredIds.add(read.id);
+        respond(read.id, { value: gateState() });
+      }
+      if (window.document.getElementById('status').textContent.includes('没有回应')) break;
+    }
+    expect(window.document.getElementById('status').textContent, '沉默失败被当成"点过了"').toContain('没有回应');
+    expect(ok.disabled, '按钮必须回来，否则用户没法重试').toBe(false);
+    expect(ok.textContent).toBe('确定');
+  });
+});
+
+describe('pomodoro 2.3.11: 常驻帧的门标记和保存的状态不同步时，answer 不能被吞掉', () => {
+  // THE BUG THIS PINS. `asking` is a copy of `state.asking`, and the two can drift: a state write
+  // that lost a race, or a frame that booted between the question being raised and its own first
+  // write. `answerGate` used to trust ONLY the copy, so a drifted frame answered every press with
+  // "no question" — and then cleared the command, i.e. the button did nothing, for ever, with no
+  // error anywhere. On the user's machine the saved state was literally
+  // `asking:"plan"` next to a running focus, and the card asked a question nothing could answer.
+  //
+  // The rule now: a frame that cannot apply an `answer` first RE-READS the state, and keeps the
+  // command in the channel so the next tick can retry. Bounded to one retry, so a genuinely
+  // meaningless press still gets cleared instead of polling for ever.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const commandOf = (sent) => allOf(sent, 'share.get').filter((m) => m.payload.name === 'command').at(-1);
+  const cleared = (sent) => allOf(sent, 'share.set').filter((m) => m.payload.name === 'command' && m.payload.value === '');
+
+  async function waitForCommandPoll(sent) {
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      await sleep(50);
+      const poll = commandOf(sent);
+      if (poll) return poll;
+    }
+    return null;
+  }
+
+  test('这一帧没有门、状态里有：先重读状态，命令留在通道里，下一秒应用成功', async () => {
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    // The frame's own copy says "no question" - that is the drift.
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({ ...endedState('focus'), runState: 'running', endsAt: Date.now() + 60_000, asking: '' }),
+    });
+
+    const poll = await waitForCommandPoll(sent);
+    expect(poll, 'the timer never polled for a command').toBeTruthy();
+    sent.length = 0;
+    respond(poll.id, { value: JSON.stringify({ op: 'answer', text: '', todoId: '' }) });
+    await sleep(150);
+
+    // It asked for the state instead of dropping the command...
+    const reread = allOf(sent, 'storage.get').filter((m) => m.payload.key === STATE_KEY).at(-1);
+    expect(reread, 'a drifted frame did not re-read the state - the command is being swallowed').toBeTruthy();
+    // ...and it did NOT empty the channel, so the next tick can try again.
+    expect(cleared(sent), 'the command was cleared although nothing was applied').toHaveLength(0);
+
+    // The saved state has the question: that is what the drift looked like on disk.
+    respond(reread.id, {
+      value: JSON.stringify({ ...endedState('focus'), phase: 'shortBreak', runState: 'stopped', endsAt: 0, remainingOnHalt: 300, asking: 'plan' }),
+    });
+    await sleep(150);
+
+    // Next tick: the same command is read again and this time it applies.
+    const again = await waitForCommandPoll(sent);
+    expect(again, 'the timer stopped polling for the command after the retry').toBeTruthy();
+    respond(again.id, { value: JSON.stringify({ op: 'answer', text: '', todoId: '' }) });
+    await sleep(200);
+
+    // The host acknowledges writes; the plugin serialises them (writeStore), so the second state
+    // write only goes out once the first is acknowledged. Stand in for the host and answer them.
+    const acked = new Set();
+    for (let i = 0; i < 4; i += 1) {
+      for (const w of allOf(sent, 'storage.set')) {
+        if (acked.has(w.id)) continue;
+        acked.add(w.id);
+        respond(w.id, { ok: true });
+      }
+      await sleep(80);
+    }
+
+    const writes = allOf(sent, 'storage.set').filter((m) => m.payload.key === STATE_KEY);
+    expect(writes.length, 'the retry did not persist anything').toBeGreaterThan(0);
+    const final = JSON.parse(writes.at(-1).payload.value);
+    expect(final.asking, 'the gate is still in the saved state - the question would come back').toBe('');
+    expect(final.phase).toBe('focus');
+    expect(final.runState).toBe('running');
+  });
+
+  test('状态里也没有门：只重试一次，然后把命令清掉，不无限轮询', async () => {
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({ ...endedState('focus'), runState: 'stopped', phase: 'idle', endsAt: 0, asking: '' }),
+    });
+
+    const poll = await waitForCommandPoll(sent);
+    sent.length = 0;
+    respond(poll.id, { value: JSON.stringify({ op: 'answer', text: '', todoId: '' }) });
+    await sleep(150);
+    const reread = allOf(sent, 'storage.get').filter((m) => m.payload.key === STATE_KEY).at(-1);
+    expect(reread).toBeTruthy();
+    // The state has no question either: the press really is meaningless.
+    respond(reread.id, {
+      value: JSON.stringify({ ...endedState('focus'), runState: 'stopped', phase: 'idle', endsAt: 0, asking: '' }),
+    });
+    await sleep(150);
+
+    const again = await waitForCommandPoll(sent);
+    if (again) respond(again.id, { value: JSON.stringify({ op: 'answer', text: '', todoId: '' }) });
+    await sleep(250);
+    expect(cleared(sent).length, 'the meaningless command was never cleared - it would retry for ever').toBeGreaterThan(0);
+  });
+
+  test('一次回答本来要写两次状态：合并成一次，落盘的是后一次（asking 已清掉）', async () => {
+    // applyOutcome saves while `asking` is still set; syncGate('') clears it and saves again, in the
+    // same synchronous block. Two overlapping writes is how the saved state kept the question
+    // (the user's file had `asking:"plan"` next to a running focus). One write per key per task now,
+    // carrying the value the user is looking at.
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+    respond(lastStateRead(sent).id, {
+      value: JSON.stringify({ ...endedState('focus'), phase: 'shortBreak', runState: 'stopped', endsAt: 0, remainingOnHalt: 300, asking: 'plan' }),
+    });
+    const poll = await waitForCommandPoll(sent);
+    sent.length = 0;
+    respond(poll.id, { value: JSON.stringify({ op: 'answer', text: '', todoId: '' }) });
+    await sleep(150);
+
+    const writes = allOf(sent, 'storage.set').filter((m) => m.payload.key === STATE_KEY);
+    expect(writes.length, 'the answer did not persist the state at all').toBe(1);
+    const saved = JSON.parse(writes[0].payload.value);
+    expect(saved.asking, 'the saved state kept the question - it would come back on the next open').toBe('');
+    expect(saved.phase).toBe('focus');
+    expect(saved.runState).toBe('running');
+  });
+});
+

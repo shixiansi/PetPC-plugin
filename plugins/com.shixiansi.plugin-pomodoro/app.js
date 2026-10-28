@@ -111,12 +111,38 @@ let todos = [];
 // surface being closed - the question is still waiting when the user comes back.
 // Mirrors state.asking; see syncGate. It exists so the tick's hot path does not re-derive it.
 let asking = '';
+/**
+ * When the user last pressed 确定 / 跳过 in this frame, or 0.
+ *
+ * WHY IT EXISTS. Answering is the one button whose effect cannot be drawn locally: the view
+ * publishes a `command`, the timer picks it up on its next tick, writes the new state, and the
+ * view reads it back on ITS next tick. Measured in the two-frame preview: 0.8 s from the click to
+ * the gate closing. Nothing on screen changes in those 800 ms, so the report was
+ * 「点确认和跳过没有反应」「要点好几次才有效」 - the second click is useless (it overwrites the
+ * same command) but it is what a person does when a button looks dead.
+ *
+ * So the button acknowledges the press itself: disabled, relabelled 已提交…, and the status line
+ * says 等计时器确认. If the timer never confirms inside ANSWER_CONFIRM_MS, the controls come back
+ * and the status line SAYS SO instead of pretending - a click that went nowhere must not look like
+ * a click that was ignored.
+ */
+let answeredAt = 0;
+/** How long a submitted answer may stay unconfirmed before the card admits it. */
+const ANSWER_CONFIRM_MS = 3000;
 let pendingState = null;
 let pendingRecords = null;
 let pendingTodos = null;
 let pendingConfig = null;
 let pendingWrite = null;
 let pendingCommand = null;
+/**
+ * The last `answer` command this frame could not apply because it knew of no question.
+ *
+ * It is kept ONLY so the retry can be bounded to one: the first miss triggers a fresh state read
+ * (the question may live in the saved state while this frame's copy lost it), and if the state
+ * still has no question the second miss drops the command instead of polling for ever.
+ */
+let answerRetryRaw = null;
 // The last `phase-ended` this frame has published, so a refire cannot repeat it (see publishPhaseEnded).
 let lastPublishedAt = 0;
 let seq = 0;
@@ -149,15 +175,37 @@ function request(method, payload) {
 
 // --- storage ----------------------------------------------------------------
 
-function saveState() {
+/**
+ * Storage writes are coalesced within one task: the LAST value per key wins.
+ *
+ * WHY. Answering a gate saves the state twice, in the same synchronous block — once from
+ * `applyOutcome` (whose copy still carries the old `asking`) and once after `syncGate('')` clears
+ * it. Both went out as separate requests, and when the second one did not land the SAVED state kept
+ * `asking:"plan"` next to a running focus: the question stayed on screen for ever and every answer
+ * was dropped (see `answerGate`). Coalescing means there is exactly one write per key per task, and
+ * it carries the value the user is actually looking at.
+ *
+ * Deliberately NOT queued behind the previous write's response: a lost response would then stop the
+ * state from ever being saved again. A zero-delay flush keeps the latency at one task.
+ */
+let queuedWrites = new Map();
+let flushTimer = 0;
+
+function writeStore(key, value) {
   if (!granted.has('storage')) return;
-  pendingWrite = request('storage.set', { key: STATE_KEY, value: JSON.stringify(state) });
+  queuedWrites.set(key, value);
+  if (flushTimer) return;
+  flushTimer = window.setTimeout(() => {
+    flushTimer = 0;
+    const batch = queuedWrites;
+    queuedWrites = new Map();
+    for (const [k, v] of batch) pendingWrite = request('storage.set', { key: k, value: v });
+  }, 0);
 }
 
-function saveRecords() {
-  if (!granted.has('storage')) return;
-  pendingWrite = request('storage.set', { key: RECORDS_KEY, value: JSON.stringify(records) });
-}
+function saveState() { writeStore(STATE_KEY, JSON.stringify(state)); }
+
+function saveRecords() { writeStore(RECORDS_KEY, JSON.stringify(records)); }
 
 // --- drawing ----------------------------------------------------------------
 //
@@ -177,16 +225,28 @@ function paint() {
   // The gate is READ from the state, not remembered here: the timer owns it, and the view is a
   // second document that can be closed and reopened while a question is still waiting.
   const gate = state.asking || '';
+  // The answer this frame sent, and whether the timer has confirmed it yet (see answeredAt).
+  // `waited` is 0 on the very millisecond of the press, so "did the user press" is `answeredAt`
+  // itself, not `waited > 0` - that comparison made the first frame after the click look unpressed.
+  const answered = answeredAt !== 0;
+  const waited = answered ? Date.now() - answeredAt : 0;
+  const pendingAnswer = gate !== '' && answered && waited < ANSWER_CONFIRM_MS;
+  const answerStalled = gate !== '' && answered && waited >= ANSWER_CONFIRM_MS && waited < ANSWER_CONFIRM_MS * 2;
+  if (gate === '') answeredAt = 0; // the timer moved on (or never asked): forget the press
 
   if (els.phase) els.phase.textContent = machine.phaseLabel(state.phase);
   if (els.status) {
-    els.status.textContent = gate
-      ? '等你回答'
-      : running
-        ? '进行中'
-        : hasPhase
-          ? '已暂停'
-          : '待开始';
+    els.status.textContent = pendingAnswer
+      ? '已提交，等计时器确认…'
+      : answerStalled
+        ? '计时器没有回应（看日志）'
+        : gate
+          ? '等你回答'
+          : running
+            ? '进行中'
+            : hasPhase
+              ? '已暂停'
+              : '待开始';
   }
   if (els.task) {
     els.task.textContent = state.currentTodoTitle ? `在做：${state.currentTodoTitle}` : '';
@@ -221,6 +281,14 @@ function paint() {
 
   paintAsk();
   paintCountdown();
+  // The press itself is acknowledged here, not by the state: the state is the timer's answer and
+  // it is up to a second away. Disabling while pending also stops a second press from queueing a
+  // command that would overwrite the first with the same thing.
+  if (els.askOk) {
+    els.askOk.disabled = pendingAnswer;
+    els.askOk.textContent = pendingAnswer ? '已提交…' : '确定';
+  }
+  if (els.askSkip) els.askSkip.disabled = pendingAnswer;
   // LAST, after the DOM is up to date: measuring before paint would size the block for the
   // previous frame.
   fitToGate(!!gate);
@@ -468,10 +536,21 @@ function tick() {
  * is the same thing the picker's "（不指定）" meant.
  */
 function answerGate(skip, text, todoId) {
-  if (!asking) return;
+  // THE AUTHORITY IS THE PERSISTED STATE, not the mirror.
+  //
+  // `asking` is a copy of `state.asking` kept so the tick's hot path does not re-derive it, and
+  // the two CAN drift: a state write that lost a race, a frame that booted between the question
+  // being raised and its own first write. Trusting the mirror alone means the answer is dropped
+  // on the floor - and that is not "a missing feature", it is a button that does nothing for ever.
+  // Reported as 「点确认和跳过没有反应」「要点好几次才有效」; the saved state was the only place
+  // the question still existed (`asking:"plan"` next to a running focus), while the frame's copy
+  // said "no question". Returns whether it applied anything, so the caller can retry instead of
+  // silently swallowing the command.
+  const gate = state.asking || asking;
+  if (!gate) return false;
   const now = Date.now();
 
-  if (asking === 'summary') {
+  if (gate === 'summary') {
     const id = state.pendingRecordId;
     const record = records.find((r) => r.id === id);
     if (record) record.summary = skip ? '' : text;
@@ -487,6 +566,7 @@ function answerGate(skip, text, todoId) {
   syncGate('');
   saveState();
   paint();
+  return true;
 }
 
 // --- the commands (the shared channel) ---------------------------------------
@@ -543,10 +623,25 @@ function applyCommand(raw) {
       if (asking) return;
       applyOutcome(machine.skipPhase(state, cfg, now));
       return;
-    case 'answer':
-      answerGate(cmd.skip === true, typeof cmd.text === 'string' ? cmd.text : '',
+    case 'answer': {
+      const applied = answerGate(cmd.skip === true, typeof cmd.text === 'string' ? cmd.text : '',
         typeof cmd.todoId === 'string' ? cmd.todoId : '');
-      return;
+      if (applied) {
+        answerRetryRaw = null;
+        return;
+      }
+      // This frame has no question, but the persisted state may still hold one (see answerGate).
+      // Read the state again and KEEP the command in the channel so the next tick retries; dropping
+      // it here is what made the buttons dead. Retried once, not for ever: if the state says there
+      // is no question either, the press really is meaningless and the channel is cleared.
+      if (answerRetryRaw === raw) {
+        answerRetryRaw = null;
+        return;
+      }
+      answerRetryRaw = raw;
+      if (!pendingState) pendingState = request('storage.get', { key: STATE_KEY });
+      return 'retry';
+    }
     default:
       return;
   }
@@ -760,10 +855,16 @@ function onResponse(data) {
     const raw = data.ok && data.result ? data.result.value : '';
     // Applying the command is the timer's job; emptying the key afterwards is what makes it a
     // one-shot. Without the clear the same command would be applied on every tick.
+    // `'retry'` means "I could not apply it yet, but I just asked for the state that may explain
+    // why" - the command stays in the channel so the next tick can have another go.
     if (raw) {
-      applyCommand(raw);
-      request('share.set', { name: SHARE_COMMAND, value: '' });
+      const outcome = applyCommand(raw);
+      if (outcome !== 'retry') request('share.set', { name: SHARE_COMMAND, value: '' });
     }
+    return;
+  }
+  if (id && id === pendingWrite) {
+    pendingWrite = null;
     return;
   }
   if (id && id === pendingRecords) {
@@ -870,6 +971,14 @@ function command(op, extra) {
   else if (op === 'pause') state = machine.pause(state, Date.now());
   else if (op === 'resume') state = machine.resume(state, cfg, Date.now());
   else if (op === 'stop') state = machine.reset(state);
+  else if (op === 'answer') {
+    // Nothing optimistic to DRAW - the next screen belongs to the timer - but the press itself has
+    // to be visible within a frame. See answeredAt.
+    answeredAt = Date.now();
+    // And do not wait for the next one-second read to hear back: four quick reads catch the timer's
+    // confirmation the moment it lands, which turns ~2 s of silence into ~0.5 s.
+    for (let i = 1; i <= 4; i += 1) window.setTimeout(refreshView, i * 250);
+  }
   paint();
 }
 
