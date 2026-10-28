@@ -240,7 +240,9 @@ describe('pomodoro 2.2.0: the records, and the control center', () => {
   });
 
   test('the view renders the sessions it reads, newest first', () => {
-    const { window, sent, init, respond } = mount({ slot: '', granted });
+    // The WORKSHOP slot: the list belongs to the control center's mount. Rendering it in the card
+    // beside the pet is what pushed the gate's buttons off the card (2.3.6).
+    const { window, sent, init, respond } = mount({ slot: 'workshop', granted });
     init();
     respond(lastStateRead(sent).id, { value: JSON.stringify({ enabled: true, phase: 'idle' }) });
     const read = recordsRead(sent);
@@ -264,7 +266,7 @@ describe('pomodoro 2.2.0: the records, and the control center', () => {
   });
 
   test('an empty record list says so instead of showing an empty box', () => {
-    const { window, sent, init, respond } = mount({ slot: '', granted });
+    const { window, sent, init, respond } = mount({ slot: 'workshop', granted });
     init();
     respond(recordsRead(sent).id, { value: '[]' });
     expect(window.document.querySelectorAll('.record')).toHaveLength(0);
@@ -445,5 +447,44 @@ describe('pomodoro 2.3.3: the gate is not cut off', () => {
     await new Promise((r) => setTimeout(r, 200));
     const shrunk = allOf(sent, 'surface.blocks').filter((m) => m.payload.sizes && Object.keys(m.payload.sizes).length === 0);
     expect(shrunk.length, 'the card never went back to its declared height').toBeGreaterThan(0);
+  });
+});
+describe('pomodoro 2.3.6: the card beside the pet holds the countdown and the gate', () => {
+  // `#records` is `flex: 1 1 auto`, and it was being rendered in the SURFACE mount too. Once the
+  // user had a few finished sessions the list filled the card and pushed the gate's buttons off the
+  // bottom edge - 「按钮也都不见了，直接卡死」. The list belongs to the control center's mount.
+  test('records stay out of the surface, and the gate is still reachable', async () => {
+    const { window, sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+
+    const reads = allOf(sent, 'storage.get');
+    respond(reads.find((m) => m.payload.key === STATE_KEY).id, { value: JSON.stringify({ phase: 'idle' }) });
+    const recRead = reads.find((m) => m.payload.key === RECORDS_KEY);
+    if (recRead) {
+      respond(recRead.id, {
+        value: JSON.stringify([{ id: 'a', endedAt: Date.now() - 1000, minutes: 5, phase: 'focus' }]),
+      });
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    expect(window.document.getElementById('records').hidden, 'the records list is in the card beside the pet').toBe(true);
+
+    // And with a gate up, its own controls must be on screen (that is what "stuck" was). Waits for a
+    // FRESH read: answering an id the page already resolved changes nothing, which made the first
+    // version of this test assert against the previous state.
+    const before = allOf(sent, 'storage.get').length;
+    const deadline = Date.now() + 3000;
+    let fresh = null;
+    while (!fresh && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      const now = allOf(sent, 'storage.get');
+      if (now.length > before) fresh = now.at(-1);
+    }
+    expect(fresh, 'the view stopped reading state').toBeTruthy();
+    respond(fresh.id, {
+      value: JSON.stringify({ ...endedState('focus'), asking: 'summary', pendingRecordId: 'a', endsAt: 0, remainingOnHalt: 300 }),
+    });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(window.document.getElementById('ask').hidden, 'the gate is not visible').toBe(false);
+    expect(window.document.getElementById('ask-text').hidden).toBe(false);
   });
 });

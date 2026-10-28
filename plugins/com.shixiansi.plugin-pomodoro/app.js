@@ -267,6 +267,13 @@ function paintTodos() {
 /** Renders up to 20 sessions from `records`. */
 function paintRecords() {
   if (!els.records || !els.recordsList) return;
+  // The list belongs to the CONTROL CENTER's mount only. The card beside the pet is a countdown,
+  // and `#records` is `flex: 1 1 auto` - rendering it there made it eat the card and push the
+  // gate's own buttons past the bottom edge, which read as 「按钮也都不见了，直接卡死」.
+  if (!workshop) {
+    els.records.hidden = true;
+    return;
+  }
   const rows = records
     .filter((r) => r && typeof r.id === 'string' && Number.isFinite(Number(r.endedAt)))
     .slice()
