@@ -1,15 +1,47 @@
 {
   "id": "com.shixiansi.plugin-pomodoro",
   "name": "番茄钟插件",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "author": "shixiansi",
-  "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图。",
+  "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
   "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
   "shareRead": ["com.shixiansi.plugin-todo/todo-list"],
   "background": true,
   "panelSlot": "pomodoro",
   "surface": [
     { "dx": 160, "dy": -160, "w": 380, "h": 260, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "focusMinutes",
+      "label": "专注时长（分钟）",
+      "type": "number",
+      "default": "25"
+    },
+    {
+      "key": "shortBreakMinutes",
+      "label": "短休息（分钟）",
+      "type": "number",
+      "default": "5"
+    },
+    {
+      "key": "longBreakMinutes",
+      "label": "长休息（分钟）",
+      "type": "number",
+      "default": "15"
+    },
+    {
+      "key": "longBreakEvery",
+      "label": "每几个专注之后来一次长休息（至少 2）",
+      "type": "number",
+      "default": "4"
+    },
+    {
+      "key": "autoStartNextPhase",
+      "label": "一个阶段结束后自动开始下一段（关掉的话每段都要你点一下）",
+      "type": "bool",
+      "default": "true"
+    }
   ],
   "assets": ["machine.js"],
   "entry": "panel.html"

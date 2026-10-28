@@ -160,3 +160,49 @@ describe('todo plugin 1.1.0: the list is this plugin\'s data', () => {
     expect(sent.filter((m) => m.method === 'share.set')).toEqual([]);
   });
 });
+
+describe('todo plugin 1.2.0: one list, two windows', () => {
+  // 1.2.0 exists because the control center's 插件 page mounts THIS document: the list can be on
+  // screen twice (the pet's column and a real window). A mount-time read was enough while the
+  // surface was the only writer, and is wrong the moment a second window can add or tick a row.
+  const reads = (sent) => sent.filter((m) => m.method === 'storage.get').length;
+
+  test('the list role re-reads on a slow tick', async () => {
+    const { sent, init, respond } = await mount({ granted: listGrant, surface: { kind: 'surface' } });
+    init();
+    respond(lastOf(sent, 'storage.get').id, { value: '[]' });
+    const before = reads(sent);
+
+    await new Promise((r) => setTimeout(r, 2300));
+
+    expect(reads(sent), 'the list never re-read: the other window is invisible').toBeGreaterThan(before);
+  });
+
+  test('the poll pauses while a write of its own is in flight', async () => {
+    const { window, sent, init, respond } = await mount({
+      granted: listGrant,
+      surface: { kind: 'surface' },
+    });
+    init();
+    respond(lastOf(sent, 'storage.get').id, { value: '[]' });
+
+    // Add a row and deliberately do NOT answer the resulting storage.set: the write is "in
+    // flight", and a read issued now would come back with the copy from before it.
+    window.document.getElementById('title').value = '买菜';
+    window.document.getElementById('add').dispatchEvent(
+      new window.MouseEvent('click', { bubbles: true }),
+    );
+    const afterWrite = reads(sent);
+
+    await new Promise((r) => setTimeout(r, 2300));
+    expect(reads(sent), 'a poll ran on top of an unanswered write').toBe(afterWrite);
+
+    // Answering it lets the poll resume, so this is a pause and not a stop.
+    const write = lastOf(sent, 'storage.set');
+    respond(write.id, null);
+    sent.length = 0;
+    respond(lastOf(sent, 'storage.get')?.id ?? 'no-read', { value: '[]' });
+    await new Promise((r) => setTimeout(r, 2300));
+    expect(reads(sent)).toBeGreaterThan(0);
+  });
+});

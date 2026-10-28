@@ -6,12 +6,32 @@
 
 ---
 
+## 0. 想写插件？这两份就是全部契约
+
+因为本仓是公开的、宿主仓是私有的，**写插件需要知道的一切都放在本仓里**，不要求你拿到桌宠的
+源码：
+
+| 文件 | 是什么 |
+| --- | --- |
+| [`docs/plugin-dev.md`](docs/plugin-dev.md) | **插件开发手册**：manifest 的每个字段与校验规则、桥接协议的每条消息、13 项权限与 34 个能力方法的 payload/返回/上限、浮层面几何与主题、打包与发布、常见故障对照。示例插件是逐字能跑的 |
+| [`docs/plugin-testkit/`](docs/plugin-testkit/README.md) | **自检工具**：一个文件（`plugin-check.mjs`），零必需依赖，跑四组检查——manifest / 包里的文件 / 静态红线 / **把文档真的跑一遍**（假宿主，含"宿主拒绝一切"那一遍）。它不需要宿主 |
+
+```bash
+# 查一个插件（也可以一次给多个目录，或用 plugins/* 查全仓）
+node docs/plugin-testkit/plugin-check.mjs plugins/com.shixiansi.plugin-todo
+```
+
+---
+
 ## 1. 目录结构
 
 ```
 market/                                    ← 本仓根目录（独立 git 仓，非 pet_PC 的子目录）
 ├── .gitignore                             忽略 OS/编辑器噪声；dist/ 不忽略（是分发产物）
 ├── README.md                              本文件
+├── docs/
+│   ├── plugin-dev.md                      插件开发手册（**唯一一份**契约：协议、权限、方法、几何、发布）
+│   └── plugin-testkit/                    自检工具：plugin-check.mjs（一个文件）+ 它的 README
 ├── index.json                             市场目录：桌宠拉取的唯一入口
 ├── index.html                             人看的静态市场页（单文件、无脚本、无外链）
 ├── package.json / vitest.config.js        示例插件前端行为的测试（需要宿主仓的 node_modules）
@@ -266,6 +286,34 @@ node node_modules\vitest\vitest.mjs run
 - 内置 5 条音频随包（manifest 的 `assets`），首次运行经 `audio.import` 复制进插件自己的
   `audio/` 目录一次（播放器只认私有目录里的名字，包是只读的）。
 - 样式纪律与对话插件相同：`style.css` 里**没有** `box-shadow`/`filter`/`transform` 声明。
+
+---
+
+## 4.5 三个插件在控制中心里的样子（2026-10）
+
+控制中心的**插件页**会挂载每个插件的文档，`init.surface` 是
+`{ kind: 'panel', slot: 'workshop' }`——和桌宠给的 `slot`（`chat` / `todos` / `pomodoro`
+/ `background`）不是同一个值。`slot === 'workshop'` 就是「我在一个管理窗口里」，三个插件的
+文档各自据此决定**哪些事在这里不成立**：
+
+| 插件 | 在 `workshop` 里 | 为什么 |
+|---|---|---|
+| 待办 `1.2.0` | 完整可用：列表、勾选、添加、删除（`storage`）。**每 2 秒重读一次**，写请求在飞时暂停轮询 | 同一个列表可能同时开在两个窗口（桌宠的槽位 + 这个页面）；挂载时只读一次会让另一边的改动看不见 |
+| 番茄钟 `2.2.0` | **记录列表**（`pomodoro-records-v2`，新在前、最多 20 行）+ 最后状态；**倒计时按钮隐藏**，一行字说明「计时在桌宠上」 | 计时在桌宠的常驻帧里；这里的按钮发出的命令没人接，一个点了没反应的按钮比没有按钮更糟 |
+| 对话 `1.7.5` | 历史照常渲染；**输入框只读**，状态行写「这里只显示记录；发送请在桌宠旁的对话浮层面」 | `llm.chat` 只由桌宠提供（预算与凭据在它手上）。控制中心**故意**不服务它：那会是第二个 LLM 路径 + 第二个写 `llm-usage` 的进程 |
+
+两条由此而来、别踩的坑：
+
+1. **`surface.slot` 是唯一的「我在哪」信号**，不要用 `kind`：常驻帧的 `kind` 也是 `panel`。
+   番茄钟的 `onInit` 因此先判 `slot === 'background'`，再判 `workshop`。
+2. **`plugin.share` 现在是两个宿主都服务的**（宿主侧 `internal/plugins/share.go`）。它以前只有
+   桌宠服务，而待办与番茄钟的文档在 `share` 上发布/读取，于是「把浮层面插件挂进控制中心」
+   会以「本程序不支持该方法 share.set」的形式失败——上一轮因此干脆不挂它们，等于把三个插件的
+   界面藏起来了。规则只有一份，两个程序都调它。
+
+番茄钟的设置项（`focusMinutes` / `shortBreakMinutes` / `longBreakMinutes` / `longBreakEvery` /
+`autoStartNextPhase`）在 manifest 里**声明**，默认值与 `machine.js` 原本的兜底一致（25/5/15/4），
+所以升级不会改掉正在用的人的专注时长；它们在控制中心的「设置」弹窗里编辑，插件自己负责读。
 
 ---
 

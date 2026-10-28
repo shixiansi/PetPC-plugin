@@ -1101,6 +1101,45 @@ describe('granted-driven UI', () => {
   });
 });
 
+describe('hosted by the control center (the workshop slot)', () => {
+  // The control center's 插件 page mounts this same document, and it is NOT the pet: it makes no
+  // model request (no `llm.chat` in its capability table - the request belongs to the host that
+  // owns the plugin's budget and credential). So the composer has to be read-only there, and the
+  // reason has to be on screen: a disabled box with no explanation reads as a broken plugin.
+  //
+  // The signal is `surface.slot === 'workshop'`, which is the host's own word for "this is the
+  // management window" - no new protocol field, and the pet's own slot ("chat") is untouched.
+  test('the transcript is shown but the composer is read-only, with the reason stated', async () => {
+    await loadApp();
+    hostSends({
+      ...initFrame(['llm.chat', 'pet.surface', 'storage']),
+      surface: { kind: 'panel', slot: 'workshop' },
+    });
+    await Promise.resolve();
+
+    // History still renders: this window is where the record is read.
+    answerHistory([
+      { role: 'user', text: '在吗' },
+      { role: 'assistant', text: '在' },
+    ]);
+    expect(msgTexts().join(' ')).toContain('在吗');
+
+    expect(document.getElementById('prompt').disabled).toBe(true);
+    expect(document.getElementById('send').disabled).toBe(true);
+    expect(document.getElementById('status').textContent).toContain('这里只显示记录');
+    // And the pet-only affordance goes with it: opening the surface means asking the pet.
+    expect(document.getElementById('surface').disabled).toBe(true);
+  });
+
+  test('the pet\'s own panel mount keeps its composer', async () => {
+    await loadApp();
+    await handshake(['llm.chat', 'pet.surface']);
+
+    expect(document.getElementById('prompt').disabled).toBe(false);
+    expect(document.getElementById('status').textContent).not.toContain('这里只显示记录');
+  });
+});
+
 describe('llm.chat', () => {
   async function ask(text = '你好') {
     await loadApp();

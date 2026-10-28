@@ -62,6 +62,12 @@ const els = {
   askText: document.getElementById('ask-text'),
   askOk: document.getElementById('ask-ok'),
   askSkip: document.getElementById('ask-skip'),
+  // The records view (this round) and the two pieces the control center's mount hides.
+  compose: document.getElementById('compose'),
+  elsewhere: document.getElementById('elsewhere'),
+  records: document.getElementById('records'),
+  recordsList: document.getElementById('records-list'),
+  recordsEmpty: document.getElementById('records-empty'),
 };
 
 const STATE_KEY = 'pomodoro-state-v2';
@@ -75,6 +81,11 @@ let granted = new Set();
 // `role` is set from the handshake and never changes, because an iframe is one appearance for its
 // whole life (the host rebuilds it if the plugin is updated, not if the surface re-opens).
 let role = 'boot';
+// True when this document is mounted by the CONTROL CENTER (surface.slot === 'workshop').
+// It changes what is honest to show: no timer runs here, so no timer controls.
+let workshop = false;
+// Counts the view's one-second ticks so the records are re-read on a slower beat.
+let recordsTick = 0;
 let cfg = {
   focusMinutes: 25,
   shortBreakMinutes: 5,
@@ -222,6 +233,62 @@ function paintTodos() {
     els.todo.appendChild(opt);
   }
   if (keep) els.todo.value = keep;
+}
+
+// --- the records view ---------------------------------------------------------
+//
+// The sessions that happened, newest first. Until this round they were WRITTEN (by the timer)
+// and read by nobody: the floating surface beside the pet is a countdown and one line of
+// controls, so a list of sessions had nowhere to live. The control center's 插件 page is that
+// place - it is a real window, and it already mounts this document.
+//
+// READ-ONLY on purpose. The timer is the only writer of `pomodoro-records-v2`, and a second
+// writer over one storage key is the bug this document is arranged to avoid (see the header).
+
+/** Renders up to 20 sessions from `records`. */
+function paintRecords() {
+  if (!els.records || !els.recordsList) return;
+  const rows = records
+    .filter((r) => r && typeof r.id === 'string' && Number.isFinite(Number(r.endedAt)))
+    .slice()
+    .sort((a, b) => Number(b.endedAt) - Number(a.endedAt))
+    .slice(0, 20);
+
+  els.recordsList.replaceChildren();
+  for (const r of rows) {
+    const li = document.createElement('li');
+    li.className = 'record';
+
+    const when = document.createElement('span');
+    when.className = 'record-when';
+    when.textContent = formatWhen(Number(r.endedAt));
+    li.appendChild(when);
+
+    const what = document.createElement('span');
+    what.className = 'record-what';
+    const minutes = Number(r.focusMinutes) > 0 ? `${Number(r.focusMinutes)} 分钟` : '一段专注';
+    what.textContent = r.todoTitle ? `${minutes} · ${r.todoTitle}` : minutes;
+    li.appendChild(what);
+
+    // The summary is what the user typed when asked. Absent is normal (the question can be
+    // skipped), and an empty span would leave a gap in every row.
+    if (typeof r.summary === 'string' && r.summary.trim() !== '') {
+      const note = document.createElement('span');
+      note.className = 'record-note';
+      note.textContent = r.summary.trim();
+      li.appendChild(note);
+    }
+    els.recordsList.appendChild(li);
+  }
+  els.recordsEmpty.hidden = rows.length > 0;
+  els.records.hidden = false;
+}
+
+/** "10-28 14:32" - local clock, month and minute resolution. */
+function formatWhen(ms) {
+  const d = new Date(ms);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // --- the timer (the headless frame) -------------------------------------------
@@ -457,9 +524,20 @@ function onInit(data) {
   // test on `kind` alone would run the timer in the view's body and the view in the timer's.
   role = surface.slot === 'background' ? 'timer' : 'view';
 
+  // `workshop` is the CONTROL CENTER's mount (its 插件 page). The timer runs in the pet's
+  // headless frame; this window has none, so every button in the footer would send a command
+  // nobody reads. They are hidden rather than left dead, and the line above the records says
+  // where the timer actually is.
+  workshop = role === 'view' && surface.slot === 'workshop';
+
   if (role === 'view') {
-    els.root.className = 'view-face';
+    els.root.className = workshop ? 'view-workshop' : 'view-face';
     els.root.dataset.surface = surface.kind || 'surface';
+    if (workshop) {
+      if (els.compose) els.compose.hidden = true;
+      if (els.elsewhere) els.elsewhere.hidden = false;
+      if (els.records) els.records.hidden = false;
+    }
   } else {
     els.root.className = 'view-background';
     els.root.dataset.surface = 'background';
@@ -467,7 +545,9 @@ function onInit(data) {
 
   if (granted.has('storage')) {
     pendingState = request('storage.get', { key: STATE_KEY });
-    if (role === 'timer') pendingRecords = request('storage.get', { key: RECORDS_KEY });
+    // BOTH roles read the records now: the timer writes them, and the view (the pet's surface
+    // or the control center's page) is where they are read back.
+    pendingRecords = request('storage.get', { key: RECORDS_KEY });
   }
   if (granted.has('plugin.share')) {
     // Both roles read the todo snapshot: the timer needs it to record WHAT a session was about, and
@@ -489,14 +569,27 @@ function onInit(data) {
     if (!ticker) ticker = window.setInterval(refreshView, 1000);
   }
   paint();
+  paintRecords();
 }
 
-/** The view's one-second read: state from storage, then draw. */
+/** The view's one-second read: state from storage, then draw.
+ *
+ *  The records are re-read on a slower beat (every 5th tick): they change only when a session
+ *  ends, and polling a list of sessions once a second would be five times the traffic for a
+ *  change the user cannot perceive.
+ */
 function refreshView() {
   if (!initialised || role !== 'view' || pendingState) return;
   pendingState = request('storage.get', { key: STATE_KEY });
   pendingCommand = null;
   paintCountdown();
+  recordsTick += 1;
+  if (recordsTick >= 5) {
+    recordsTick = 0;
+    if (!pendingRecords && granted.has('storage')) {
+      pendingRecords = request('storage.get', { key: RECORDS_KEY });
+    }
+  }
 }
 
 /** The timer's command read: pick up whatever the view left, then clear it. */
@@ -543,6 +636,7 @@ function onResponse(data) {
     } catch {
       records = [];
     }
+    paintRecords();
     return;
   }
   if (id && id === pendingTodos) {

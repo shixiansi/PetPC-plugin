@@ -100,6 +100,17 @@ function request(method, payload) {
 let pendingList = null;
 
 /**
+ * The ids of `storage.set` calls still waiting for an answer.
+ *
+ * They matter because the list role POLLS now (see startListPoll): two documents can be open on
+ * one list - the pet's surface and the control center's plugin page - so an un-refreshed copy
+ * would silently disagree with the other window. The poll is paused while a write of our own is
+ * in flight, because a read that was issued BEFORE the write would otherwise land after it and
+ * put the older list back on screen.
+ */
+const writes = new Set();
+
+/**
  * Reads the list out of this plugin's own storage.
  *
  * Called on every mount and, in the headless frame, before every reminder tick: the surface is the
@@ -148,7 +159,8 @@ function parseTodos(raw) {
  */
 function saveTodos() {
   if (!granted.has('storage')) return;
-  request('storage.set', { key: TODOS_KEY, value: JSON.stringify(todos) });
+  const id = request('storage.set', { key: TODOS_KEY, value: JSON.stringify(todos) });
+  if (id) writes.add(id);
   publishList();
 }
 
@@ -346,9 +358,27 @@ function onInit(data) {
   // The loop runs in the headless frame only: the list frame is not always mounted, and two
   // frames both reminding would say everything twice.
   if (role === 'background') window.setInterval(tickReminders, 60000);
+  if (role === 'list') startListPoll();
+}
+
+/**
+ * Re-reads the list every two seconds while this document is a list.
+ *
+ * The surface used to be the ONLY writer, so a mount-time read was enough. It is not any more:
+ * the control center mounts this same document (that is where the list lives now), and both can
+ * be on screen at once - the pet's column and a real window. Two seconds is slow enough to be
+ * free and fast enough that the second window is not visibly stale.
+ */
+function startListPoll() {
+  if (!granted.has('storage')) return;
+  window.setInterval(() => {
+    if (pendingList || writes.size > 0) return;
+    loadTodos();
+  }, 2000);
 }
 
 function onResponse(data) {
+  if (data.id) writes.delete(data.id);
   if (data.id && data.id === pendingList) {
     pendingList = null;
     // `storage.get` answers with a STRING (the value is a file), so the JSON is parsed here -

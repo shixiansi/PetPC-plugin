@@ -236,3 +236,88 @@ body.view-boot .compose {
   display: flex;
   gap: 6px;
 }
+/* --- the records view, and the control center's mount ----------------------
+ *
+ * `view-workshop` is the 插件 page of the control center: a real window that mounts this same
+ * document. No timer runs there (the timer is the pet's headless frame), so app.js hides the
+ * controls and the records take the room the face no longer needs.
+ *
+ * The list is the thing that was missing: the floating surface beside the pet is a countdown,
+ * and "what did I actually get done" had nowhere to be read.
+ */
+.view-workshop .face {
+  flex: 0 0 auto;
+  padding: 10px 0;
+}
+
+.view-workshop .countdown {
+  font-size: 28px;
+}
+
+.view-workshop .records {
+  flex: 1 1 auto;
+}
+
+.elsewhere {
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.records {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.records-title {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-card);
+  font-size: 12px;
+}
+
+.record-when {
+  color: var(--p-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.record-what {
+  color: var(--p-text);
+}
+
+/* The user's own sentence about the session: under the title, never in the same cell - it is
+ * longer than the title and would otherwise wrap the timestamp. */
+.record-note {
+  grid-column: 2;
+  color: var(--p-muted);
+}
+
+.records-empty {
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+}

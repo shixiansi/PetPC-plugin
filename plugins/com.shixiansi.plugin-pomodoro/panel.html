@@ -26,12 +26,31 @@
   <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
 </header>
 
+<!-- Shown only when the CONTROL CENTER mounts this document (`surface.slot === 'workshop'`).
+     The timer runs in the pet's headless frame; this window has no frame and no pet, so the
+     buttons in the footer would send a command nobody reads. They are hidden here instead of
+     being left clickable, because a button that does nothing is worse than no button. -->
+<p id="elsewhere" class="elsewhere" hidden>
+  计时在桌宠上（右键桌宠 → 番茄钟）。这个窗口显示的是最近记录。
+</p>
+
 <main class="face">
   <div id="countdown" class="countdown">--:--</div>
   <div id="task" class="task"></div>
 </main>
 
-<footer class="compose">
+<!-- 记录: the sessions that actually happened, newest first.
+     Same storage key the timer writes (`pomodoro-records-v2`), read-only here - the timer is
+     still the only writer. It is the view that used to have nowhere to live: the floating
+     surface beside the pet is a countdown and one line of controls, and a list of the last
+     sessions does not fit in 260px. -->
+<section id="records" class="records" hidden>
+  <h2 class="records-title">最近专注</h2>
+  <ol id="records-list" class="records-list"></ol>
+  <p id="records-empty" class="records-empty">还没有记录。开始一段专注，结束后就会出现在这里。</p>
+</section>
+
+<footer id="compose" class="compose">
   <label class="pick">
     <span class="pick-label">专注哪件</span>
     <select id="todo" class="field"></select>

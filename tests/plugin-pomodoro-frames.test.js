@@ -204,6 +204,84 @@ describe('pomodoro 2.1.0: the timer frame', () => {
   });
 });
 
+describe('pomodoro 2.2.0: the records, and the control center', () => {
+  // Two things arrived in 2.2.0, and both are about the same gap: the records were WRITTEN and
+  // never read anywhere (the surface beside the pet is a countdown), and the control center's
+  // 插件 page mounts this same document in a window where NO TIMER RUNS.
+  const recordsRead = (sent) =>
+    allOf(sent, 'storage.get').filter((m) => m.payload.key === RECORDS_KEY).at(-1);
+
+  test('the settings the machine reads are all DECLARED, so the page can offer them', () => {
+    // The plugin had no `config` at all: machine.js fell back to 25/5/15/4 for ever and the
+    // 插件 page had no 设置 button to show. Declaring a key the machine does not read would be
+    // the opposite bug (a switch that does nothing), so the two lists are compared.
+    const declared = (manifest.config || []).map((c) => c.key).sort();
+    const readByMachine = ['autoStartNextPhase', 'focusMinutes', 'longBreakEvery',
+      'longBreakMinutes', 'shortBreakMinutes'].sort();
+    expect(declared).toEqual(readByMachine);
+    // And the defaults are the ones the machine already assumed: upgrading must not move a
+    // running user's 25-minute session to something else.
+    const def = Object.fromEntries((manifest.config || []).map((c) => [c.key, c.default]));
+    expect(def.focusMinutes).toBe('25');
+    expect(def.shortBreakMinutes).toBe('5');
+    expect(def.longBreakMinutes).toBe('15');
+    expect(def.longBreakEvery).toBe('4');
+  });
+
+  test('the view renders the sessions it reads, newest first', () => {
+    const { window, sent, init, respond } = mount({ slot: '', granted });
+    init();
+    respond(lastStateRead(sent).id, { value: JSON.stringify({ enabled: true, phase: 'idle' }) });
+    const read = recordsRead(sent);
+    expect(read, 'the view never asked for the records').toBeTruthy();
+
+    const rows = [
+      { id: 'rec-1', endedAt: Date.UTC(2026, 9, 27, 6, 30), focusMinutes: 25, todoTitle: '写周报', summary: '第三节最难' },
+      { id: 'rec-2', endedAt: Date.UTC(2026, 9, 28, 6, 30), focusMinutes: 50, todoTitle: '', summary: '' },
+    ];
+    respond(read.id, { value: JSON.stringify(rows) });
+
+    const items = [...window.document.querySelectorAll('.record')];
+    expect(items).toHaveLength(2);
+    // Newest first: 10-28 before 10-27, whatever order storage answered in.
+    expect(items[0].textContent).toContain('50 分钟');
+    expect(items[1].textContent).toContain('25 分钟 · 写周报');
+    expect(items[1].textContent).toContain('第三节最难');
+    // The empty summary and the empty todo are simply absent, not blank cells.
+    expect(items[0].querySelector('.record-note')).toBeNull();
+    expect(window.document.getElementById('records-empty').hidden).toBe(true);
+  });
+
+  test('an empty record list says so instead of showing an empty box', () => {
+    const { window, sent, init, respond } = mount({ slot: '', granted });
+    init();
+    respond(recordsRead(sent).id, { value: '[]' });
+    expect(window.document.querySelectorAll('.record')).toHaveLength(0);
+    expect(window.document.getElementById('records-empty').hidden).toBe(false);
+  });
+
+  test('in the control center the timer controls are HIDDEN, not dead', () => {
+    // The workshop mount is the control center's 插件 page: no timer frame runs there, so a
+    // 开始/暂停 that publishes a command nobody reads would be a button that lies. It is hidden,
+    // and one line says where the timer actually is.
+    const { window, init } = mount({ slot: 'workshop', kind: 'panel', granted });
+    init();
+    expect(window.document.getElementById('compose').hidden).toBe(true);
+    expect(window.document.getElementById('elsewhere').hidden).toBe(false);
+    expect(window.document.getElementById('elsewhere').textContent).toContain('计时在桌宠上');
+    // The records are still there: that is what this window is for.
+    expect(window.document.getElementById('records').hidden).toBe(false);
+    expect(window.document.getElementById('root').className).toBe('view-workshop');
+  });
+
+  test('the pet surface keeps its controls', () => {
+    const { window, init } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    init();
+    expect(window.document.getElementById('compose').hidden).toBe(false);
+    expect(window.document.getElementById('elsewhere').hidden).toBe(true);
+  });
+});
+
 describe('pomodoro 2.1.0: the view frame', () => {
   test('it never writes state', async () => {
     const { sent, init, respond } = mount({ slot: '', granted });

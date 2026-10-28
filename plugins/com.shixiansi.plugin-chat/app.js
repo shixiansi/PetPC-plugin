@@ -52,7 +52,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.7.4';
+const BUILD = '1.7.5';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -68,6 +68,10 @@ const SHAPE = {
 };
 
 let role = ROLE_PANEL;
+// True when the CONTROL CENTER mounts this document (its 插件 page hands us
+// surface.slot === 'workshop'). This program is not the pet: it makes no model request, so the
+// composer is read-only here and says where to type. See applyGrants.
+let workshop = false;
 let initialised = false;
 const granted = new Set();
 
@@ -419,6 +423,9 @@ function applySurface(surface) {
   }
 
   const kind = surface && surface.kind ? surface.kind : 'panel';
+  // The management window says so in the slot name, which is the host's own vocabulary for
+  // "which appearance of you is this". It matters below: `llm.chat` is served by the PET only.
+  workshop = !!(surface && surface.slot === 'workshop');
   if (kind === 'surface') {
     // The DECLARATION index, which the host sends as `surface.rectIndex`. It is the
     // job: 0 question, 1 answer, every other index the input pill (a plugin that
@@ -584,16 +591,24 @@ function onInit(data) {
  * they allowed.
  */
 function applyGrants() {
-  const canChat = granted.has(PERM_CHAT);
+  // `workshop` ALSO takes the composer away, and the reason is not a permission the user can
+  // grant: the model request is made by the host that owns the plugin's budget and its
+  // credential, and the control center deliberately does not serve `llm.chat` (a second LLM
+  // path in a second program, with a second writer of the usage file). So this window shows
+  // the transcript and says where to type - a disabled box with no explanation would look
+  // like a bug in the plugin.
+  const canChat = granted.has(PERM_CHAT) && !workshop;
   els.prompt.disabled = !canChat;
   // `busy` wins over the grant: one reply at a time, because two overlapping replies
   // would interleave into one paragraph (the host keys deltas by requestId, but a
   // second request would make this frame drop the first one's tail instead).
   els.send.disabled = !canChat || busy;
   els.stop.disabled = !canChat || !busy;
-  els.surface.disabled = !granted.has(PERM_SURFACE);
+  // `surface.show` is the pet's: asking the pet to open something is meaningless from here.
+  els.surface.disabled = workshop || !granted.has(PERM_SURFACE);
 
-  if (!canChat) setStatus('未获授权：llm.chat');
+  if (workshop) setStatus('这里只显示记录；发送请在桌宠旁的对话浮层面');
+  else if (!canChat) setStatus('未获授权：llm.chat');
   else setStatus(busy ? '正在回复…' : '已就绪');
 }
 
