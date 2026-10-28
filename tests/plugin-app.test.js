@@ -107,7 +107,7 @@ function initFrame(granted) {
     v: 1,
     type: 'init',
     pluginId: 'com.shixiansi.plugin-chat',
-    permissions: ['llm.chat', 'pet.bubble', 'pet.surface', 'plugin.config', 'storage'],
+    permissions: ['llm.chat', 'pet.surface', 'plugin.config', 'storage'],
     granted,
     surface: { kind: 'panel' },
   };
@@ -124,8 +124,8 @@ function surfaceFrame(rectIndex, { room = 160 } = {}) {
     v: 1,
     type: 'init',
     pluginId: 'com.shixiansi.plugin-chat',
-    permissions: ['llm.chat', 'pet.bubble', 'pet.surface', 'plugin.config', 'storage'],
-    granted: ['llm.chat', 'pet.bubble', 'pet.surface', 'storage'],
+    permissions: ['llm.chat', 'pet.surface', 'plugin.config', 'storage'],
+    granted: ['llm.chat', 'pet.surface', 'storage'],
     surface: {
       kind: 'surface',
       rectIndex,
@@ -180,7 +180,7 @@ function answerHistory(stored) {
 }
 
 /** Drive the plugin through a granted handshake and return the send button. */
-async function handshake(granted = ['llm.chat', 'pet.bubble', 'pet.surface']) {
+async function handshake(granted = ['llm.chat', 'pet.surface']) {
   hostSends(initFrame(granted));
   await Promise.resolve();
 }
@@ -235,11 +235,11 @@ describe('handshake', () => {
     // otherwise unlock the panel can prove the check is doing the work.
     const foreign = new JSDOM('<!doctype html><html><body></body></html>').window;
     expect(foreign).not.toBe(window);
-    hostSends(initFrame(['llm.chat', 'pet.bubble', 'pet.surface']), { source: foreign });
+    hostSends(initFrame(['llm.chat', 'pet.surface']), { source: foreign });
 
     // Neither frame was treated as the host's init: the input stays disabled.
     expect(document.getElementById('prompt').disabled).toBe(true);
-    expect(document.getElementById('bubble').disabled).toBe(true);
+    expect(document.getElementById('bubble')).toBeNull();
     expect(byType('request')).toHaveLength(0);
   });
 
@@ -250,7 +250,7 @@ describe('handshake', () => {
     // thing left standing between the click and the wire is request()'s own
     // "not initialised yet" guard. This is what pins that guard: the handler
     // must not be relying on the DOM attribute the host handed it.
-    for (const id of ['bubble', 'surface']) {
+    for (const id of ['surface']) {
       const el = document.getElementById(id);
       el.disabled = false;
       el.click();
@@ -1088,7 +1088,7 @@ describe('granted-driven UI', () => {
     await loadApp();
     await handshake(['llm.chat']);
 
-    expect(document.getElementById('bubble').disabled).toBe(true);
+    expect(document.getElementById('bubble')).toBeNull();
     expect(document.getElementById('surface').disabled).toBe(true);
   });
 
@@ -1096,7 +1096,7 @@ describe('granted-driven UI', () => {
     await loadApp();
     await handshake();
 
-    expect(document.getElementById('bubble').disabled).toBe(false);
+    expect(document.getElementById('bubble')).toBeNull();
     expect(document.getElementById('surface').disabled).toBe(false);
   });
 });
@@ -1275,14 +1275,17 @@ describe('transcript storage', () => {
 });
 
 describe('bubble and surface', () => {
-  test('bubble.say carries the first line of the reply', async () => {
+  test('the reply is never pushed into the pet bubble', async () => {
+    // This used to assert that a 「气泡」 button sent the first line of the reply via `bubble.say`.
+    // That button is GONE, and the assertion is inverted rather than deleted: the plugin's own answer
+    // block already draws the reply above the pet, and `bubble.say` would call `showBubble`, which
+    // folds the plugin surface - the button closed the window it lived in. Two things must stay true
+    // now: the control is not in the document, and no code path sends `bubble.say`.
     await loadApp();
     await handshake();
-    const request = (() => {
-      document.getElementById('prompt').value = '写点东西';
-      document.getElementById('send').click();
-      return byType('request')[0];
-    })();
+    document.getElementById('prompt').value = '写点东西';
+    document.getElementById('send').click();
+    const request = byType('request')[0];
     const { requestId } = request.payload;
 
     hostSends({
@@ -1292,11 +1295,8 @@ describe('bubble and surface', () => {
       payload: { requestId, text: '第一行\n第二行' },
     });
 
-    document.getElementById('bubble').click();
-
-    const bubble = byType('request').find((r) => r.method === 'bubble.say');
-    expect(bubble).toBeDefined();
-    expect(bubble.payload.text).toBe('第一行');
+    expect(document.getElementById('bubble')).toBeNull();
+    expect(byType('request').filter((r) => r.method === 'bubble.say')).toHaveLength(0);
   });
 
   test('the surface button toggles surface.show and surface.hide', async () => {

@@ -1,32 +1,123 @@
 {
   "id": "com.shixiansi.plugin-chat",
   "name": "对话插件",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "author": "shixiansi",
   "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-  "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage"],
+  "permissions": [
+    "llm.chat",
+    "pet.surface",
+    "plugin.config",
+    "storage"
+  ],
   "shareLLM": true,
   "panel": true,
   "panelSlot": "chat",
   "surface": [
-    { "dx": -75, "dy": -148, "w": 300, "h": 40,  "radius": 14 },
-    { "dx": -79, "dy": -60,  "w": 308, "h": 60, "maxH": 156, "radius": 16 },
-    { "dx": -79, "dy": 4,    "w": 308, "h": 64, "anchor": "bottom", "radius": 16 }
+    {
+      "dx": -75,
+      "dy": -148,
+      "w": 300,
+      "h": 40,
+      "radius": 14
+    },
+    {
+      "dx": -79,
+      "dy": -60,
+      "w": 308,
+      "h": 60,
+      "maxH": 156,
+      "radius": 16
+    },
+    {
+      "dx": -79,
+      "dy": 4,
+      "w": 308,
+      "h": 64,
+      "anchor": "bottom",
+      "radius": 16
+    }
   ],
   "config": [
-    { "key": "llmEnabled", "label": "开启对话（插件是否启用由宿主的启停开关决定；此值仅随迁移保留）", "type": "bool", "default": "false" },
-    { "key": "llmProvider", "label": "服务商预设", "type": "text", "default": "deepseek" },
-    { "key": "llmBaseUrl", "label": "接口地址", "type": "text", "default": "https://api.deepseek.com/v1", "hostWhitelist": true },
-    { "key": "llmModel", "label": "模型", "type": "text", "default": "deepseek-chat" },
-    { "key": "llmTemperature", "label": "随机性", "type": "number", "default": "0.8" },
-    { "key": "llmMaxTokens", "label": "回复上限", "type": "number", "default": "800" },
-    { "key": "llmTimeoutSec", "label": "超时（秒）", "type": "number", "default": "90" },
-    { "key": "llmSystemPrompt", "label": "人设", "type": "text", "default": "" },
-    { "key": "llmHistoryTurns", "label": "上下文条数", "type": "number", "default": "12" },
-    { "key": "llmProactive", "label": "允许主动说话（保留值；宿主的主动说话已整体移除，见 §11 C8）", "type": "bool", "default": "false" },
-    { "key": "llmProactiveMinGapMin", "label": "主动说话最小间隔（分钟）", "type": "number", "default": "60" },
-    { "key": "llmDailyBudget", "label": "每日上限（次）", "type": "number", "default": "200" },
-    { "key": "llmApiKey", "label": "API Key", "type": "secret", "secret": true }
+    {
+      "key": "llmEnabled",
+      "label": "开启对话（插件是否启用由宿主的启停开关决定；此值仅随迁移保留）",
+      "type": "bool",
+      "default": "false"
+    },
+    {
+      "key": "llmProvider",
+      "label": "服务商预设",
+      "type": "text",
+      "default": "deepseek"
+    },
+    {
+      "key": "llmBaseUrl",
+      "label": "接口地址",
+      "type": "text",
+      "default": "https://api.deepseek.com/v1",
+      "hostWhitelist": true
+    },
+    {
+      "key": "llmModel",
+      "label": "模型",
+      "type": "text",
+      "default": "deepseek-chat"
+    },
+    {
+      "key": "llmTemperature",
+      "label": "随机性",
+      "type": "number",
+      "default": "0.8"
+    },
+    {
+      "key": "llmMaxTokens",
+      "label": "回复上限",
+      "type": "number",
+      "default": "800"
+    },
+    {
+      "key": "llmTimeoutSec",
+      "label": "超时（秒）",
+      "type": "number",
+      "default": "90"
+    },
+    {
+      "key": "llmSystemPrompt",
+      "label": "人设",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmHistoryTurns",
+      "label": "上下文条数",
+      "type": "number",
+      "default": "12"
+    },
+    {
+      "key": "llmProactive",
+      "label": "允许主动说话（保留值；宿主的主动说话已整体移除，见 §11 C8）",
+      "type": "bool",
+      "default": "false"
+    },
+    {
+      "key": "llmProactiveMinGapMin",
+      "label": "主动说话最小间隔（分钟）",
+      "type": "number",
+      "default": "60"
+    },
+    {
+      "key": "llmDailyBudget",
+      "label": "每日上限（次）",
+      "type": "number",
+      "default": "200"
+    },
+    {
+      "key": "llmApiKey",
+      "label": "API Key",
+      "type": "secret",
+      "secret": true
+    }
   ],
   "entry": "panel.html"
 }

@@ -37,14 +37,12 @@ const els = {
   status: document.getElementById('status'),
   send: document.getElementById('send'),
   stop: document.getElementById('stop'),
-  bubble: document.getElementById('bubble'),
   surface: document.getElementById('surface'),
 };
 
 // Permission names, spelled once. A typo here would silently disable a control
 // the user did grant.
 const PERM_CHAT = 'llm.chat';
-const PERM_BUBBLE = 'pet.bubble';
 const PERM_SURFACE = 'pet.surface';
 
 /* The build this document came from, shown in the input placeholder.
@@ -54,7 +52,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.7.3';
+const BUILD = '1.7.4';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -159,7 +157,6 @@ let pendingConfig = null;
 // The transcript, in the plugin's own private storage.
 let history = [];
 // The text of the last finished reply, used as the bubble's line.
-let lastReplyText = '';
 // Whether this plugin believes its floating surface is on screen, so the button can
 // toggle it rather than only ever ask for it.
 let surfaceShown = false;
@@ -247,7 +244,6 @@ function renderHistory() {
     for (const item of history) {
       if (!item || typeof item.text !== 'string') continue;
       appendLine(item.role === 'user' ? 'user' : 'assistant', item.text);
-      if (item.role !== 'user') lastReplyText = item.text;
     }
     scrollToEnd();
     return;
@@ -595,7 +591,6 @@ function applyGrants() {
   // second request would make this frame drop the first one's tail instead).
   els.send.disabled = !canChat || busy;
   els.stop.disabled = !canChat || !busy;
-  els.bubble.disabled = !granted.has(PERM_BUBBLE);
   els.surface.disabled = !granted.has(PERM_SURFACE);
 
   if (!canChat) setStatus('未获授权：llm.chat');
@@ -982,7 +977,6 @@ function sendPrompt() {
   if (role === ROLE_PANEL) appendLine('user', text);
   remember('user', text);
   els.prompt.value = '';
-  lastReplyText = '';
 
   const requestId = nextId();
   endedRequestId = null;
@@ -1125,7 +1119,6 @@ function onDone(payload) {
   if (mine) {
     ownRequestId = null;
     setBusy(false);
-    lastReplyText = full;
     if (full) remember('assistant', full);
   }
 
@@ -1344,12 +1337,6 @@ function applyTheme(theme) {
 
 applyTheme(new URLSearchParams(location.search).get('theme'));
 
-/** Shows the last reply in the pet's speech bubble (panel only). */
-function sayInBubble() {
-  if (!granted.has(PERM_BUBBLE)) return;
-  const line = (lastReplyText || '').split('\n')[0].trim();
-  request('bubble.say', { text: line || '你好，我是对话插件。' });
-}
 
 /**
  * Asks the host to show or hide the floating surface.
@@ -1375,7 +1362,6 @@ function toggleSurface() {
 
 if (els.send) els.send.addEventListener('click', sendPrompt);
 if (els.stop) els.stop.addEventListener('click', stopReply);
-if (els.bubble) els.bubble.addEventListener('click', sayInBubble);
 if (els.surface) els.surface.addEventListener('click', toggleSurface);
 if (els.prompt) {
   els.prompt.addEventListener('keydown', (ev) => {
