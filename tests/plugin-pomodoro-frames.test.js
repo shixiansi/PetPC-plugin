@@ -426,8 +426,12 @@ describe('pomodoro 2.3.3: the gate is not cut off', () => {
   // gate's question + textarea + buttons were sliced in half - reported as 「界面被截断了」. The
   // host's `surface.blocks {sizes}` is what re-crops the window; the plugin has to ask.
   test('the summary gate asks for a taller block, and gives it back', async () => {
-    const { sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
+    const { window, sent, init, respond } = mount({ slot: 'pomodoro', kind: 'surface', granted });
     init();
+    // jsdom has no layout, so `scrollHeight` is 0 for every element. The card MEASURES its content
+    // to decide the height (2.3.6+), so the test has to state what the content is - otherwise it
+    // would be asserting on a measurement of nothing.
+    Object.defineProperty(window.document.body, 'scrollHeight', { configurable: true, value: 470 });
     respond(allOf(sent, 'storage.get').at(-1).id, { value: JSON.stringify({ phase: 'idle', enabled: true }) });
 
     const asked = allOf(sent, 'surface.blocks').filter((m) => m.payload.sizes && m.payload.sizes['0']);
@@ -440,7 +444,8 @@ describe('pomodoro 2.3.3: the gate is not cut off', () => {
     await new Promise((r) => setTimeout(r, 200));
     const grown = allOf(sent, 'surface.blocks').filter((m) => m.payload.sizes && m.payload.sizes['0']);
     expect(grown.length, 'the summary gate did not ask for more height').toBeGreaterThan(0);
-    expect(grown.at(-1).payload.sizes['0']).toBeGreaterThan(300);
+    // Content 470 + 2 for the border: measured, not a number someone guessed.
+    expect(grown.at(-1).payload.sizes['0']).toBe(472);
 
     // And answering it gives the room back: empty sizes means "the declared height".
     respond(lastStateRead(sent).id, { value: JSON.stringify({ phase: 'idle', asking: '' }) });

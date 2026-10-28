@@ -173,7 +173,6 @@ function paint() {
   // The gate is READ from the state, not remembered here: the timer owns it, and the view is a
   // second document that can be closed and reopened while a question is still waiting.
   const gate = state.asking || '';
-  fitToGate(!!gate);
 
   if (els.phase) els.phase.textContent = machine.phaseLabel(state.phase);
   if (els.status) {
@@ -212,13 +211,15 @@ function paint() {
 
   paintAsk();
   paintCountdown();
+  // LAST, after the DOM is up to date: measuring before paint would size the block for the
+  // previous frame.
+  fitToGate(!!gate);
 }
 
 /** Writes the gate's wording. Its own function because the TEXT differs from the visibility. */
 function paintAsk() {
   if (role === 'timer') return;
   const gate = state.asking || '';
-  fitToGate(!!gate);
   if (els.askLabel) {
     els.askLabel.textContent = gate === 'summary'
       ? '这一段专注写点什么？'
@@ -680,11 +681,16 @@ function pushBadge() {
  * without `maxH`, so the request was ACCEPTED (`surface.blocks ok` in the log) and then ignored -
  * the card stayed 260 tall and the buttons stayed cut. Hence `maxH: 480` in the rect.
  */
-const GATE_BLOCK_H = 360;
+// Must match the manifest's `maxH`: asking for more than the declaration allows is clamped by the
+// host (which now logs a WARN when it has to).
+const MAX_BLOCK_H = 480;
 let askedGateH = null;
 function fitToGate(open) {
   if (role !== 'view' || mountKind !== 'surface') return;
-  const want = open ? GATE_BLOCK_H : 0;
+  // MEASURED, not guessed. `scrollHeight` is the CONTENT height even when the iframe clips it -
+  // which is the case being fixed - so the card asks for exactly what it needs. +2 leaves room for
+  // the border, so rounding cannot cut a pixel off the last button.
+  const want = open ? Math.min(MAX_BLOCK_H, Math.ceil(document.body.scrollHeight) + 2) : 0;
   if (want === askedGateH) return;
   askedGateH = want;
   request('surface.blocks', want ? { sizes: { 0: want } } : { sizes: {} });
