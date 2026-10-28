@@ -1,0 +1,40 @@
+{
+  "id": "com.shixiansi.plugin-qqbot",
+  "name": "QQ 官方机器人",
+  "version": "1.0.0",
+  "author": "shixiansi",
+  "description": "把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。",
+  "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
+  "background": true,
+  "netHosts": ["api.bot.qq.com"],
+  "config": [
+    { "key": "appId", "label": "AppID（开放平台管理端）", "type": "text", "default": "" },
+    { "key": "appSecret", "label": "AppSecret（开放平台管理端；只存在本机，不会外泄）", "type": "text", "default": "" },
+    { "key": "apiDomain", "label": "API 域名（留空=api.bot.qq.com；沙箱环境填 sandbox.api.sgroup.qq.com 的域名部分）", "type": "text", "default": "", "hostWhitelist": true },
+    { "key": "intentsPreset", "label": "订阅事件", "type": "select", "options": [
+      { "value": "group+c2c", "label": "群聊 @ 消息 + 单聊（推荐）" },
+      { "value": "group", "label": "仅群聊 @ 消息" },
+      { "value": "c2c", "label": "仅单聊" },
+      { "value": "guild", "label": "频道公域 @ 消息（需要机器人有频道权限）" }
+    ], "default": "group+c2c" },
+    { "key": "groupAllow", "label": "只在这些群生效（群 OpenID，逗号分隔；留空=所有群）", "type": "text", "default": "" },
+    { "key": "replyMaxChars", "label": "回复字数上限", "type": "number", "default": "300" },
+    { "key": "contextTurns", "label": "每个会话记住几条往来", "type": "number", "default": "8" },
+    { "key": "cooldownSec", "label": "同一会话最小回复间隔（秒）", "type": "number", "default": "3" },
+    { "key": "persona", "label": "人格设定（留空=默认简洁友好的助手；写了就整段替换默认）", "type": "text", "default": "" },
+    { "key": "echoUnknownEvents", "label": "在日志里记录其它收到的事件（好友添加/移除等）", "type": "bool", "default": "true" },
+    { "key": "llmBaseUrl", "label": "接口地址（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmModel", "label": "模型（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmApiKey", "label": "API Key（留空=借用对话插件的配置）", "type": "secret", "secret": true },
+    { "key": "llmDailyBudget", "label": "每日请求上限（次，0=不限）", "type": "number", "default": "200" }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/gateway.js",
+    "lib/inbound.js",
+    "lib/llm.js",
+    "lib/sender.js",
+    "lib/workshop.js"
+  ]
+}

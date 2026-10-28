@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QQ 官方机器人</title>
+  <!--
+    控制中心的配色，样式表加载之前就应用：宿主把 ?theme=light|dark 放在帧地址上，
+    等 init 再设置会闪一下错的深色。运行中的切换由 app.js 的 theme 消息接管。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一份文档，两种身份。
+
+    桌宠把这份文档挂成隐藏的常驻帧（slot:"background"），那一帧就是整个机器人：
+    网关、鉴权、答复都在里面。插件市场的控制中心把同一份文档挂进工坊区
+    （slot:"workshop"），那份是只读的看板：状态、会话、日志。
+
+    自己是哪一份只由 init 消息决定；两个区块都写在标记里，运行时只切换可见性，
+    不重建 DOM。
+  -->
+  <div id="root" class="view-workshop">
+    <!-- 常驻帧：什么都不画，只为了它收发的消息而存在。 -->
+    <div id="background" hidden></div>
+
+    <main id="workshop" class="workshop">
+      <header class="head">
+        <h1>QQ 官方机器人</h1>
+        <p class="sub">
+          对话在桌宠进程里跑（q.qq.com 开放平台的 WebSocket 网关 + 被动回复）；
+          这个窗口用来查看状态、清理会话记忆。
+        </p>
+      </header>
+
+      <section class="card" id="status-card">
+        <h2>连接</h2>
+        <div class="chips">
+          <span class="chip" id="chip-state" data-state="unknown">未知</span>
+          <span class="chip" id="chip-self">机器人：未知</span>
+          <span class="chip" id="chip-model">模型：未知</span>
+        </div>
+        <p class="note" id="status-note">还没有收到桌宠那边的连接状态。</p>
+        <p class="note" id="status-error" hidden></p>
+      </section>
+
+      <section class="card">
+        <h2>怎么用</h2>
+        <ol class="steps">
+          <li>在 <a href="https://q.qq.com" target="_blank" rel="noopener noreferrer">QQ 开放平台</a> 创建机器人，拿到 AppID 与 AppSecret（管理端 → 开发设置）。</li>
+          <li>在本插件「设置」里填入 AppID 与 AppSecret，保存后重启桌宠。</li>
+          <li>把机器人添加进群（或在开放平台配置单聊），群里 @ 它即可对话；单聊直接发消息。</li>
+        </ol>
+        <p class="note">
+          群里的回复是<strong>被动回复</strong>：官方只允许在收到消息后的 5 分钟内、每条消息最多
+          回 5 次；超过窗口的回复会被丢弃并记录在下面的日志里，这是平台规则，不是故障。
+        </p>
+      </section>
+
+      <section class="card" id="bot-card">
+        <h2>会话记忆</h2>
+        <p class="note" id="bot-empty">还没有任何会话。机器人在群里被 @ 或者收到单聊后，往来会记在这里。</p>
+        <ul class="note-list" id="bot-list" hidden></ul>
+        <div class="toolbar">
+          <span class="note">「忘掉」清空那一个会话的往来；</span>
+          <button type="button" class="ghost" id="clear-sessions">清空全部会话</button>
+        </div>
+      </section>
+
+      <section class="card" id="log-card">
+        <h2>最近发生了什么</h2>
+        <p class="note" id="log-empty">桌宠那边还没有写入任何记录。</p>
+        <ol class="log" id="log" hidden></ol>
+        <div class="toolbar">
+          <button type="button" class="ghost" id="clear-log">清空日志</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <!--
+    加载顺序 = 依赖顺序：core（桥与存储）→ gateway（token+ws）→ inbound → llm → sender
+    → workshop（装配与渲染）。经典 script 共享同一个全局作用域（'use strict' 每支脚本
+    各自生效），所以不需要 import/export。
+    新增模块时：在这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/gateway.js"></script>
+  <script src="lib/inbound.js"></script>
+  <script src="lib/llm.js"></script>
+  <script src="lib/sender.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
