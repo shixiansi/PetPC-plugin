@@ -151,6 +151,42 @@ describe('pomodoro 2.1.0: the timer frame', () => {
     expect(JSON.parse(fact.payload.value).phase).toBe('break');
   });
 
+  test('停止 ends the session instead of pausing it', async () => {
+    // The machine's own `stop` is deliberately "a pause the user asked for: recoverable", and a
+    // machine test pins that. The BUTTON is 停止, though, and a 停止 that resumes into the same
+    // session is indistinguishable from 暂停 on screen - which is the bug the user reported. So the
+    // command layer maps 停止 onto `reset`: no phase, no association, no banked time.
+    const { sent, init, respond } = mount({ slot: 'background', granted });
+    init();
+
+    // A focus that is genuinely running, so stopping it has something to abandon.
+    const running = { ...endedState('focus'), endsAt: Date.now() + 20 * 60 * 1000, asking: '' };
+    respond(lastStateRead(sent).id, { value: JSON.stringify(running) });
+
+    // Wait for the tick to ask for a command, then answer it the way the view would have left it.
+    const deadline = Date.now() + 3000;
+    let poll = null;
+    while (!poll && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+      poll = allOf(sent, 'share.get')
+        .filter((m) => m.payload.name === 'command')
+        .at(-1);
+    }
+    expect(poll, 'the timer never polled for a command - that is the bug this test is for').toBeTruthy();
+
+    const before = allOf(sent, 'storage.set').filter((m) => m.payload.key === STATE_KEY).length;
+    respond(poll.id, { value: JSON.stringify({ op: 'stop' }) });
+    await new Promise((r) => setTimeout(r, 200));
+
+    const writes = allOf(sent, 'storage.set').filter((m) => m.payload.key === STATE_KEY);
+    expect(writes.length, '停止 did not persist anything').toBeGreaterThan(before);
+    const after = JSON.parse(writes.at(-1).payload.value);
+    // Back to 待开始: no phase, and no banked remainder to resume into.
+    expect(after.phase).toBe('idle');
+    expect(after.remainingOnHalt).toBe(0);
+    expect(after.runState).toBe('stopped');
+  });
+
   test('the record id is derived from the end moment, so a refire cannot duplicate it', async () => {
     const endedAt = 1_700_000_000_000;
     const { sent, init, respond } = mount({ slot: 'background', granted });

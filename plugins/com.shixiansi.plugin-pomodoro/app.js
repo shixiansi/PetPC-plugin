@@ -416,7 +416,14 @@ function applyCommand(raw) {
       return;
     case 'stop':
       if (asking) return;
-      applyOutcome(machine.stop(state, now));
+      // 停止 ENDS the session; it is not "暂停 with a different word".
+      //
+      // `machine.stop` deliberately means "a pause the user asked for: recoverable" - it keeps the
+      // banked remainder and `resume` picks it back up - and a test pins that meaning. But the
+      // button next to 暂停 is 停止, and a 停止 that resumes into the same session is
+      // indistinguishable from 暂停 on screen: the user reported exactly that. So the UI's 停止
+      // abandons the phase instead (no record, back to 待开始), which is what the word means.
+      applyOutcome(machine.reset(state));
       return;
     case 'skip':
       if (asking) return;
@@ -623,7 +630,7 @@ function command(op, extra) {
   if (op === 'start') state = machine.startFocus(state, cfg, extra?.todoId || '', '', Date.now());
   else if (op === 'pause') state = machine.pause(state, Date.now());
   else if (op === 'resume') state = machine.resume(state, cfg, Date.now());
-  else if (op === 'stop') state = machine.stop(state, Date.now());
+  else if (op === 'stop') state = machine.reset(state);
   paint();
 }
 
