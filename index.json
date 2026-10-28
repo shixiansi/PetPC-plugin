@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-28T12:25:11Z",
+  "updatedAt": "2026-10-28T14:23:13Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -26,12 +26,12 @@
     {
       "id": "com.shixiansi.plugin-pomodoro",
       "name": "番茄钟插件",
-      "version": "2.3.9",
+      "version": "2.3.11",
       "author": "shixiansi",
       "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
       "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pomodoro-2.3.9.zip",
-      "sha256": "2b5b8e9df36a412421ddc5711457cfa8bee9c3e4c6150075f39b0840e0c4d520"
+      "download": "dist/com.shixiansi.plugin-pomodoro-2.3.11.zip",
+      "sha256": "8e4bf19f3d77d73a95b7726d3bfb358a83ca4b6d97560646f56b3791efd7758e"
     },
     {
       "id": "com.shixiansi.plugin-qq",
