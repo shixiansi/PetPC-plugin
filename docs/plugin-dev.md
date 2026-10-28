@@ -745,7 +745,7 @@ other
 | 事件 | payload | 谁发 | 什么时候 |
 | --- | --- | --- | --- |
 | `reminder.fired` | `{due, overdue, total}` | 桌宠 | **它自己**弹提醒气泡时。今天这只在用户点「立刻提醒一次」（托盘菜单 / 右键菜单）时发生；**定时提醒是待办插件自己弹 `bubble.say`，不经这个事件** |
-| `timer.phaseEnded` | `{phase}` | **没有人发** | 订阅它会成功，但你**永远收不到**：宿主不产生这个事件。要听"一段结束了"，读番茄钟插件发布的 `com.shixiansi.plugin-pomodoro/phase-ended` |
+| `config.changed` | `{pluginId}` | 桌宠 | 你的 `config.json` 在磁盘上变了——**不管是谁改的**：控制中心的插件页保存设置，或者你自己的工坊界面调 `config.set`。它是**广播**：每个订阅者都会收到每个插件的变化，所以要用 `payload.pluginId` 和自己的 id 比一下 || `timer.phaseEnded` | `{phase}` | **没有人发** | 订阅它会成功，但你**永远收不到**：宿主不产生这个事件。要听"一段结束了"，读番茄钟插件发布的 `com.shixiansi.plugin-pomodoro/phase-ended` |
 
 番茄钟的"一段结束了"由**番茄钟插件**通过 `plugin.share` 发布（
 `owner: "com.shixiansi.plugin-pomodoro"`, `name: "phase-ended"`,

@@ -44,6 +44,8 @@ const TODO_LIST = 'todo-list';
 //   command      what the view asked the timer to do, cleared (emptied) as soon as it is applied.
 const SHARE_PHASE_ENDED = 'phase-ended';
 const SHARE_COMMAND = 'command';
+// The host's event for your settings file changed (plugin manual, section 7).
+const EVENT_CONFIG_CHANGED = 'config.changed';
 
 
 const els = {
@@ -114,7 +116,9 @@ let seq = 0;
 let ticker = null;
 // The settings poll (see onInit): the timer frame lives for the whole session, so the config has
 // to be re-read or a change made in the control center never arrives.
-let configTicker = null;
+let configSubscribed = null;
+// Our own id (from init): config.changed is broadcast, so we filter on it.
+let pluginId = '';
 
 function nextId() {
   seq += 1;
@@ -520,6 +524,7 @@ function onInit(data) {
   initialised = true;
   applyTheme(data.theme);
   granted = new Set(data.granted || []);
+  pluginId = data.pluginId || '';
 
   const surface = data.surface || {};
   // The two appearances. `slot === 'background'` is the host's headless frame: it must be checked
@@ -575,8 +580,12 @@ function onInit(data) {
     // Three seconds, not thirty: the user changes the number and presses 开始 right after, and
     // a stale config then is indistinguishable from "the setting does nothing". It is a single
     // `config.get` (DEBUG in the host log, and repeats are folded), so the cost is nil.
-    if (granted.has('plugin.config') && !configTicker) {
-      configTicker = window.setInterval(refreshConfig, 3000);
+    // Settings are re-read when the HOST SAYS they changed (`config.changed`), not on a timer:
+    // this frame lives for the whole session, so a read at mount alone meant a setting changed
+    // in the control center never reached the machine. The 3-second poll that fixed that was a
+    // per-plugin timer doing the host's job - the host now watches config.json and broadcasts.
+    if (granted.has('events') && !configSubscribed) {
+      configSubscribed = request('events.subscribe', { names: [EVENT_CONFIG_CHANGED] });
     }
   } else {
     // The view does not tick the machine - it re-reads the state the timer wrote. Its countdown is
@@ -693,13 +702,11 @@ function onResponse(data) {
   if (data.error && els.status) els.status.textContent = data.error;
 }
 
-function onEvent() {
-  // Nothing arrives here any more. The todo list used to be the host's, so a change to it arrived as
-  // `todos.changed`; the list is another plugin's now and the host has no event for "that value
-  // changed". Staleness is not a problem in practice: the surface frame is created when the surface
-  // OPENS, so every open re-reads the snapshot in `onInit` - the list cannot change while the picker
-  // is on screen, because changing it means opening the todo plugin's own surface.
+function onEvent(data) {
+  if (!data || data.name !== EVENT_CONFIG_CHANGED) return;
+  if (data.payload && data.payload.pluginId === pluginId) refreshConfig();
 }
+
 
 function onMessage(event) {
   if (event.source !== window.parent) return;
