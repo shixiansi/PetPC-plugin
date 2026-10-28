@@ -54,7 +54,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.7.2';
+const BUILD = '1.7.3';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -576,10 +576,6 @@ function onInit(data) {
   // The composer's own focus is one half of the auto-hide condition, and this is the only document
   // that can see it. `blur` re-arms the timer (measured from when the answer finished); `focus`
   // cancels it, because a caret in the box means the user is writing, not leaving.
-  if (role === ROLE_INPUT && els.prompt) {
-    els.prompt.addEventListener('focus', cancelAutoHide);
-    els.prompt.addEventListener('blur', armAutoHide);
-  }
   if (granted.has('storage')) loadHistory();
   loadSettings();
 }
@@ -877,67 +873,90 @@ function endExchange() {
 // --- auto-hide: an answer that has been read for a few seconds ---------------
 //
 // The floating surface used to stay up until the user right-clicked the pet, which is a gesture
-// nowhere near the conversation: it reads as "the chat window cannot be closed". This closes it
-// once the turn is over and nobody is using it.
+// nowhere near the conversation: it reads as "the chat window cannot be closed". This closes it once
+// the turn is over and nobody is using it.
 //
 // WHY THE INPUT FRAME OWNS THIS. The three floating frames are three separate opaque documents, so
-// "the composer has focus" is only knowable in the one that HOLDS the composer. All three receive
-// the same `llm.*` events from the host, so this frame also knows when the answer finished - which
-// makes it the only place where both halves of the condition can be true at once.
+// "the composer has focus" is only knowable in the one that HOLDS the composer. All three receive the
+// same `llm.*` events from the host, so this frame also knows when the answer finished - which makes
+// it the only place where both halves of the condition can be true at once.
 //
 // BOTH HALVES ARE REQUIRED, and each has its own failure mode without the other:
 //   - hiding on the timer alone would take the window away from someone mid-sentence, because a
 //     focused composer is a user who is typing, not a user who has left;
-//   - hiding on blur alone would cut off an answer that is still arriving, because clicking away
-//     while the model is still talking is not the same as being finished with it.
+//   - hiding on "focus is elsewhere" alone would cut off an answer that is still arriving, because
+//     clicking away while the model is still talking is not the same as being finished with it.
+//
+// WHY THIS POLLS INSTEAD OF LISTENING FOR `blur`. The first version subscribed to the composer's
+// `blur` and was reported as 「完全不会收起」 - and then, after the flag bug was fixed, still did
+// nothing when the user clicked the desktop. A `blur` inside an opaque-origin iframe whose whole
+// WINDOW is losing focus is not something to rely on: the OS deactivates our layered window, and
+// whether Chromium forwards that into the child document is an implementation detail I cannot make a
+// product decision depend on. `document.hasFocus()` is a QUERY, so it answers the same question
+// whether or not an event was ever delivered.
 const AUTO_HIDE_MS = 3000;
+// Half a second is far below the 3 s the user actually perceives, so the delay they measure is the
+// three seconds they were told, not three seconds plus a poll interval.
+const AUTO_HIDE_POLL_MS = 500;
 // When the last answer finished. 0 means "nothing to hide yet".
 let answerFinishedAt = 0;
-let autoHideTimer = null;
+let autoHidePoll = null;
 
-function cancelAutoHide() {
-  if (autoHideTimer !== null) window.clearTimeout(autoHideTimer);
-  autoHideTimer = null;
-}
-
-/** Whether the caret is in the composer, i.e. the user is writing rather than reading. */
+/**
+ * Whether the caret is in the composer, i.e. the user is writing rather than reading.
+ *
+ * Kept alongside `document.hasFocus()` rather than folded into it: focus can move to another block of
+ * the SAME surface (the answer bubble), which is still the user paying attention to the conversation.
+ */
 function composerFocused() {
   const active = document.activeElement;
   return !!active && (active === els.prompt || (els.prompt && els.prompt.contains(active)));
 }
 
+/** Whether anything in this document still has the user's attention. */
+function documentFocused() {
+  // WebView2 keeps the document focused while our window is active; clicking the desktop drops it.
+  return typeof document.hasFocus === 'function' ? document.hasFocus() : true;
+}
+
+function stopAutoHidePoll() {
+  if (autoHidePoll !== null) window.clearInterval(autoHidePoll);
+  autoHidePoll = null;
+}
+
 /**
- * Arms (or re-arms) the hide, measured from when the answer finished rather than from now.
+ * Watches for "the turn is over and the user has gone", and closes the surface when both hold.
  *
- * Both the "answer finished" path and the "focus left" path call this, and measuring from
- * `answerFinishedAt` is what makes them the same delay instead of two that add up: leaving the
- * composer 10 s after an answer hides the window at once, leaving it 1 s after hides it after 2.
+ * Measuring the delay from `answerFinishedAt` rather than from the moment focus left is what makes
+ * the two halves one delay instead of two that add up: leaving 10 s after an answer closes at once,
+ * leaving 1 s after closes 2 s later.
  */
-function armAutoHide() {
+function startAutoHidePoll() {
   if (role !== ROLE_INPUT) return;
-  // No grant, no close: `surface.hide` would be refused, and a plugin that kept asking would fill
-  // the status line with a refusal it cannot act on.
+  // No grant, no close: `surface.hide` would be refused, and a plugin that kept asking would fill the
+  // status line with a refusal it cannot act on.
   if (!granted.has(PERM_SURFACE)) return;
-  if (!answerFinishedAt) return;
-  cancelAutoHide();
-  const wait = Math.max(0, AUTO_HIDE_MS - (Date.now() - answerFinishedAt));
-  autoHideTimer = window.setTimeout(() => {
-    autoHideTimer = null;
-    if (composerFocused()) return; // the user came back
-    // `busy`, NOT `asking`. `asking` is cleared only by the ANSWER frame's own end-of-exchange
-    // timer (`endExchange` returns immediately in every other role), so in THIS frame it stayed
-    // true for ever after the first message - and the hide was skipped every single time. `busy` is
-    // set and cleared by the frame that actually sent the request, which is this one.
-    if (busy) return; // another question is in flight
+  if (autoHidePoll !== null) return;
+  autoHidePoll = window.setInterval(() => {
+    if (!answerFinishedAt) return;
+    // `busy`, NOT `asking`. `asking` is cleared only by the ANSWER frame's own end-of-exchange timer
+    // (`endExchange` returns immediately in every other role), so in THIS frame it stayed true for
+    // ever after the first message - and the hide was skipped every single time. `busy` is set and
+    // cleared by the frame that actually sent the request, which is this one.
+    if (busy) return;
+    if (Date.now() - answerFinishedAt < AUTO_HIDE_MS) return;
+    if (documentFocused() && composerFocused()) return; // the user is still here
+    stopAutoHidePoll();
+    answerFinishedAt = 0;
     request('surface.hide', {});
-  }, wait);
+  }, AUTO_HIDE_POLL_MS);
 }
 
 /** Called by the input frame when a turn ends, so the clock starts from the answer, not the click. */
 function noteAnswerShown() {
   if (role !== ROLE_INPUT) return;
   answerFinishedAt = Date.now();
-  armAutoHide();
+  startAutoHidePoll();
 }
 
 
