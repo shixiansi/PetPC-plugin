@@ -54,7 +54,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.7.0';
+const BUILD = '1.7.1';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -573,6 +573,13 @@ function onInit(data) {
   applySurface(data.surface || {});
   applyGrants();
   focusComposer();
+  // The composer's own focus is one half of the auto-hide condition, and this is the only document
+  // that can see it. `blur` re-arms the timer (measured from when the answer finished); `focus`
+  // cancels it, because a caret in the box means the user is writing, not leaving.
+  if (role === ROLE_INPUT && els.prompt) {
+    els.prompt.addEventListener('focus', cancelAutoHide);
+    els.prompt.addEventListener('blur', armAutoHide);
+  }
   if (granted.has('storage')) loadHistory();
   loadSettings();
 }
@@ -867,7 +874,68 @@ function endExchange() {
   }, END_DELAY_MS);
 }
 
-// --- the reply lifecycle ----------------------------------------------------
+// --- auto-hide: an answer that has been read for a few seconds ---------------
+//
+// The floating surface used to stay up until the user right-clicked the pet, which is a gesture
+// nowhere near the conversation: it reads as "the chat window cannot be closed". This closes it
+// once the turn is over and nobody is using it.
+//
+// WHY THE INPUT FRAME OWNS THIS. The three floating frames are three separate opaque documents, so
+// "the composer has focus" is only knowable in the one that HOLDS the composer. All three receive
+// the same `llm.*` events from the host, so this frame also knows when the answer finished - which
+// makes it the only place where both halves of the condition can be true at once.
+//
+// BOTH HALVES ARE REQUIRED, and each has its own failure mode without the other:
+//   - hiding on the timer alone would take the window away from someone mid-sentence, because a
+//     focused composer is a user who is typing, not a user who has left;
+//   - hiding on blur alone would cut off an answer that is still arriving, because clicking away
+//     while the model is still talking is not the same as being finished with it.
+const AUTO_HIDE_MS = 3000;
+// When the last answer finished. 0 means "nothing to hide yet".
+let answerFinishedAt = 0;
+let autoHideTimer = null;
+
+function cancelAutoHide() {
+  if (autoHideTimer !== null) window.clearTimeout(autoHideTimer);
+  autoHideTimer = null;
+}
+
+/** Whether the caret is in the composer, i.e. the user is writing rather than reading. */
+function composerFocused() {
+  const active = document.activeElement;
+  return !!active && (active === els.prompt || (els.prompt && els.prompt.contains(active)));
+}
+
+/**
+ * Arms (or re-arms) the hide, measured from when the answer finished rather than from now.
+ *
+ * Both the "answer finished" path and the "focus left" path call this, and measuring from
+ * `answerFinishedAt` is what makes them the same delay instead of two that add up: leaving the
+ * composer 10 s after an answer hides the window at once, leaving it 1 s after hides it after 2.
+ */
+function armAutoHide() {
+  if (role !== ROLE_INPUT) return;
+  // No grant, no close: `surface.hide` would be refused, and a plugin that kept asking would fill
+  // the status line with a refusal it cannot act on.
+  if (!granted.has(PERM_SURFACE)) return;
+  if (!answerFinishedAt) return;
+  cancelAutoHide();
+  const wait = Math.max(0, AUTO_HIDE_MS - (Date.now() - answerFinishedAt));
+  autoHideTimer = window.setTimeout(() => {
+    autoHideTimer = null;
+    if (composerFocused()) return; // the user came back
+    if (asking) return; // another question is in flight
+    request('surface.hide', {});
+  }, wait);
+}
+
+/** Called by the input frame when a turn ends, so the clock starts from the answer, not the click. */
+function noteAnswerShown() {
+  if (role !== ROLE_INPUT) return;
+  answerFinishedAt = Date.now();
+  armAutoHide();
+}
+
 
 /**
  * Sends what is in the composer.
@@ -879,6 +947,8 @@ function endExchange() {
  * floating boxes learn about it from the transcript instead - the question box reads
  * it once, and the answer box does not show questions at all.
  */
+// --- the reply lifecycle ----------------------------------------------------
+
 function sendPrompt() {
   if (!canCompose()) return;
   const text = els.prompt.value.trim();
@@ -1053,6 +1123,10 @@ function onDone(payload) {
       endExchange();
     }
   }
+  // The input frame's own clock for closing the whole surface. It starts at `done` rather than at
+  // the last character because that frame has no typewriter to watch - and the answer box's own
+  // END_DELAY has already kept the pair on screen for a second by then.
+  noteAnswerShown();
 }
 
 /**
@@ -1103,6 +1177,10 @@ function onError(payload) {
     syncAnswerSurface();
     endExchange();
   }
+  // A FAILED turn is also a finished one: the reason is on screen, so the same "nothing more is
+  // coming, close it once the user has had a few seconds" applies. `hasAnswer` above is what keeps
+  // the answer box showing the reason while the clock runs.
+  noteAnswerShown();
 }
 
 /**

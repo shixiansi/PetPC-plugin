@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-27T17:05:41Z",
+  "updatedAt": "2026-10-28T06:01:32Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -16,22 +16,22 @@
     {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
-      "version": "1.7.0",
+      "version": "1.7.1",
       "author": "shixiansi",
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
       "permissions": ["llm.chat", "pet.bubble", "pet.surface", "plugin.config", "storage"],
-      "download": "dist/com.shixiansi.plugin-chat-1.7.0.zip",
-      "sha256": "1ad06c8b1ecfa69c2513ec4cc9251263b8902f11f5380204aa68ec05d842fd14"
+      "download": "dist/com.shixiansi.plugin-chat-1.7.1.zip",
+      "sha256": "41cd73aa6235dc3110b0e6c802fb79696fb88362552eb22df778f1f36a9b7fdd"
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
       "name": "番茄钟插件",
-      "version": "2.1.0",
+      "version": "2.1.1",
       "author": "shixiansi",
       "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图。",
       "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pomodoro-2.1.0.zip",
-      "sha256": "7099bc62bda0508982833b1dd4599a1b79a6433bd62b0e07c18640c9fd902ed9"
+      "download": "dist/com.shixiansi.plugin-pomodoro-2.1.1.zip",
+      "sha256": "7e2eb5d063649bdc6fea69c77cfa4bced8219c5ed68cf2e69d6dff67029b0b26"
     },
     {
       "id": "com.shixiansi.plugin-qq",
