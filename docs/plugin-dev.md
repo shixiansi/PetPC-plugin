@@ -401,7 +401,7 @@ body[data-surface='boot'] { background: transparent; }
 | `type` | `text` \| `number` \| `bool` \| `secret` \| `select` |
 | `default` | 可选。**字符串**（数字也写成 `"3"`）；表单空着时用它 |
 | `secret` | 必须与 `type:"secret"` 一致（两种写法 = 两处可能把加密写错） |
-| `hostWhitelist` | 至多一项。它的**当前值**会被加进 `net.fetch` 的域名白名单（用于"用户自己填的服务地址"） |
+| `hostWhitelist` | **最多 4 项，并且是合并的**：每一项的**当前值**都会被加进 `net.fetch` 的域名白名单。用它装"用户自己填的服务地址"，以及**第二个**来源（例如图片域名——一个框里既填 URL 又填裸域名只会填错） |
 | `options` / `multiple` | 只用于 `select`；`options` 需要 2–64 项，每项 `{value,label}` 都要有，`value` 不重复；`multiple:true` 的值是**逗号串**（`"a,b"`） |
 | `select` 的限制 | 不能同时是 `secret` 或 `hostWhitelist` |
 
@@ -679,6 +679,32 @@ manifest 的 `config` 只能声明**一个** `llmBaseUrl`、一个 `llmModel`、
 - 权限是 `llm.chat`（"我自己的模型配置"），两个宿主**都**服务它——控制中心的插件页要能编辑它，而那里没有模型调用。
 
 `llm.chat` 里对应的三个可选字段：`provider`（用哪个插件的表）、`channel`（表里的哪一行）、`keyId`（哪把钥匙）。
+
+#### 消费方的兜底链（推荐做法，`com.shixiansi.plugin-chat` 1.8.0 是参考实现）
+
+一次提问只有一条路是很脆的：模型下线、429、余额不足、断网、上下文太长，任何一种都会让用户看到
+一句"对话失败"，而他手里明明还有别的选择。建议按"从最像到最不像"排一条链，**每一级都能独立说清
+为什么走到这一步**：
+
+| 级 | 做什么 | 什么时候用 |
+| --- | --- | --- |
+| 1 `primary` | 自己的端点 + 自己的模型 | 永远第一级，任何配置都不会把它挤掉 |
+| 2 `trimmed` | 同一级，历史减半 | 只用于 `context/too long/token limit` 一类错误——换模型帮不上这件事 |
+| 3 `fallback-model` | 同端点换 `model`（`llm.chat` 的 `model` 字段） | 模型下线、额度用完 |
+| 4 `borrowed` | `provider: <另一个插件 id>`（需要 `llm.borrow`） | 自己的配置整体不可用 |
+| 5 `local` | 不发请求，状态行说清楚 + 把原文放回输入框 | 链走完 |
+
+两条纪律：
+
+- **只有"换一级可能有用"的错误才往下走**。401/403 是密钥问题，换模型没用（但换渠道有用，所以
+  它跳过同端点、直接去 `borrowed`）；`context` 类错误原地重试一次，不换级。
+- **已经收到的半截回答不丢**：切级之前把文本留在屏幕上，只加一条"已切换"的提示，不要清空重来。
+- 最后一级**不要**往对话记录里塞一条假的助手消息——那会污染下一轮历史，让模型以为它说过这句话。
+
+**图片**同理：`llm.chat` 的 `images` 收 http(s) 地址（一次最多 4 张，域名要在 `netHosts` 或
+`hostWhitelist` 项里），`model` 可以单独指定视觉模型，不必为此维护第二套端点与密钥。参考实现里
+`llmImageModel` + `llmImageHosts` 两个配置项就是这件事。
+
 #### `llm.providers`
 
 “现在有哪些模型渠道可用”。`llm.profile` 回答“我这次会用谁”（一个），这个回答“都有哪些、默认是哪个”。

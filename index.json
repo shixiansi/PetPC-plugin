@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T14:14:21Z",
+  "updatedAt": "2026-10-29T16:37:35Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -16,12 +16,12 @@
     {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
-      "version": "1.7.6",
+      "version": "1.8.0",
       "author": "shixiansi",
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-      "permissions": ["llm.chat", "pet.surface", "plugin.config", "storage"],
-      "download": "dist/com.shixiansi.plugin-chat-1.7.6.zip",
-      "sha256": "0bff33af028e7af381a1dac459287240e772b2956cf3a17057f1e9c393c26147"
+      "permissions": ["llm.chat", "llm.borrow", "pet.surface", "plugin.config", "storage"],
+      "download": "dist/com.shixiansi.plugin-chat-1.8.0.zip",
+      "sha256": "e832d6eb3eaf85ae191bebfeb9227ff7c642a553fccea67c8040c2f7e72c4cf4"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -85,8 +85,7 @@
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
       "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.2.zip",
-      "sha256": "6f47735d59ab2489c812fc1ad4bd8c8e40ecad268b5992179f31f8bea38871d9",
-      "updatedAt": "2026-10-29T01:20:00Z"
+      "sha256": "6f47735d59ab2489c812fc1ad4bd8c8e40ecad268b5992179f31f8bea38871d9"
     },
     {
       "id": "com.shixiansi.plugin-todo",

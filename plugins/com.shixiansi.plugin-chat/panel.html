@@ -59,6 +59,14 @@
      is cropped to, so there is nowhere for a scrollbar to go. -->
 <main id="reply" class="reply" aria-live="polite"></main>
 
+<!-- 图片：折叠着，不用时不占高度（面板是固定 380×520 的矩形，多一行就是少一行对话）。
+     地址必须是 http(s)，域名还得在「设置 → 图片允许的域名」里——宿主只认这两个条件。 -->
+<details id="imgtools" class="imgtools">
+  <summary>图片（可选）</summary>
+  <input id="imgurl" class="imgurl" type="text" spellcheck="false"
+         placeholder="图片地址，空格分隔，最多 4 张" aria-label="图片地址" />
+</details>
+
 <footer class="compose">
   <textarea id="prompt" class="prompt" rows="1" placeholder="输入想说的话…" aria-label="消息" disabled></textarea>
   <div class="actions">
