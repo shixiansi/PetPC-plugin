@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T17:14:46Z",
+  "updatedAt": "2026-10-29T17:46:51Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -9,19 +9,19 @@
       "author": "shixiansi",
       "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
       "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share"],
-      "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
       "download": "dist/com.shixiansi.plugin-bilibili-1.0.0.zip",
-      "sha256": "fc8f1653c78a38484e249654a84465a093929090e15052ba65c55af8fe506805"
+      "sha256": "fc8f1653c78a38484e249654a84465a093929090e15052ba65c55af8fe506805",
+      "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"]
     },
     {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
-      "version": "1.7.6",
+      "version": "1.8.0",
       "author": "shixiansi",
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-      "permissions": ["llm.chat", "pet.surface", "plugin.config", "storage"],
-      "download": "dist/com.shixiansi.plugin-chat-1.7.6.zip",
-      "sha256": "016c0f808ef1007d05e6ce594288dbc59074a22c9695686d4e12e471e070860e"
+      "permissions": ["llm.chat", "llm.borrow", "pet.surface", "plugin.config", "storage"],
+      "download": "dist/com.shixiansi.plugin-chat-1.8.0.zip",
+      "sha256": "e832d6eb3eaf85ae191bebfeb9227ff7c642a553fccea67c8040c2f7e72c4cf4"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -30,9 +30,9 @@
       "author": "shixiansi",
       "description": "一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。",
       "permissions": ["llm.chat", "plugin.config"],
-      "netHosts": ["api.openai.com", "api.moonshot.cn", "open.bigmodel.cn", "dashscope.aliyuncs.com", "127.0.0.1:11434"],
       "download": "dist/com.shixiansi.plugin-llmchannel-0.2.5.zip",
-      "sha256": "310a4ba29a7437122a50b090fca9df0ff26742f675bdc4d0a7553cb52dbd1f09"
+      "sha256": "310a4ba29a7437122a50b090fca9df0ff26742f675bdc4d0a7553cb52dbd1f09",
+      "netHosts": ["api.openai.com", "api.moonshot.cn", "open.bigmodel.cn", "dashscope.aliyuncs.com", "127.0.0.1:11434"]
     },
     {
       "id": "com.shixiansi.plugin-memcore",
@@ -51,9 +51,9 @@
       "author": "shixiansi",
       "description": "把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。",
       "permissions": ["net.ws", "plugin.call", "storage", "plugin.config"],
-      "netHosts": ["127.0.0.1:3001"],
       "download": "dist/com.shixiansi.plugin-onebot-0.1.5.zip",
-      "sha256": "c3487a4aad5f24cb045536a7dbb8e3d93bc7d73fafc361810451654a490b092a"
+      "sha256": "c3487a4aad5f24cb045536a7dbb8e3d93bc7d73fafc361810451654a490b092a",
+      "netHosts": ["127.0.0.1:3001"]
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
@@ -72,9 +72,9 @@
       "author": "shixiansi",
       "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
-      "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
       "download": "dist/com.shixiansi.plugin-qq-1.13.2.zip",
-      "sha256": "7efcd95f74bcbb967d82e344660ab491a73324de2efe21809c8a3f475e8d3b51"
+      "sha256": "7efcd95f74bcbb967d82e344660ab491a73324de2efe21809c8a3f475e8d3b51",
+      "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"]
     },
     {
       "id": "com.shixiansi.plugin-qqbot",
@@ -83,9 +83,9 @@
       "author": "shixiansi",
       "description": "把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。",
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.2.zip",
-      "sha256": "c9427a6716082979f7fbd6a856f3feaa9df29e014103fe50c6b20bcd0302f199"
+      "sha256": "c9427a6716082979f7fbd6a856f3feaa9df29e014103fe50c6b20bcd0302f199",
+      "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"]
     },
     {
       "id": "com.shixiansi.plugin-todo",
@@ -104,9 +104,9 @@
       "author": "shixiansi",
       "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
       "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share"],
-      "netHosts": ["127.0.0.1:9880"],
       "download": "dist/com.shixiansi.plugin-voice-1.0.2.zip",
-      "sha256": "c7212f9578d87fb60d22d15aa0c53ffc82df2737842f0eef4b65f65ed19787a5"
+      "sha256": "c7212f9578d87fb60d22d15aa0c53ffc82df2737842f0eef4b65f65ed19787a5",
+      "netHosts": ["127.0.0.1:9880"]
     },
     {
       "id": "com.shixiansi.plugin-websearch",
@@ -115,9 +115,9 @@
       "author": "shixiansi",
       "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
-      "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
       "download": "dist/com.shixiansi.plugin-websearch-1.0.0.zip",
-      "sha256": "8e53f4b9759df9cbdff5400c540218265959b6e8ea2a7f8f9a08ac1a1ab2bc5d"
+      "sha256": "8e53f4b9759df9cbdff5400c540218265959b6e8ea2a7f8f9a08ac1a1ab2bc5d",
+      "netHosts": ["api.tavily.com", "api.bing.microsoft.com"]
     }
   ]
 }

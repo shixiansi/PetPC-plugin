@@ -34,6 +34,8 @@ const els = {
   root: document.getElementById('root') || document.body,
   reply: document.getElementById('reply'),
   prompt: document.getElementById('prompt'),
+  // 图片地址输入框：只有面板（对话页）有它，两个浮动块是固定小矩形，塞不下。
+  imgurl: document.getElementById('imgurl'),
   status: document.getElementById('status'),
   send: document.getElementById('send'),
   stop: document.getElementById('stop'),
@@ -52,7 +54,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.7.6';
+const BUILD = '1.8.0';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -581,7 +583,109 @@ function onInit(data) {
   // cancels it, because a caret in the box means the user is writing, not leaving.
   if (granted.has('storage')) loadHistory();
   loadSettings();
+  refreshBorrowed();
 }
+
+/**
+ * 兜底链的驱动器。
+ *
+ * 状态很小：当前链、走到第几级、这一轮用过的 requestId。每一级都发一个**新的** requestId
+ * （宿主按它分流 delta/error），所以链内切换不会和上一级的流混在一起。
+ */
+let chain = [];
+let chainIndex = 0;
+let chainIds = new Set();
+/** 借来的渠道：`{id, channel}`，来自 llm.providers；没有就不走这一级。 */
+let borrowLender = null;
+let pendingProviders = null;
+/** 最近一次提问的原文：最后一级也失败时放回输入框，用户按一下就能重发。 */
+let lastPrompt = '';
+
+function refreshBorrowed() {
+  if (!granted.has('llm.borrow')) return;
+  const id = request('llm.providers', {});
+  if (id) pendingProviders = id;
+}
+
+/** 从 llm.providers 的结果里挑一个"现在就能答"的渠道（跳过自己）。 */
+function takeBorrowed(result) {
+  const rows = (result && Array.isArray(result.providers)) ? result.providers : [];
+  const ready = rows.find((row) => row && row.ready && !row.self && row.id);
+  if (!ready) return null;
+  const channel = ready.defaultChannel
+    || (Array.isArray(ready.channels) && ready.channels[0] && ready.channels[0].id)
+    || '';
+  return { id: ready.id, channel };
+}
+
+/** 上下文减半：只用于"上下文太长"那类错误，不换级。 */
+function halfHistory() {
+  const turns = replayTurns();
+  return turns.slice(Math.floor(turns.length / 2));
+}
+
+/** 把用户填的图片地址读出来（只认 http/https，最多 4 张，和宿主的规则一致）。 */
+function pendingImages() {
+  if (role !== ROLE_PANEL || !els.imgurl) return [];
+  const raw = String(els.imgurl.value || '').trim();
+  if (!raw) return [];
+  return raw
+    .split(/[\s,，]+/)
+    .filter((item) => /^https?:\/\//i.test(item))
+    .slice(0, 4);
+}
+
+/** 开始一次带兜底的提问。 */
+function startExchange(base) {
+  chain = buildAttemptChain({
+    base,
+    borrowed: granted.has('llm.borrow') ? borrowLender : null,
+    fallbackModel: fallbackModelName(),
+    primaryModel: primaryModelName(),
+    hasImages: Array.isArray(base.images) && base.images.length > 0,
+    imageModel: imageModelName(),
+  });
+  chainIndex = 0;
+  chainIds = new Set();
+  fireAttempt();
+}
+
+function fireAttempt() {
+  const step = chain[chainIndex];
+  if (!step) return;
+  if (step.local) {
+    finishLocally('');
+    return;
+  }
+  const requestId = nextId();
+  ownRequestId = requestId;
+  chainIds.add(requestId);
+  setBusy(true);
+  request('llm.chat', { ...step.payload, requestId });
+  if (chainIndex === 0) setStatus('正在回答…');
+  else setStatus(`${step.why}，改用${TIER_LABEL[step.tier] || step.tier}…`);
+}
+
+/**
+ * 最后一级：不发请求，把失败说清楚。
+ *
+ * 不往对话记录里塞一条假的"助手消息"——那会污染下一轮的历史，让模型以为它说过这句话。
+ * 原文放回输入框，状态行写原因，用户按一下就能重发。
+ */
+function finishLocally(why) {
+  setBusy(false);
+  asking = false;
+  if (lastPrompt && els.prompt && !els.prompt.value.trim()) els.prompt.value = lastPrompt;
+  const detail = why ? `（${why}）` : '';
+  // 面板里留一行**提示**（不是伪造的助手消息）：用户看的是这段记录，只把失败写在状态行上
+  // 等于没写。这一行还说清试过几级，免得他以为是第一次就失败了。
+  if (role === ROLE_PANEL) {
+    const tried = Math.max(1, chain.filter((step) => !step.local).length);
+    appendLine('system', `请求失败：${why || '未知错误'}（已试过 ${tried} 级兜底）`);
+  }
+  setStatus(`没连上模型${detail}：检查接口地址/模型/密钥，或在「模型渠道」里配一个渠道让我借用`);
+}
+
 
 /**
  * Applies the granted set to the controls.
@@ -675,6 +779,11 @@ function onResponse(data) {
     pendingConfig = null;
     const values = data.ok ? (data.result && data.result.values) : null;
     if (values && typeof values === 'object') settings = values;
+    return;
+  }
+  if (data.id && data.id === pendingProviders) {
+    pendingProviders = null;
+    borrowLender = data.ok ? takeBorrowed(data.result) : null;
     return;
   }
   if (data.ok) return;
@@ -997,6 +1106,7 @@ function sendPrompt() {
   endedRequestId = null;
   ownRequestId = requestId;
   setBusy(true);
+  lastPrompt = text;
 
   // The QUESTION box belongs to the next exchange; it is NOT shown here. Showing it at send
   // time would flash whatever the box still holds - the PREVIOUS question - for as long as the
@@ -1015,7 +1125,19 @@ function sendPrompt() {
   // `tools` asks for the list above. The host runs whatever the model calls - up to
   // four rounds - and streams only the final answer, so the transcript this plugin
   // keeps stays plain text.
-  request('llm.chat', { text, requestId, history: replayTurns(), tools: TOOLS });
+  // 带图提问：`images` 是 http(s) 地址（宿主要求），配了 `llmImageModel` 就这一轮换成它。
+  // 地址必须来自接口地址的域名或「图片允许的域名」，否则宿主会拒绝——这里先清掉输入框，
+  // 免得用户以为没发出去。
+  const images = pendingImages();
+  const base = { text, history: replayTurns(), tools: TOOLS };
+  if (images.length) {
+    base.images = images;
+    const vision = imageModelName();
+    if (vision) base.model = vision;
+    if (els.imgurl) els.imgurl.value = '';
+  }
+  // 兜底链：主模型 → 备用模型 → 借来的渠道 → 本地兜底（见上面的注释）。
+  startExchange(base);
 }
 
 function canCompose() {
@@ -1043,6 +1165,91 @@ function historyTurns() {
   if (!Number.isFinite(n)) return 12;
   return Math.min(40, Math.max(0, n));
 }
+
+// --- 兜底链 ------------------------------------------------------------------
+//
+// 为什么需要它：以前一次提问只有一条路——自己的端点、自己的模型、一次超时 90 秒。任何一步出
+// 问题（模型下线、429、余额不足、断网、上下文太长），用户看到的就是一句"对话失败"，而他手里
+// 明明还有别的选择：同一服务商的便宜模型、隔壁「模型渠道」插件里配好的渠道，或者至少一句人话。
+//
+// 链的顺序是**从最像到最不像**，每一级都要能独立说清"为什么走到这一步"：
+//
+//   1. primary         自己的端点 + 自己的模型（正常情况，永远不会被跳过）
+//   2. trimmed         同一级，但上下文减半（只用于"上下文太长 / 超 token"这类错误）
+//   3. fallback-model  同一个端点换 `llmFallbackModel`（模型下线、额度用完时最有效）
+//   4. borrowed        借别的插件声明的渠道（要 llm.borrow，且对方现在就绪）
+//   5. local           不发请求，给一句本地兜底话术，并把失败原因写进状态行
+//
+// 两条纪律：
+//   · **只有"换一级可能有用"的错误才往下走**。401/403 是密钥问题，换模型没用，但换渠道有用，
+//     所以它跳过 primary 直接去 borrowed；"上下文太长"则原地重试一次（上下文减半），不换级。
+//   · **已经收到的半截回答不丢**。切下一级之前把当前文本留在屏幕上，只加一条"已切换"的提示，
+//     而不是清空重来——用户已经读到的字不该因为一次重试消失。
+
+/** 一次提问的兜底链。纯函数：同样的输入永远同样的链，不看全局状态（测试直接调它）。 */
+function buildAttemptChain(input) {
+  const { base, borrowed, fallbackModel, primaryModel, hasImages, imageModel } = input || {};
+  const steps = [{ tier: 'primary', why: '', payload: { ...base } }];
+  const fallback = String(fallbackModel || '').trim();
+  if (fallback && fallback !== String(primaryModel || '').trim()) {
+    steps.push({ tier: 'fallback-model', why: '主模型没答上来', payload: { ...base, model: fallback } });
+  }
+  if (borrowed && borrowed.id) {
+    steps.push({
+      tier: 'borrowed',
+      why: '自己的配置没答上来',
+      payload: { ...base, provider: borrowed.id, channel: borrowed.channel || undefined },
+    });
+  }
+  // `hasImages` 可以显式传，也可以从 payload 里推出来——少一种"调用方忘了传"的错法。
+  const withImages = typeof hasImages === 'boolean'
+    ? hasImages
+    : Array.isArray(base && base.images) && base.images.length > 0;
+  const localWhy = withImages && !String(imageModel || '').trim() ? '没有配置图片模型' : '';
+  steps.push({ tier: 'local', why: localWhy, local: true });
+  return steps;
+}
+
+/**
+ * 这个错误值不值得换下一级，以及换哪种。
+ *
+ * 返回分类名而不是布尔："上下文太长"要用**同一级 + 更少上下文**重试，别的错误才换级。
+ */
+function classifyFailure(error) {
+  const text = String((error && (error.message || error.code || error)) || '');
+  if (!text) return 'unknown';
+  if (/401|403|unauthor|invalid.*(key|token)|api[ _-]?key/i.test(text)) return 'auth';
+  if (/429|rate[ _-]?limit|quota|insufficient|余额|额度|限流/i.test(text)) return 'quota';
+  if (/timeout|timed[ _-]?out|超时|ECONN|ENOTFOUND|network|fetch failed|连接/i.test(text)) return 'network';
+  if (/context|too[ _-]?long|maximum.*token|token.*(limit|length)|超过.*长度|上下文/i.test(text)) return 'context';
+  if (/\b5\d\d\b|overload|busy|capacity|server error|服务(器)?错误/i.test(text)) return 'server';
+  if (/model|not[ _-]?found|does not exist|unsupported|不存在|不支持/i.test(text)) return 'model';
+  return 'unknown';
+}
+
+/** 每一级在界面上叫什么。状态行要能被人读懂，而不是显示内部枚举。 */
+const TIER_LABEL = {
+  primary: '主模型',
+  'fallback-model': '备用模型',
+  borrowed: '借来的渠道',
+  local: '本地兜底',
+};
+
+/** 带图提问时用哪个模型：`llmImageModel` 优先，没有就沿用主模型（有些模型本身多模态）。 */
+function imageModelName() {
+  return String(settings.llmImageModel || '').trim();
+}
+
+/** 备用模型名（主模型失败时换它）。 */
+function fallbackModelName() {
+  return String(settings.llmFallbackModel || '').trim();
+}
+
+/** 主模型名——只用于"要不要换"的比较，真正的模型由宿主决定。 */
+function primaryModelName() {
+  return String(settings.llmModel || '').trim();
+}
+
 
 /**
  * Appends one streamed chunk.
@@ -1176,6 +1383,33 @@ function onError(payload) {
   const why = (payload && (payload.message || payload.error || payload.code)) || '未知错误';
   noteExchange(requestId);
 
+  // 兜底链先看一眼：这一轮（自己发起的请求）失败时，能换下一级就换，而不是直接把
+  // "对话失败"甩给用户。只有链上最后一个请求的失败才会走到下面的常规处理。
+  if (requestId && chainIds.has(requestId) && requestId === ownRequestId) {
+    const kind = classifyFailure(payload);
+    const step = chain[chainIndex] || {};
+    if (kind === 'context' && !step.trimmed) {
+      // 上下文太长：**原地**重试一次，历史减半。换模型帮不上这件事。
+      step.trimmed = true;
+      step.payload = { ...step.payload, history: halfHistory() };
+      fireAttempt();
+      return;
+    }
+    if (chainIndex < chain.length - 1) {
+      chainIndex += 1;
+      const next = chain[chainIndex];
+      if (next.local) {
+        finishLocally(why);
+        return;
+      }
+      setStatus(`${step.tier === 'primary' ? '主模型' : TIER_LABEL[step.tier]}没答上来，改用${TIER_LABEL[next.tier] || next.tier}…`);
+      fireAttempt();
+      return;
+    }
+    finishLocally(why);
+    return;
+  }
+
   if (role === ROLE_ANSWER) {
     // A failed request must not leave the box stuck on the previous answer: the box is
     // the current turn, and this turn failed.
@@ -1190,7 +1424,9 @@ function onError(payload) {
     current = null;
     appendLine('system', '请求失败：' + why);
   } else if (role === ROLE_INPUT) {
-    request('bubble.say', { text: '对话失败：' + why });
+    // 不用 bubble.say：这个插件没有（也不需要）pet.bubble 权限，那次调用会被闸门拒绝，
+    // 结果是"失败了但界面上什么都没有"。输入条自己的状态行就够——它就长在宠物脚下。
+    setStatus('对话失败：' + why);
   }
 
   if (ownRequestId) {
@@ -1408,3 +1644,14 @@ window.addEventListener('resize', () => {
 // document paints nothing at all (`view-boot` in panel.html) and every control stays
 // disabled.
 postToHost({ v: 1, type: 'ready' });
+
+/**
+ * 测试接缝：兜底链的**决策**是纯函数，单独可测；DOM 与流式接线靠 plugin-check 与预览器验。
+ *
+ * 只有决策函数，没有能改状态的入口——这不是一条额外的能力通道。
+ */
+window.__chat = Object.freeze({
+  buildAttemptChain,
+  classifyFailure,
+  TIER_LABEL,
+});

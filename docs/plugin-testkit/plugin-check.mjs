@@ -260,7 +260,9 @@ function checkManifest(report, manifest) {
         add('config-options-without-select', 'FAIL', `config 的 ${key} 用了 options/multiple 但 type 不是 select`);
       }
     });
-    if (whitelists > 1) add('config-whitelist-many', 'FAIL', `config 至多允许一个 hostWhitelist 项，收到 ${whitelists}`);
+    // 最多 4 个，而且是**合并**的：接口域名与图片域名本来就该是两个字段（一个填 URL、
+    // 一个填裸域名）。宿主的 maxHostWhitelists 也是 4。
+    if (whitelists > 4) add('config-whitelist-many', 'FAIL', `config 最多允许 4 个 hostWhitelist 项，收到 ${whitelists}`);
   }
 
   // surface

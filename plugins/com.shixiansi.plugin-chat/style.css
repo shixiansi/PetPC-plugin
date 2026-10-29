@@ -508,7 +508,8 @@ body.view-input::before {
   background: var(--p-card);
   border: 2px solid var(--p-ring);
   border-radius: 16px;
-  box-shadow: var(--p-shadow);
+  /* 没有 box-shadow：这个块是宿主按矩形裁出来的，盒子外的阴影会被切掉，只会让边缘看起来脏。
+     层次靠上面那道 2px 环就够了。 */
   pointer-events: none;
 }
 
@@ -569,4 +570,48 @@ body.view-input #send {
     padding: 3px 5px;
     font-size: 11px;
   }
+}
+
+/* --- 图片地址（折叠） -------------------------------------------------------
+ *
+ * 面板是固定 380×520 的矩形：常驻的一行输入框就是少一行对话。所以它默认折叠，展开时才
+ * 占位置。地址只认 http(s)，域名还要在「图片允许的域名」里——那是宿主 llm.chat 的规则，
+ * 这一页只是把条件写在输入框旁边。 */
+.imgtools {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--p-line);
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--p-muted);
+}
+
+.imgtools > summary {
+  cursor: pointer;
+  padding: 4px 0;
+  list-style: none;
+  user-select: none;
+}
+
+.imgtools > summary::-webkit-details-marker {
+  display: none;
+}
+
+.imgtools[open] > summary {
+  color: var(--p-text);
+}
+
+.imgurl {
+  width: 100%;
+  margin: 2px 0 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--p-line);
+  background: var(--p-well);
+  color: var(--p-text);
+  font: inherit;
+}
+
+.imgurl:focus {
+  outline: none;
+  border-color: var(--p-accent);
 }

@@ -1,11 +1,12 @@
 {
   "id": "com.shixiansi.plugin-chat",
   "name": "对话插件",
-  "version": "1.7.6",
+  "version": "1.8.0",
   "author": "shixiansi",
   "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
   "permissions": [
     "llm.chat",
+    "llm.borrow",
     "pet.surface",
     "plugin.config",
     "storage"
@@ -111,6 +112,25 @@
       "label": "每日上限（次）",
       "type": "number",
       "default": "200"
+    },
+    {
+      "key": "llmFallbackModel",
+      "label": "备用模型（主模型失败时自动换它；留空=不换）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmImageModel",
+      "label": "图片模型（带图提问时用它；留空=沿用上面的模型）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmImageHosts",
+      "label": "图片允许的域名（逗号或空格分隔；图片地址必须来自这里或接口地址的域名）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
     },
     {
       "key": "llmApiKey",
