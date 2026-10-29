@@ -56,13 +56,20 @@ function onInit(payload) {
       note(`整理数据目录失败：${(err && err.message) || err}`);
     });
   if (view === 'background') {
+    // 先把开关读进来，再开始连协议端：一个重启后要用的模式，不该等第一条群消息才生效。
+    void refreshCoreMode().catch(() => {});
     void tidy.then(() => startBot());
     return;
   }
   void tidy.then(() => renderWorkshop());
+  // 记忆核心那张卡跟着一起刷：开关是在这张卡上勾的，而这一页可能一直开着。
+  void refreshCoreMode().then(() => renderMemcoreCard());
   // The workshop is a second process's view of the same files, so it refreshes
   // while it is open; the bot itself does not poll anything.
-  setInterval(() => void renderWorkshop(), 5000);
+  setInterval(() => {
+    void renderWorkshop();
+    void refreshCoreMode().then(() => renderMemcoreCard());
+  }, 5000);
 }
 
 /**
@@ -144,3 +151,5 @@ window.__qq = Object.freeze({
 // so this can sit at the end of the file while the handlers live with the rest of the
 // workshop code above.
 bindStickerControls();
+// 记忆核心那张卡的按钮：同一个做法（函数声明会被提升，所以这一句可以留在文件末尾）。
+bindMemcoreControls();

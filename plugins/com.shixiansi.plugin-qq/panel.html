@@ -68,6 +68,19 @@
         <pre class="probe" id="probe-note" hidden></pre>
       </section>
 
+      <section class="card" id="memcore-card" hidden>
+        <h2>记忆核心</h2>
+        <p class="note" id="memcore-state">正在检查…</p>
+        <p class="note">
+          打开这个开关之后，群里每一句问答都交给 <code>com.shixiansi.plugin-memcore</code>：
+          人设、最近往来、摘要、长期记忆与用户画像都在那里，本插件只负责收、判断要不要接、把回答发出去。
+          <strong>代价是明写着的</strong>：本插件的人设与群记忆设置不再生效（它们仍然会继续写，
+          以便你随时关掉退回），主动开口与攒批插话会停下，看图也不在核心模式里（它看不到图）。
+        </p>
+        <label class="memcore-switch"><input type="checkbox" id="memcore-toggle" /> 把回答交给记忆核心（人设与记忆都在它那里）</label>
+        <p class="note" id="memcore-where" hidden></p>
+      </section>
+
       <!--
         表情包管理. The bot imports the pictures (owner's private message -> vision
         model -> bytes in storage); this card is the only human way to see what
@@ -210,6 +223,14 @@
   <script src="lib/admin.js"></script>
   <script src="lib/workshop.js"></script>
   <script src="lib/stickers.js"></script>
+  <!--
+    记忆核心：把"答什么"交给另一个插件。放在最后几个里，因为它调用的东西（sendGroupReply、
+    remember、settleEnergy、maybeSendSticker…）全部定义在前面的文件里——经典 script 共享同一个
+    全局作用域，但**函数声明仍然要按加载顺序找得到**（它们都是函数声明，会被提升到各自脚本的
+    顶部，所以只要在 `new Function` 拼起来的那一份里，先后顺序其实无所谓；真正要紧的是不要
+    把它的调用放进别的文件的顶层语句里）。
+  -->
+  <script src="lib/memcore.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

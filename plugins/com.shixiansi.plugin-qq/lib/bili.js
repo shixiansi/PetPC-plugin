@@ -782,6 +782,12 @@ async function takeTurn(groupID, job) {
   const { data, segments, enriched, ask, asker, groupName, mentioned } = job;
   const chatter = Array.isArray(job.chatter) ? job.chatter : [];
   try {
+    // 记忆核心模式：这一句"怎么回"交给另一个插件（见 lib/memcore.js）。开关默认关着，
+    // 关着的时候下面这条路一行都没变——这就是为什么它是一条早退，而不是把原路径改造成两用。
+    if (coreEnabled()) {
+      await takeTurnViaCore(groupID, job);
+      return;
+    }
     const turns = number(state.cfg.contextTurns, 8, 0, 40);
     const history = await loadHistory(groupID, turns);
     // Diagnostic: a message that LOOKS like it carries a picture must say how many

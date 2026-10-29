@@ -44,6 +44,13 @@ function stopProactive() {
 }
 
 async function speakProactively() {
+  // 记忆核心模式下主动开口停下，而且**说清楚为什么**（插件页的日志里能查到）：
+  // 这条路要靠结构化回复里的 `silent` 决定"这次不开口"，还要靠围栏挑表情；核心只给一句话，
+  // 于是每一次 tick 都会变成"一定要说点什么"——那比不说更糟。要恢复就把开关关掉。
+  if (coreEnabled()) {
+    note('记忆核心开启时不主动开口（那条路要靠结构化回复判断要不要沉默，核心只给一句话）');
+    return;
+  }
   const minutes = number(state.cfg.proactiveMinutes, 0, 0, 1440);
   if (minutes <= 0 || state.ws !== 'open') return;
   // The hazard draw. 1/N per minute means "once every N minutes on average".
@@ -228,6 +235,12 @@ const BATCH_CUE = '（没有人在问你，也没人叫你。接着上面这些�
 
 /** 一批消息 → 一次调用。沉默是合法且常见的答案。 */
 async function batchEvaluate(groupID, lines, energy) {
+  // 与 speakProactively 同一条理由：攒批插话的答案常常是"不插嘴"（silent），而那件事只有
+  // 结构化回复能表达。核心模式下就不看这批消息了。
+  if (coreEnabled()) {
+    note('记忆核心开启时不做攒批插话（同主动开口：沉默的判断在结构化回复里）');
+    return false;
+  }
   const group = state.groups.get(String(groupID)) || {};
   const groupName = String(group.name || '');
   const history = await loadHistory(groupID, 2);
@@ -335,6 +348,9 @@ function startConfigWatch() {
   if (configTimer) return;
   configTimer = setInterval(() => {
     void refreshConfig();
+    // 记忆核心的开关存在插件自己的 storage 里（config 的 40 项已经用满了），所以它也要跟着
+    // 这一轮轮询一起重读——否则"勾上了但一直没生效"会变成一个没有线索的现象。
+    void refreshCoreMode();
   }, CONFIG_POLL_MS);
 }
 
