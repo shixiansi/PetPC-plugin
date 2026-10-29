@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-chat",
   "name": "对话插件",
-  "version": "1.7.5",
+  "version": "1.7.6",
   "author": "shixiansi",
   "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
   "permissions": [

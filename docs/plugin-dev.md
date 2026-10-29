@@ -103,8 +103,8 @@ style.css
   <meta charset="utf-8" />
   <title>打招呼</title>
   <script>
-    // 主题要在样式之前应用：宿主的控制中心会把 ?theme=light|dark 放在帧地址上，
-    // 否则首帧会闪一下深色。
+    // 主题要在样式之前应用：两个宿主都会把 ?theme=light|dark 放在帧地址上
+    // （桌宠按它自己的卡片配色，控制中心按它的主题），否则首帧会闪一下深色。
     (function () {
       var t = new URLSearchParams(location.search).get('theme');
       if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
@@ -420,11 +420,11 @@ body[data-surface='boot'] { background: transparent; }
 | 方向 | `type` | 其它字段 | 什么时候 |
 | --- | --- | --- | --- |
 | 插件 → 宿主 | `ready` | — | 你的文档脚本就绪时，**发一次**。必须是监听器装好之后 |
-| 宿主 → 插件 | `init` | `pluginId` `permissions` `granted` `surface` `theme?` | 收到 `ready` 后**恰好一次**。之前别发请求 |
+| 宿主 → 插件 | `init` | `pluginId` `permissions` `granted` `surface` `theme` | 收到 `ready` 后**恰好一次**。之前别发请求 |
 | 插件 → 宿主 | `request` | `id`（非空字符串）`method` `payload`（对象） | 任意次 |
 | 宿主 → 插件 | `response` | `id` `ok` `result` \| `error` | 每个 `request` 一次 |
 | 宿主 → 插件 | `event` | `name` `payload` | 你订阅且帧在的情况下 |
-| 宿主 → 插件 | `theme` | `theme: "light"\|"dark"` | 控制中心里用户切换主题（首帧的色在 URL 的 `?theme=` 上） |
+| 宿主 → 插件 | `theme` | `theme: "light"\|"dark"` | 用户切换配色时（桌宠右键菜单的「主题」、控制中心的「偏好」页）。首帧的色在 URL 的 `?theme=` 上 |
 | 宿主 → 插件 | `surface` | `rect` | 帧的矩形变了（内容长高、被裁、被移） |
 
 ### 5.2 `init` 的 `surface`
@@ -1088,3 +1088,4 @@ com.example.hello-1.0.0.zip
 确认握手、`init.granted`、一次 `bubble.say` 都能通；再加 `surface` 学几何；
 最后按需要加 `llm.chat` / `net.fetch` / `ws`。每加一个能力，先想清楚"用户拒绝这一项时
 界面长什么样"——那是这个平台上最常见的失败模式。
+ 

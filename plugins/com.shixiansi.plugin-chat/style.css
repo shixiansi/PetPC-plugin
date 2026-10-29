@@ -47,14 +47,14 @@
    * these, so not one rule in this file has to know which scheme is in force. */
   --p-bg: #191b21;
   --p-text: #e8eaf0;
-  --p-muted: #9aa3b2;
-  --p-line: #2c313c;
-  --p-line-2: #262b35;
-  --p-card: #1d2027;
-  --p-well: #12141a;
-  --p-chip: #232733;
-  --p-accent: #2f6feb;
-  --p-accent-hover: #3b7cf7;
+  --p-muted: #a2b0c2;
+  --p-line: #232d3d;
+  --p-line-2: #1b2330;
+  --p-card: #1b2330;
+  --p-well: #0e131b;
+  --p-chip: #232d3d;
+  --p-accent: #7c3aed;
+  --p-accent-hover: #8b5cf6;
   --p-danger-bg: #3a2626;
   --p-danger-fg: #ffb4b4;
   color-scheme: dark;
@@ -65,19 +65,19 @@
  * program, which can be drawn light; the host tells this plugin via `?theme=` on the
  * frame URL and a `theme` message (app.js applies both to `data-theme` on <html>).
  *
- * The pet mounts the same document with no scheme at all, which stays dark.
+ * The pet mounts the same document WITH a scheme too (it passes ?theme= from its own\n * cardTheme setting and pushes a 	heme message when the user flips the switch), so this\n * block is the pet's light palette as much as the workshop's.
  */
 html[data-theme="light"] {
   --p-bg: #ffffff;
-  --p-text: #16202e;
-  --p-muted: #5b6779;
-  --p-line: #d6dde9;
-  --p-line-2: #e3e9f2;
+  --p-text: #0f172a;
+  --p-muted: #7a8798;
+  --p-line: #e6e9ef;
+  --p-line-2: #eef1f6;
   --p-card: #f6f8fc;
   --p-well: #ffffff;
-  --p-chip: #eef2f8;
-  --p-accent: #2f6bea;
-  --p-accent-hover: #245cd4;
+  --p-chip: #f1f5f9;
+  --p-accent: #7c3aed;
+  --p-accent-hover: #6d28d9;
   --p-danger-bg: #fdeceb;
   --p-danger-fg: #ab2419;
   color-scheme: light;
