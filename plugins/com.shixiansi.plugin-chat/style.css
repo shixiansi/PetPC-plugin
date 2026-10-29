@@ -55,6 +55,9 @@
   --p-chip: #232d3d;
   --p-accent: #7c3aed;
   --p-accent-hover: #8b5cf6;
+  --p-ring: rgba(255, 255, 255, 0.95);
+  --p-dash: rgba(255, 255, 255, 0.18);
+  --p-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   --p-danger-bg: #3a2626;
   --p-danger-fg: #ffb4b4;
   color-scheme: dark;
@@ -78,6 +81,9 @@ html[data-theme="light"] {
   --p-chip: #f1f5f9;
   --p-accent: #7c3aed;
   --p-accent-hover: #6d28d9;
+  --p-ring: #e6e9ef;
+  --p-dash: rgba(15, 23, 42, 0.16);
+  --p-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
   --p-danger-bg: #fdeceb;
   --p-danger-fg: #ab2419;
   color-scheme: light;
@@ -351,7 +357,7 @@ body.view-question {
   /* The 2px white edge, as an INSET ring. A real `border` would eat 4px of a 40px box (two lines
      would no longer fit), and an OUTSIDE ring would be cut away by the window region: this block has
      no shadow band, because the 160px above the pet is already spoken for. */
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 0 0 2px var(--p-ring);
   overflow: hidden;
 }
 
@@ -500,9 +506,9 @@ body.view-input::before {
   position: absolute;
   inset: 4px;
   background: var(--p-card);
-  border: 2px solid rgba(255, 255, 255, 0.95);
+  border: 2px solid var(--p-ring);
   border-radius: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--p-shadow);
   pointer-events: none;
 }
 
@@ -534,7 +540,7 @@ body.view-input .prompt {
   min-height: 0;
   max-height: none;
   padding: 6px 8px;
-  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border: 1px dashed var(--p-dash);
   border-radius: 10px;
   background: transparent;
 }

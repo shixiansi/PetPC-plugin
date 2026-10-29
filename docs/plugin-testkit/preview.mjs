@@ -18,6 +18,7 @@
 //   node docs/plugin-testkit/preview.mjs <pluginDir> --shot out.png --state gate
 //   node docs/plugin-testkit/preview.mjs <pluginDir> --check --state gate --rect 0
 //   node docs/plugin-testkit/preview.mjs <pluginDir> --shot after.png --click "#ask-ok"
+//   node docs/plugin-testkit/preview.mjs <pluginDir> --shot light.png --theme light
 //
 // Exit codes: 0 = ok / nothing to check, 1 = overflow found, 2 = usage or environment problem.
 // Debug: PETPC_PREVIEW_DUMP=<file> keeps the DOM the check read (message log + report).
@@ -125,7 +126,7 @@ function startServer(pluginDir, port) {
 // ---------------------------------------------------------------------------
 // Driving the browser.
 // ---------------------------------------------------------------------------
-function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, click }) {
+function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, theme, click }) {
   const u = new URL(`http://127.0.0.1:${port}/`);
   u.searchParams.set('plugin', plugin);
   u.searchParams.set('rect', String(rect));
@@ -133,6 +134,7 @@ function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, clic
   u.searchParams.set('kind', kind);
   if (granted) u.searchParams.set('granted', granted);
   if (deny) u.searchParams.set('deny', '1');
+  if (theme) u.searchParams.set('theme', theme);
   if (click) u.searchParams.set('click', click);
   u.searchParams.set('state', state);
   return u.toString();
@@ -231,6 +233,8 @@ function parseArgs(argv) {
     else if (a === '--slot') opts.slot = argv[++i];
     else if (a === '--kind') opts.kind = argv[++i];
     else if (a === '--state') opts.state = argv[++i];
+    // --theme light|dark：预览用的配色。默认深色（历史行为），浅色用来量对比度和描边。
+    else if (a === '--theme') opts.theme = argv[++i];
     else if (a === '--granted') opts.granted = argv[++i];
     else if (a === '--deny') opts.deny = true;
     else if (a === '--size') opts.size = argv[++i];
@@ -273,7 +277,7 @@ async function main() {
   const browser = findBrowser();
   const url = (rectIndex) => previewURL({
     port, plugin: manifest.id, rect: rectIndex, slot: opts.slot, kind: opts.kind,
-    granted: opts.granted, deny: opts.deny, state: opts.state, click: opts.click,
+    granted: opts.granted, deny: opts.deny, state: opts.state, theme: opts.theme, click: opts.click,
   });
 
   try {

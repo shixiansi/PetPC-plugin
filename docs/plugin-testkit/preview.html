@@ -96,6 +96,10 @@ const params = {
   granted: (q.get('granted') || 'storage,plugin.config,plugin.share,events,pet.surface,pet.bubble').split(',').filter(Boolean),
   deny: q.get('deny') === '1',
   state: q.get('state') || 'idle',
+  // `--theme light`：宿主给插件的那套配色。真宿主用两条通道（帧地址上的 `?theme=` 与
+  // `init.theme`），这里照做——否则预览里永远只有深色，而"浅色下的对比度与描边"恰好是插件
+  // 最容易写坏、又最没人看见的地方。
+  theme: q.get('theme') === 'light' ? 'light' : 'dark',
   // `--click "#ask-ok"`：等握手与首帧都稳定之后点一下，再继续量/继续截。
   click: q.get('click') || '',
 };
@@ -228,7 +232,7 @@ function makeFrame(el, label, surface) {
     manifest,
     granted: params.granted,
     surface,
-    theme: 'dark',
+    theme: params.theme,
     mode: params.deny ? 'deny' : 'ok',
     answers: (method, payload) => previewAnswers(method, payload, { state: params.state, manifest, store, share: tray }),
     deliver: (msg) => el.contentWindow.postMessage(msg, '*'),
@@ -289,7 +293,7 @@ async function boot() {
       if (frame === frames[0]) observeFrame(frame.el);
       scheduleReport();
     });
-    frame.el.src = `/plugin/${manifest.entry}?theme=dark`;
+    frame.el.src = `/plugin/${manifest.entry}?theme=${params.theme}`;
   }
 
   els.reload.addEventListener('click', () => location.reload());
