@@ -1,0 +1,69 @@
+{
+  "id": "com.shixiansi.plugin-websearch",
+  "name": "联网搜索",
+  "version": "1.0.0",
+  "author": "shixiansi",
+  "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
+  "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
+  "background": true,
+  "serves": ["search"],
+  "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
+  "config": [
+    {
+      "key": "engine",
+      "label": "搜索引擎（三选一；只对选中的那个要求配置）",
+      "type": "select",
+      "default": "searxng",
+      "options": [
+        { "value": "searxng", "label": "SearXNG（自建实例，不需要密钥）" },
+        { "value": "tavily", "label": "Tavily（要 API Key）" },
+        { "value": "bing", "label": "Bing Web Search（要订阅密钥）" }
+      ]
+    },
+    {
+      "key": "searxngUrl",
+      "label": "SearXNG 实例地址（如 http://127.0.0.1:8080；这个地址会按你填的值加进网络白名单）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "tavilyApiKey",
+      "label": "Tavily API Key（存进你自己的插件数据目录；secret 型读不回明文，没法替你填进请求体）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "bingKey",
+      "label": "Bing 订阅密钥（Azure 市场里 Bing Search v7 资源的 Key）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "resultCount",
+      "label": "每次取几条结果（1–10）",
+      "type": "number",
+      "default": "5"
+    },
+    {
+      "key": "cacheTtlMin",
+      "label": "同一个查询缓存几分钟（0=不缓存；同一句话反复被问时省次数）",
+      "type": "number",
+      "default": "30"
+    },
+    {
+      "key": "maxHistory",
+      "label": "最近搜索留几条记录（0=不记录）",
+      "type": "number",
+      "default": "50"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/engines.js",
+    "lib/search.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

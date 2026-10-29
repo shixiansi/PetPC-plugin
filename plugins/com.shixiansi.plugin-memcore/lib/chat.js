@@ -111,11 +111,40 @@ async function handleChat(payload) {
     const state = await loadRole(roleKey);
     const profile = await loadProfile(userKey);
 
-    const reply = tidyReply(await askModel({
-      text: line,
-      system: buildSystem(state, profile, payload && payload.hint),
-      history: buildHistory(state.turns),
+    // --- 联网：off / auto / always 三档（见 lib/websearch.js）--------------------
+    //
+    // off：与 0.1.x 完全一致，一次搜索都不发。
+    // always：每一轮先查再答（时效性问题不该赌记忆）。
+    // auto：先凭记忆答；答不上（"不知道"类回答）才查一次、带着结果再答一次。
+    const mode = searchMode();
+    let searchUsed = null;
+
+    if (mode !== 'off' && (mode === 'always' || wantsSearchFor(line))) {
+      searchUsed = await askWebSearch(line, searchCount());
+    }
+
+    const system = buildSystem(state, profile, payload && payload.hint,
+      mode !== 'off' && !searchUsed ? searchInstruction() : '');
+    const history = buildHistory(state.turns);
+
+    let reply = tidyReply(await askModel({
+      text: searchUsed ? `${line}\n\n（已经替你查过网页，结果在系统提示里）` : line,
+      system: searchUsed ? `${system}\n\n${searchBlock(searchUsed)}` : system,
+      history,
     }));
+
+    // auto 档的第二问：第一答是"不知道"、刚才也没搜过 → 查一次，带着结果再答。
+    // 搜索挂在对话后面：搜索失败返回 null，对话按纯记忆继续，绝不因为搜索挂掉而失败。
+    if (mode === 'auto' && !searchUsed && looksLikeNoAnswer(reply)) {
+      searchUsed = await askWebSearch(line, searchCount());
+      if (searchUsed) {
+        reply = tidyReply(await askModel({
+          text: `${line}\n\n（第一遍你答不上；已经替你查过网页，结果在系统提示里）`,
+          system: `${system}\n\n${searchBlock(searchUsed)}`,
+          history,
+        }));
+      }
+    }
 
     const at = now();
     const turns = state.turns
@@ -143,6 +172,9 @@ async function handleChat(payload) {
         turns: Math.min(turns.length, turnsCap()),
         episodes: state.episodes.length,
         summarised: Boolean(state.summary && state.summary.text),
+        webSearch: searchUsed
+          ? { engine: searchUsed.engine, results: searchUsed.results.length }
+          : null,
       },
     };
   });

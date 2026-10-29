@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T14:14:21Z",
+  "updatedAt": "2026-10-29T17:14:46Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -11,7 +11,7 @@
       "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share"],
       "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
       "download": "dist/com.shixiansi.plugin-bilibili-1.0.0.zip",
-      "sha256": "f33012a74ac36c752f95bf7d2653e29bdd8de3aedc3ffee074c8c8ff0af7a4df"
+      "sha256": "fc8f1653c78a38484e249654a84465a093929090e15052ba65c55af8fe506805"
     },
     {
       "id": "com.shixiansi.plugin-chat",
@@ -21,7 +21,7 @@
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
       "permissions": ["llm.chat", "pet.surface", "plugin.config", "storage"],
       "download": "dist/com.shixiansi.plugin-chat-1.7.6.zip",
-      "sha256": "0bff33af028e7af381a1dac459287240e772b2956cf3a17057f1e9c393c26147"
+      "sha256": "016c0f808ef1007d05e6ce594288dbc59074a22c9695686d4e12e471e070860e"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -32,17 +32,17 @@
       "permissions": ["llm.chat", "plugin.config"],
       "netHosts": ["api.openai.com", "api.moonshot.cn", "open.bigmodel.cn", "dashscope.aliyuncs.com", "127.0.0.1:11434"],
       "download": "dist/com.shixiansi.plugin-llmchannel-0.2.5.zip",
-      "sha256": "8d44e4818044a5f1301f01eb9bdda9db8d093a2fa2c10b3edf142e56b4184ac8"
+      "sha256": "310a4ba29a7437122a50b090fca9df0ff26742f675bdc4d0a7553cb52dbd1f09"
     },
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.1.7",
+      "version": "0.2.0",
       "author": "shixiansi",
-      "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。换一个接入端不用搬记忆，改一次人设所有接入端同时生效。",
+      "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.1.7.zip",
-      "sha256": "f4a86ab33cbcd3b409c7e2c566e8b5ab001bec000ded62abea4cbe38efa7fa89"
+      "download": "dist/com.shixiansi.plugin-memcore-0.2.0.zip",
+      "sha256": "0b4c67544543d7bb019b71b053989181b651cb436a79d11f2bb5284307d4ad11"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
@@ -53,7 +53,7 @@
       "permissions": ["net.ws", "plugin.call", "storage", "plugin.config"],
       "netHosts": ["127.0.0.1:3001"],
       "download": "dist/com.shixiansi.plugin-onebot-0.1.5.zip",
-      "sha256": "7f03fa392d7321bf3783be5ba88df276a9c2ae0ac9f003bb5f6e9c58dde68a51"
+      "sha256": "c3487a4aad5f24cb045536a7dbb8e3d93bc7d73fafc361810451654a490b092a"
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
@@ -63,7 +63,7 @@
       "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
       "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
       "download": "dist/com.shixiansi.plugin-pomodoro-2.3.11.zip",
-      "sha256": "8e4bf19f3d77d73a95b7726d3bfb358a83ca4b6d97560646f56b3791efd7758e"
+      "sha256": "30528b38734540593d99a68f42ca0845d78d352490849232149953ae8f7f5b03"
     },
     {
       "id": "com.shixiansi.plugin-qq",
@@ -74,7 +74,7 @@
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
       "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
       "download": "dist/com.shixiansi.plugin-qq-1.13.2.zip",
-      "sha256": "e69e9db497f38505888fca6dd437cd856bbe7c8b9750798da0ebd7feb40ede6e"
+      "sha256": "7efcd95f74bcbb967d82e344660ab491a73324de2efe21809c8a3f475e8d3b51"
     },
     {
       "id": "com.shixiansi.plugin-qqbot",
@@ -85,8 +85,7 @@
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
       "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.2.zip",
-      "sha256": "6f47735d59ab2489c812fc1ad4bd8c8e40ecad268b5992179f31f8bea38871d9",
-      "updatedAt": "2026-10-29T01:20:00Z"
+      "sha256": "c9427a6716082979f7fbd6a856f3feaa9df29e014103fe50c6b20bcd0302f199"
     },
     {
       "id": "com.shixiansi.plugin-todo",
@@ -96,7 +95,7 @@
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
       "permissions": ["storage", "plugin.config", "plugin.share", "pet.surface", "pet.bubble", "events"],
       "download": "dist/com.shixiansi.plugin-todo-1.2.0.zip",
-      "sha256": "f156c1e0cbfaf51b4e836865c86d26416de4d3cc173996973c44f3e3c70b8482"
+      "sha256": "798ef6e26a280ec53ae1d5ee802c21ddd0477ee296b882137838a7b47da13608"
     },
     {
       "id": "com.shixiansi.plugin-voice",
@@ -107,7 +106,18 @@
       "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share"],
       "netHosts": ["127.0.0.1:9880"],
       "download": "dist/com.shixiansi.plugin-voice-1.0.2.zip",
-      "sha256": "00c568c2b77dde4a03e15c32f66ca58bbce6649b4655e8ec57fca9a4ac2d5542"
+      "sha256": "c7212f9578d87fb60d22d15aa0c53ffc82df2737842f0eef4b65f65ed19787a5"
+    },
+    {
+      "id": "com.shixiansi.plugin-websearch",
+      "name": "联网搜索",
+      "version": "1.0.0",
+      "author": "shixiansi",
+      "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
+      "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
+      "download": "dist/com.shixiansi.plugin-websearch-1.0.0.zip",
+      "sha256": "8e53f4b9759df9cbdff5400c540218265959b6e8ea2a7f8f9a08ac1a1ab2bc5d"
     }
   ]
 }

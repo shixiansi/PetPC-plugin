@@ -324,11 +324,14 @@ node node_modules\vitest\vitest.mjs run
 | `com.shixiansi.plugin-memcore` | **记忆核心**：人设（L0）、最近往来（L1）、会话摘要（L2）、长期记忆（L3）、用户画像（L4）＋ 只写不读的全局事件链。常驻后台，用 `serves: ["chat", "seed"]` 对外承诺"你可以问我"。 | `plugin.call` `llm.chat` `llm.borrow` `storage` `plugin.config` |
 | `com.shixiansi.plugin-qq` **1.13.0+** | **Milky 接入端**（Yogurt 那套）。打开插件页的「把回答交给记忆核心」之后，群里每一句问答都走 `plugin.call`，本插件不再自己拼 prompt。 | 原有 + `plugin.call`；`callTargets: ["…memcore/chat", "…memcore/seed"]` |
 | `com.shixiansi.plugin-onebot` | **OneBot v11 接入端**（NapCat / Lagrange，正向 WS）。从第一天起就是薄的：只做"谁在哪个会话说了什么"和发回去。 | `net.ws` `plugin.call` `storage` `plugin.config`；`callTargets: ["…memcore/chat"]` |
+| `com.shixiansi.plugin-websearch` **1.0.0+** | **联网搜索**（核心 0.2.0 起被它点名）：SearXNG / Tavily / Bing 三选一，常驻帧答 `plugin.call` 的 `search`。 | `net.fetch` `plugin.call` `storage` `plugin.config`；`serves: ["search"]` |
 
 ```
 协议端 ──ws──▶ 宿主(net.ws) ──event──▶ 接入端 ──plugin.call──▶ 记忆核心 ──llm.chat──▶ 模型
                     ▲                      │                    │
                     └── 发回平台 ◀── 回答 ──┘        四层记忆写在自己的 storage
+                                               │
+                                               └─plugin.call(search)─▶ 联网搜索 ─net.fetch─▶ SearXNG/Tavily/Bing
 ```
 
 于是：**换接入端不丢记忆**（新接入端点名 `memcore/chat` 即可）；**改一次人设全端生效**；**两个接入端
@@ -355,6 +358,35 @@ node node_modules\vitest\vitest.mjs run
    一次 `plugin.call` 的超时是 30 秒。
 2. **两端都要装、都授予 `plugin.call`**，否则接入端会以「plugin.call 的目标插件未启用」失败——那是一句
    会出现在接入端插件页日志里的中文，不是静默。
+
+### 联网搜索：核心 0.2.0 起「记忆答不上 → 先查再答」
+
+`com.shixiansi.plugin-websearch`（1.0.0）是这一条链上的**被问方**：常驻帧 + `net.fetch`，
+`serves: ["search"]`。核心 0.2.0 的 manifest 用 `callTargets: ["…websearch/search"]` 点名它，
+chat 的流程按设置里的 `webSearch` 三档走：
+
+| 档 | 行为 | 模型请求 |
+|---|---|---|
+| `auto`（默认） | 先凭记忆答；第一答是「不知道」类回答、或用户说「帮我查/搜一下」、或模型按 prompt 约定输出 `[SEARCH] …`，才查一次、带着结果再答 | 1–2 次 + 0–1 次搜索 |
+| `always` | 每一轮先查再答（时效性问题不赌记忆） | 1 次 + 1 次搜索 |
+| `off` | 纯记忆，一次搜索都不发（与 0.1.x 完全一致） | 1 次 |
+
+引擎三选一，配置在**搜索插件自己的设置里**（核心不碰密钥、不碰白名单）：
+
+- **SearXNG**：填实例地址（例如 `http://127.0.0.1:8080`，`hostWhitelist` 会把它加进网络白名单）。
+  实例的 `settings.yml` 必须给 `search.formats` 加上 `json`——HTTP 403 是一手症状，搜索插件的
+  报错原文就是这句话。
+- **Tavily**：填 API Key（`api.tavily.com` 在 `netHosts` 里）。Key 放请求体；密钥以 `text` 型
+  配置保存，因为宿主的 `secret` 型读不回明文、没法替插件填进请求。
+- **Bing**：填订阅密钥（`api.bing.microsoft.com` 在 `netHosts` 里）。密钥走 `subscription-key`
+  **查询参数**——宿主的 `net.fetch` 请求头白名单只有 accept / authorization / content-type /
+  user-agent 四个，`Ocp-Apim-Subscription-Key` 头进不去。
+
+两条边界，写在这里也写在代码里：
+
+1. **搜索是增强，不是依赖**：搜索插件没装、没启用、没配好、超时，核心一律当作"没有搜索"，
+   对话按纯记忆继续——用户看到的回答不会因为联网这一层而失败。
+2. **同一句话有缓存**（默认 30 分钟）：群聊里同一句"今天天气"反复被问，不会反复打引擎。
 
 ---
 

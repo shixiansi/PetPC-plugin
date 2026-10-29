@@ -1,0 +1,130 @@
+/*
+ * 联网搜索：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写布局：搜索行、结果卡、历史表。
+ *
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.chip.bad {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.search-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.search-row .input {
+  flex: 1;
+}
+
+.results {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.result {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.result-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.result-title {
+  font-weight: 600;
+}
+
+.result-url {
+  font-size: 12px;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.result-snippet {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.history {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history th {
+  text-align: left;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 12px;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.history td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.history tbody tr {
+  cursor: pointer;
+}
+
+.history tbody tr:hover {
+  background: var(--bg-sunken);
+}
+
+.hist-time {
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.hist-query {
+  word-break: break-all;
+}
+
+.hist-engine {
+  white-space: nowrap;
+}
+
+.hist-count {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--text-dim);
+}

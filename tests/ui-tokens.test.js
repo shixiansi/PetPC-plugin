@@ -26,6 +26,7 @@ const ADOPTERS = [
   'com.shixiansi.plugin-llmchannel',
   'com.shixiansi.plugin-memcore',
   'com.shixiansi.plugin-onebot',
+  'com.shixiansi.plugin-websearch',
 ];
 
 /** Every `--name:` a stylesheet declares. */

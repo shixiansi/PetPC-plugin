@@ -58,9 +58,16 @@ describe('manifest', () => {
     expect(manifest.serves).toEqual(keys);
   });
 
-  test('does not pretend to call anyone', () => {
-    // 核心是被问的那一端。列出 callTargets 会让安装对话框承诺一件它不做的事。
-    expect(manifest.callTargets).toBeUndefined();
+  test('calls exactly one target: the web search plugin', () => {
+    // 0.1.x 的核心是被问的那一端；0.2.0 起它向外问一件事——联网搜索（「先查再答」）。
+    // 目标与方法必须与 lib/websearch.js 里的常量逐字一致，否则真机上是一句
+    // 「没有声明要调用 …」的拒绝，而这里就能抓住。
+    const body = source;
+    const target = (body.match(/const SEARCH_TARGET = '([^']+)';/) || [])[1];
+    const method = (body.match(/const SEARCH_METHOD = '([^']+)';/) || [])[1];
+    expect(target, 'lib/websearch.js 没有声明 SEARCH_TARGET').toBeTruthy();
+    expect(method, 'lib/websearch.js 没有声明 SEARCH_METHOD').toBeTruthy();
+    expect(manifest.callTargets).toEqual([`${target}/${method}`]);
   });
 
   test('exactly one secret, and it is the model credential', () => {

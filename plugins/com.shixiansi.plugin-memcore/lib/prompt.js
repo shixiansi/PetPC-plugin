@@ -81,9 +81,11 @@ function fitBlocks(blocks, budget) {
  * @param {object} profile L4
  * @param {string} [hint] 调用方这一轮的临时指令（例如 QQ 插件"这次是你主动开口"）。
  *   它不是记忆、也不入盘：只活在这一轮，所以放在最末、且占最小的地方。
+ * @param {string} [extraRule] 一次性追加的规则（例如联网搜索的 [SEARCH] 约定）。
+ *   与 hint 一样只活在这一轮；放在最末，因为它是"这一轮怎么答"的事。
  * @returns {string} ≤ 4000 字
  */
-function buildSystem(state, profile, hint) {
+function buildSystem(state, profile, hint, extraRule) {
   const blocks = [
     personaBlock(),
     profileBlock(profile),
@@ -92,6 +94,8 @@ function buildSystem(state, profile, hint) {
   ];
   const extra = text(hint, 200).trim();
   if (extra) blocks.push(`【这一轮】${extra}`);
+  const rule = text(extraRule, 600).trim();
+  if (rule) blocks.push(rule);
   return fitBlocks(blocks, 4000);
 }
 

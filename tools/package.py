@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""tools/package.py — tools/package.ps1 的 Linux 等价（本机没有 PowerShell）。
+
+对每个 plugins/<id>/manifest.json：
+  1. 校验 entry 与固定资源（panel.html / app.js / style.css）存在；
+  2. 以固定时间戳重建 dist/<id>-<version>.zip（manifest + 固定资源 + assets，全部在 zip 根）；
+  3. 计算 SHA256；
+  4. 从打包出的 manifest 重建 index.json（权限与 netHosts 必须来自包内，不允许漂移）。
+
+与 package.ps1 的字节兼容性不追求（压缩器不同），追求的是**内容**一致：
+同一批成员、同样的固定时间戳（2024-01-01T00:00:00Z）、根目录无包裹层。
+"""
+import json
+import hashlib
+import sys
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+PLUGINS = REPO / 'plugins'
+DIST = REPO / 'dist'
+INDEX = REPO / 'index.json'
+FIXED = ['panel.html', 'app.js', 'style.css']
+PINNED = (2024, 1, 1, 0, 0, 0)
+
+
+def json_string(v: str) -> str:
+    out = ['"']
+    for ch in v:
+        if ch == '\\':
+            out.append('\\\\')
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == '\r':
+            out.append('\\r')
+        elif ch == '\n':
+            out.append('\\n')
+        elif ch == '\t':
+            out.append('\\t')
+        else:
+            out.append(ch)
+    out.append('"')
+    return ''.join(out)
+
+
+def main() -> int:
+    if not PLUGINS.is_dir():
+        print(f'插件目录不存在：{PLUGINS}', file=sys.stderr)
+        return 2
+    DIST.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for manifest_path in sorted(PLUGINS.glob('*/manifest.json')):
+        plugin_dir = manifest_path.parent
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        pid, version, entry = manifest['id'], manifest['version'], manifest['entry']
+        missing = [r for r in ([entry, *FIXED]) if not (plugin_dir / r).is_file()]
+        if missing:
+            raise SystemExit(f'插件 {pid} 缺少资源文件：{missing}')
+
+        members = ['manifest.json']
+        for name in [*FIXED, entry]:
+            if name not in members:
+                members.append(name)
+        for asset in manifest.get('assets') or []:
+            if not asset or asset.startswith('/') or '..' in Path(asset).parts or Path(asset).parts.count('.'):
+                raise SystemExit(f'插件 {pid} 的 assets 不合法：{asset}')
+            if asset not in members:
+                members.append(asset)
+            if not (plugin_dir / asset).is_file():
+                raise SystemExit(f'插件 {pid} 声明的 assets 文件不存在：{asset}')
+
+        zip_path = DIST / f'{pid}-{version}.zip'
+        if zip_path.exists():
+            zip_path.unlink()
+        stamp = datetime(*PINNED, tzinfo=timezone.utc)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for member in members:
+                info = zipfile.ZipInfo(member, date_time=stamp.timetuple()[:6])
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = 0o644 << 16
+                zf.writestr(info, (plugin_dir / member).read_bytes())
+        sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+
+        entry_obj = {
+            'id': pid,
+            'name': manifest['name'],
+            'version': version,
+            'author': manifest['author'],
+            'description': manifest['description'],
+            'permissions': list(manifest.get('permissions') or []),
+            'download': f'dist/{zip_path.name}',
+            'sha256': sha,
+        }
+        # netHosts 只有声明了 net.fetch 才需要；没有就不写字段（与既有 index.json 一致）。
+        # 顺序按既有文件来：permissions 之后、download 之前。
+        if manifest.get('netHosts'):
+            reordered = {}
+            for k, v in entry_obj.items():
+                reordered[k] = v
+                if k == 'permissions':
+                    reordered['netHosts'] = list(manifest['netHosts'])
+            entry_obj = reordered
+        entries.append(entry_obj)
+        print(f'打包 {pid} {version} → {zip_path.name} ({sha[:12]}…)')
+
+    entries.sort(key=lambda e: e['id'])
+    from datetime import datetime as dt
+    index = {
+        'version': 1,
+        'updatedAt': dt.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'plugins': entries,
+    }
+    # indent=2 但把数组压成一行（Python 没有 json.dumps 的这个开关，手动收）：
+    # 与仓库既有 index.json 的排版一致——数组一行、对象多行。
+    text = reformat(index) + '\n'
+    INDEX.write_text(text, encoding='utf-8')
+    print(f'index.json 已重写：{len(entries)} 个插件')
+    return 0
+
+
+def reformat(value, indent=0):
+    """数组压一行、对象按行展开的 JSON 排版（与仓库既有 index.json 相同）。"""
+    pad = '  ' * indent
+    inner = '  ' * (indent + 1)
+    if isinstance(value, list):
+        if all(not isinstance(x, (dict, list)) for x in value):
+            return '[' + ', '.join(json_string(x) if isinstance(x, str) else json.dumps(x) for x in value) + ']'
+        items = [inner + reformat(x, indent + 1) for x in value]
+        return '[\n' + ',\n'.join(items) + '\n' + pad + ']'
+    if isinstance(value, dict):
+        items = []
+        for k, v in value.items():
+            # 最后一个键不带逗号（JSON 排版），写成「键: 值」逐行展开。
+            line = inner + json_string(k) + ': ' + reformat(v, indent + 1)
+            items.append(line)
+        return '{\n' + ',\n'.join(items) + '\n' + pad + '}'
+    if isinstance(value, str):
+        return json_string(value)
+    return json.dumps(value)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

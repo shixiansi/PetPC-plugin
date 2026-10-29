@@ -1,10 +1,11 @@
 {
   "id": "com.shixiansi.plugin-memcore",
   "name": "记忆核心（人设 + 分层记忆）",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "author": "shixiansi",
-  "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。换一个接入端不用搬记忆，改一次人设所有接入端同时生效。",
+  "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
   "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
+  "callTargets": ["com.shixiansi.plugin-websearch/search"],
   "serves": ["chat", "seed"],
   "background": true,
   "config": [
@@ -51,6 +52,23 @@
       "default": "3"
     },
     {
+      "key": "webSearch",
+      "label": "联网搜索（需要安装并启用「联网搜索」插件）：auto=记忆答不上才查；always=每轮都查；off=不上网",
+      "type": "select",
+      "default": "auto",
+      "options": [
+        { "value": "auto", "label": "自动（记忆答不上时才查）" },
+        { "value": "always", "label": "每轮都先查再答" },
+        { "value": "off", "label": "关闭（纯记忆）" }
+      ]
+    },
+    {
+      "key": "webSearchCount",
+      "label": "联网搜索每次取几条结果（1–10，越多占的上下文越多）",
+      "type": "number",
+      "default": "5"
+    },
+    {
       "key": "llmBaseUrl",
       "label": "接口地址（留空=借用对话插件的配置）",
       "type": "text",
@@ -80,6 +98,7 @@
     "lib/core.js",
     "lib/memory.js",
     "lib/prompt.js",
+    "lib/websearch.js",
     "lib/chat.js",
     "lib/workshop.js",
     "ui.css"
