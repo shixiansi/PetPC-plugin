@@ -1,0 +1,383 @@
+/* market.css —— 市场两页（插件市场 index.html / 插件管理 manage.html）的设计令牌与原语。
+ *
+ * 为什么单独一份：这两页是仓库自己的静态页，不是插件文档（不受“浮层面不许阴影”约束），
+ * 也不和插件共享 ui.css（那里是插件侧的 Soft UI，主色 indigo、卡片 24px）。这里是
+ * 2026-10-30 定稿的市场侧设计令牌，逐条来自设计要求：
+ *
+ *   主色        #7C3AED（violet-600）
+ *   卡片圆角    18px（--radius-card）
+ *   卡片阴影    var(--sh-xs)（带色、低透明度；hover 才升到 --sh-md）
+ *   间距        只用 4px 的倍数（--space-1..8）
+ *   图标        46×46 渐变方块 + 白色 SVG（fill: currentColor，色由 .icon 给）
+ *
+ * 纪律与插件侧相同：页面 HTML 里不许出现十六进制色值——颜色只能来自这里的 token
+ * （tests/ui-market.test.js 会查）。两套配色：:root 浅色、[data-theme="dark"] 深色。
+ * 无脚本：所有交互（启停开关、筛选）是纯 CSS 的，这也是市场页的一条安全承诺。
+ */
+
+:root {
+  color-scheme: light;
+
+  /* --- 颜色 ------------------------------------------------------------- */
+  --bg: #f6f5fb;            /* 页面底：带一点紫的浅灰 */
+  --bg-raised: #ffffff;     /* 卡片底 */
+  --bg-sunken: #efedf7;     /* 更深一档：代码块、轨道 */
+  --line: #e4e1f0;
+  --text: #1c1730;
+  --text-dim: #6d6787;
+  --accent: #7c3aed;        /* violet-600：主色 */
+  --accent-strong: #6d28d9; /* violet-700：主按钮底，白字对比 ≥ 7:1 */
+  --accent-hover: #6d28d9;
+  --accent-soft: #f1e9fe;   /* violet-50：选中底、标签底 */
+  --accent-dim: #ddd0fb;    /* violet-200：描边 */
+  --ok: #0f8a4d;            /* 运行中 */
+  --ok-soft: #e5f6ec;
+  --danger: #d1385c;        /* 危险动作 */
+  --danger-soft: #fbe9ee;
+
+  /* --- 圆角 ------------------------------------------------------------- */
+  --radius-card: 18px;      /* 卡片圆角（本页唯一 radius 之外都用 4 的倍数或全圆） */
+  --radius-ctl: 10px;       /* 按钮 / 输入框 */
+  --radius-icon: 12px;      /* 46×46 图标方块 */
+  --radius-pill: 999px;     /* 标签、开关 */
+
+  /* --- 阴影（全部带色、低透明度，无纯黑） --------------------------------- */
+  --sh-xs: 0 1px 2px rgba(28, 23, 48, 0.06), 0 2px 8px rgba(124, 58, 237, 0.06);
+  --sh-md: 0 6px 16px -6px rgba(28, 23, 48, 0.14), 0 10px 28px -12px rgba(124, 58, 237, 0.16);
+  --sh-ring: 0 0 0 3px rgba(124, 58, 237, 0.22);
+
+  /* --- 间距：只用 4px 的倍数 --------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* --- 图标：46×46 渐变方块，白色 SVG 由 .icon 的 color 提供 -------------- */
+  --icon-size: 46px;
+
+  --font: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: Consolas, "Courier New", monospace;
+  --dur: 160ms;             /* 动效 120–320ms，只做位移/透明度/颜色/阴影 */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15121f;
+  --bg-raised: #1d1930;
+  --bg-sunken: #171427;
+  --line: #2e2847;
+  --text: #ece9f6;
+  --text-dim: #9d96bd;
+  --accent: #8b5cf6;
+  --accent-strong: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --accent-soft: #2a2145;
+  --accent-dim: #4c3a80;
+  --ok: #4ade80;
+  --ok-soft: #16301f;
+  --danger: #f87191;
+  --danger-soft: #38141f;
+  --sh-xs: 0 1px 2px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.22);
+  --sh-md: 0 6px 16px -6px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(124, 58, 237, 0.25);
+}
+
+/* --- 基础 --------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.6 var(--font);
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px var(--space-1);
+  color: var(--text);
+}
+
+/* --- 页头 --------------------------------------------------------------- */
+
+.page { max-width: 880px; margin: 0 auto; }
+
+.head { margin: 0 0 var(--space-5); }
+.head h1 { margin: 0 0 var(--space-1); font-size: 24px; letter-spacing: -0.01em; }
+.head .lede { margin: 0; color: var(--text-dim); }
+.head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+
+/* --- 卡片 --------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-xs);          /* 卡片阴影：var(--sh-xs)，hover 才升级 */
+  padding: var(--space-4) var(--space-5);
+  transition: box-shadow var(--dur) ease, transform var(--dur) ease, opacity var(--dur) ease;
+}
+
+.card.hoverable:hover {
+  box-shadow: var(--sh-md);
+  transform: translateY(-2px);
+}
+
+/* 卡片头：图标 + 标题 + 状态，一行放不下就换行 */
+.card-head { display: flex; align-items: center; gap: var(--space-3); }
+
+/* --- 46×46 渐变图标 + 白色 SVG ------------------------------------------- */
+
+.icon {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  border-radius: var(--radius-icon);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;                       /* SVG 用 fill="currentColor" */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.icon svg { width: 24px; height: 24px; display: block; }
+
+/* 每个插件一条渐变：135°，克制（同色系深浅，不荧光）。新插件在这里加一格。 */
+.g-chat       { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.g-mem        { background: linear-gradient(135deg, #6366f1, #4338ca); }
+.g-todo       { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
+.g-pomodoro   { background: linear-gradient(135deg, #f43f5e, #be123c); }
+.g-voice      { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+.g-qq         { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.g-qqbot      { background: linear-gradient(135deg, #22d3ee, #0e7490); }
+.g-onebot     { background: linear-gradient(135deg, #10b981, #047857); }
+.g-websearch  { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.g-bilibili   { background: linear-gradient(135deg, #fb7185, #e11d48); }
+.g-llmchannel { background: linear-gradient(135deg, #a78bfa, #5b21b6); }
+.g-clipask    { background: linear-gradient(135deg, #94a3b8, #475569); }
+.g-sense      { background: linear-gradient(135deg, #818cf8, #3730a3); }   /* pet-sense：系统感知 */
+.g-media      { background: linear-gradient(135deg, #f472b6, #be185d); }   /* media-sync：正在播放 */
+.g-weather    { background: linear-gradient(135deg, #38bdf8, #1d4ed8); }   /* weather-env：天 */
+
+/* --- 标签 / 状态 --------------------------------------------------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tag.accent { background: var(--accent-soft); border-color: var(--accent-dim); color: var(--accent-strong); }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status .dot { width: 8px; height: 8px; border-radius: var(--radius-pill); }
+
+.status[data-state="running"] { background: var(--ok-soft); color: var(--ok); }
+.status[data-state="running"] .dot { background: var(--ok); animation: pulse 2.4s ease-in-out infinite; }
+
+.status[data-state="disabled"] { background: var(--bg-sunken); color: var(--text-dim); }
+.status[data-state="disabled"] .dot { background: var(--text-dim); opacity: 0.5; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* --- 开关（纯 CSS：input:checked 驱动） ----------------------------------- */
+
+.switch { position: relative; display: inline-flex; flex: none; }
+
+.switch input {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  cursor: pointer;
+  transition: background var(--dur) ease;
+}
+
+.switch input::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  box-shadow: var(--sh-xs);
+  transition: transform var(--dur) ease;   /* 状态切换动效：滑块位移 */
+}
+
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { transform: translateX(18px); } /* 位移 = 42 − 2×4 − 16，不是圆角 */
+
+.switch input:focus-visible { outline: none; box-shadow: var(--sh-ring); }
+
+/* 启用/停用对整卡的影响：停用的卡降透明度、去 hover 升起。
+ * 跟随**实时开关**（:has）而不是静态 data-state——用户拨动开关的这一刻卡片就要变，
+ * 那正是"状态切换动效"的一半（另一半是滑块位移与胶囊切换）。 */
+.plugin:has(input:not(:checked)) { opacity: 0.62; }
+.plugin:has(input:not(:checked)):hover { transform: none; box-shadow: var(--sh-xs); }
+
+/* --- 按钮 ---------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-ctl);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease, box-shadow var(--dur) ease;
+}
+
+.btn:hover { border-color: var(--accent-dim); color: var(--accent-strong); text-decoration: none; }
+
+.btn.primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #ffffff; }
+
+.btn.ghost { background: transparent; }
+
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { border-color: var(--danger); background: var(--danger-soft); }
+
+/* --- 底部交互栏 ----------------------------------------------------------- */
+
+.bar {
+  position: sticky;
+  bottom: var(--space-4);
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-md);
+}
+
+.bar .spacer { flex: 1; }
+.bar .count { color: var(--text-dim); font-size: 12px; }
+
+/* 筛选 chips：radio + label，纯 CSS */
+.chips { display: inline-flex; gap: var(--space-2); }
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips label {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--dur) ease;
+}
+.chips input:checked + label {
+  background: var(--accent-soft);
+  border-color: var(--accent-dim);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+/* --- 卡片内部零件 ----------------------------------------------------------- */
+
+.titles { min-width: 0; flex: 1; }
+.titles h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+.titles .meta { margin-top: 2px; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-4); flex-wrap: wrap; }
+.actions .spacer { flex: 1; }
+
+/* --- 管理页：状态胶囊随开关切换（纯 CSS，:has 驱动） ------------------------ *
+ * 每张卡里两个胶囊（.st-running / .st-disabled）与开关同在一张卡，卡内
+ * :has(input:not(:checked)) 就是"这一张被停用"，不需要任何脚本。
+ * 动效三处：开关滑块位移（160ms）、卡片降透明度、运行中圆点的呼吸。
+ * 初始值跟随静态 data-state（刷新后首帧就正确），此后以开关的 :has 为准。 */
+
+.plugin[data-state="disabled"] .st-running { display: none; }
+.plugin[data-state="running"] .st-disabled { display: none; }
+.st-running, .st-disabled { transition: opacity var(--dur) ease; }
+
+.plugin:has(input:not(:checked)) .st-running { display: none; }
+.plugin:has(input:not(:checked)) .st-disabled { display: inline-flex; }
+.plugin:has(input:checked) .st-running { display: inline-flex; }
+.plugin:has(input:checked) .st-disabled { display: none; }
+
+/* --- 版式零件 ------------------------------------------------------------- */
+
+.grid { display: grid; gap: var(--space-3); }
+
+.meta { color: var(--text-dim); font-size: 12px; }
+.desc { margin: var(--space-2) 0 0; color: var(--text); }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+
+.divider { border: 0; border-top: 1px solid var(--line); margin: var(--space-4) 0; }
+
+.muted { color: var(--text-dim); }
+
+.foot { margin-top: var(--space-6); color: var(--text-dim); font-size: 12px; }
+
+/* --- 管理页：插件行 -------------------------------------------------------- *
+ * 一行一张卡：图标、名称与版本、状态胶囊、开关。名称与 id 占满剩余宽度，
+ * 溢出省略——id 可能很长（96 字符上限）。 */
+
+.plugin-row { display: flex; align-items: center; gap: var(--space-3); }
+.plugin-row .titles .meta code { font-size: 11px; }
+.plugin-row .st { flex: none; }
+.plugin-row .switch { margin-left: var(--space-2); }
+
+/* 权限 chips 一览 */
+.perms { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation: none !important; }
+}

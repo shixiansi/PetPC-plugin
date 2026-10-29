@@ -1,12 +1,24 @@
 {
   "id": "com.shixiansi.plugin-memcore",
   "name": "记忆核心（人设 + 分层记忆）",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "shixiansi",
   "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
-  "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-  "callTargets": ["com.shixiansi.plugin-websearch/search"],
-  "serves": ["chat", "seed"],
+  "permissions": [
+    "plugin.call",
+    "llm.chat",
+    "llm.borrow",
+    "storage",
+    "plugin.config"
+  ],
+  "callTargets": [
+    "com.shixiansi.plugin-websearch/search"
+  ],
+  "serves": [
+    "chat",
+    "seed",
+    "compact"
+  ],
   "background": true,
   "config": [
     {
@@ -57,9 +69,18 @@
       "type": "select",
       "default": "auto",
       "options": [
-        { "value": "auto", "label": "自动（记忆答不上时才查）" },
-        { "value": "always", "label": "每轮都先查再答" },
-        { "value": "off", "label": "关闭（纯记忆）" }
+        {
+          "value": "auto",
+          "label": "自动（记忆答不上时才查）"
+        },
+        {
+          "value": "always",
+          "label": "每轮都先查再答"
+        },
+        {
+          "value": "off",
+          "label": "关闭（纯记忆）"
+        }
       ]
     },
     {
@@ -91,6 +112,12 @@
       "label": "每日请求上限（次，0=不限；摘要与画像也会花掉几次）",
       "type": "number",
       "default": "200"
+    },
+    {
+      "key": "compactEnabled",
+      "label": "定时记忆压缩（每天凌晨把 L1/L2 压成一段 ≤200 字的长期摘要；0.3.0 起）",
+      "type": "bool",
+      "default": "true"
     }
   ],
   "entry": "panel.html",
@@ -99,6 +126,7 @@
     "lib/memory.js",
     "lib/prompt.js",
     "lib/websearch.js",
+    "lib/compact.js",
     "lib/chat.js",
     "lib/workshop.js",
     "ui.css"

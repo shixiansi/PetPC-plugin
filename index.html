@@ -13,104 +13,696 @@
   page and the plugin packages share a repository, so a scripted page would be
   one more place a package could influence whoever is browsing the catalogue.
   Everything here is static markup and inline style.
+
+  2026-10-30 redesign: the page now carries the market design tokens inline
+  (docs/ui/market.css is the readable master; the copy below is byte-for-byte
+  the same rules). Colours come only from tokens — no hex value appears outside
+  the token block or the icon gradients (the one exception, checked by
+  tests/ui-market.test.js). Plugin icons are 46x46 gradient tiles with a white
+  inline SVG; cards are 18px-rounded with var(--sh-xs) shadows; spacing is a
+  4px multiple everywhere.
 -->
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    padding: 32px 20px 48px;
-    background: #14161c;
-    color: #e8eaf0;
-    font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
-  }
-  main { max-width: 760px; margin: 0 auto; }
-  h1 { margin: 0 0 4px; font-size: 22px; }
-  .lede { margin: 0 0 24px; color: #9aa3b2; }
-  .card {
-    border: 1px solid #2c313c;
-    border-radius: 12px;
-    background: #191b21;
-    padding: 18px 20px;
-    margin-bottom: 20px;
-  }
-  .card h2 { margin: 0 0 2px; font-size: 17px; }
-  .meta { color: #9aa3b2; font-size: 13px; margin-bottom: 10px; }
-  .meta code { color: #cfd6e4; }
-  .desc { margin: 0 0 14px; }
-  h3 { font-size: 14px; margin: 16px 0 6px; }
-  ul { margin: 0; padding-left: 20px; }
-  li { margin: 3px 0; }
-  code {
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 13px;
-    background: #232733;
-    border: 1px solid #2c313c;
-    border-radius: 5px;
-    padding: 1px 5px;
-  }
-  pre {
-    margin: 0;
-    padding: 10px 12px;
-    overflow-x: auto;
-    background: #12141a;
-    border: 1px solid #2c313c;
-    border-radius: 8px;
-  }
-  pre code { background: none; border: 0; padding: 0; }
-  .dl {
-    display: inline-block;
-    margin-top: 4px;
-    padding: 8px 14px;
-    border: 1px solid #2f6feb;
-    border-radius: 8px;
-    background: #2f6feb;
-    color: #ffffff;
-    text-decoration: none;
-    font-weight: 600;
-  }
-  .note { color: #9aa3b2; font-size: 13px; }
-  a { color: #6ea8fe; }
+/* ==== market.css (inline copy of docs/ui/market.css) ==== */
+/* market.css —— 市场两页（插件市场 index.html / 插件管理 manage.html）的设计令牌与原语。
+ *
+ * 为什么单独一份：这两页是仓库自己的静态页，不是插件文档（不受“浮层面不许阴影”约束），
+ * 也不和插件共享 ui.css（那里是插件侧的 Soft UI，主色 indigo、卡片 24px）。这里是
+ * 2026-10-30 定稿的市场侧设计令牌，逐条来自设计要求：
+ *
+ *   主色        #7C3AED（violet-600）
+ *   卡片圆角    18px（--radius-card）
+ *   卡片阴影    var(--sh-xs)（带色、低透明度；hover 才升到 --sh-md）
+ *   间距        只用 4px 的倍数（--space-1..8）
+ *   图标        46×46 渐变方块 + 白色 SVG（fill: currentColor，色由 .icon 给）
+ *
+ * 纪律与插件侧相同：页面 HTML 里不许出现十六进制色值——颜色只能来自这里的 token
+ * （tests/ui-market.test.js 会查）。两套配色：:root 浅色、[data-theme="dark"] 深色。
+ * 无脚本：所有交互（启停开关、筛选）是纯 CSS 的，这也是市场页的一条安全承诺。
+ */
+
+:root {
+  color-scheme: light;
+
+  /* --- 颜色 ------------------------------------------------------------- */
+  --bg: #f6f5fb;            /* 页面底：带一点紫的浅灰 */
+  --bg-raised: #ffffff;     /* 卡片底 */
+  --bg-sunken: #efedf7;     /* 更深一档：代码块、轨道 */
+  --line: #e4e1f0;
+  --text: #1c1730;
+  --text-dim: #6d6787;
+  --accent: #7c3aed;        /* violet-600：主色 */
+  --accent-strong: #6d28d9; /* violet-700：主按钮底，白字对比 ≥ 7:1 */
+  --accent-hover: #6d28d9;
+  --accent-soft: #f1e9fe;   /* violet-50：选中底、标签底 */
+  --accent-dim: #ddd0fb;    /* violet-200：描边 */
+  --ok: #0f8a4d;            /* 运行中 */
+  --ok-soft: #e5f6ec;
+  --danger: #d1385c;        /* 危险动作 */
+  --danger-soft: #fbe9ee;
+
+  /* --- 圆角 ------------------------------------------------------------- */
+  --radius-card: 18px;      /* 卡片圆角（本页唯一 radius 之外都用 4 的倍数或全圆） */
+  --radius-ctl: 10px;       /* 按钮 / 输入框 */
+  --radius-icon: 12px;      /* 46×46 图标方块 */
+  --radius-pill: 999px;     /* 标签、开关 */
+
+  /* --- 阴影（全部带色、低透明度，无纯黑） --------------------------------- */
+  --sh-xs: 0 1px 2px rgba(28, 23, 48, 0.06), 0 2px 8px rgba(124, 58, 237, 0.06);
+  --sh-md: 0 6px 16px -6px rgba(28, 23, 48, 0.14), 0 10px 28px -12px rgba(124, 58, 237, 0.16);
+  --sh-ring: 0 0 0 3px rgba(124, 58, 237, 0.22);
+
+  /* --- 间距：只用 4px 的倍数 --------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+
+  /* --- 图标：46×46 渐变方块，白色 SVG 由 .icon 的 color 提供 -------------- */
+  --icon-size: 46px;
+
+  --font: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: Consolas, "Courier New", monospace;
+  --dur: 160ms;             /* 动效 120–320ms，只做位移/透明度/颜色/阴影 */
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #15121f;
+  --bg-raised: #1d1930;
+  --bg-sunken: #171427;
+  --line: #2e2847;
+  --text: #ece9f6;
+  --text-dim: #9d96bd;
+  --accent: #8b5cf6;
+  --accent-strong: #7c3aed;
+  --accent-hover: #8b5cf6;
+  --accent-soft: #2a2145;
+  --accent-dim: #4c3a80;
+  --ok: #4ade80;
+  --ok-soft: #16301f;
+  --danger: #f87191;
+  --danger-soft: #38141f;
+  --sh-xs: 0 1px 2px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.22);
+  --sh-md: 0 6px 16px -6px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(124, 58, 237, 0.25);
+}
+
+/* --- 基础 --------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.6 var(--font);
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px var(--space-1);
+  color: var(--text);
+}
+
+/* --- 页头 --------------------------------------------------------------- */
+
+.page { max-width: 880px; margin: 0 auto; }
+
+.head { margin: 0 0 var(--space-5); }
+.head h1 { margin: 0 0 var(--space-1); font-size: 24px; letter-spacing: -0.01em; }
+.head .lede { margin: 0; color: var(--text-dim); }
+.head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+
+/* --- 卡片 --------------------------------------------------------------- */
+
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-xs);          /* 卡片阴影：var(--sh-xs)，hover 才升级 */
+  padding: var(--space-4) var(--space-5);
+  transition: box-shadow var(--dur) ease, transform var(--dur) ease, opacity var(--dur) ease;
+}
+
+.card.hoverable:hover {
+  box-shadow: var(--sh-md);
+  transform: translateY(-2px);
+}
+
+/* 卡片头：图标 + 标题 + 状态，一行放不下就换行 */
+.card-head { display: flex; align-items: center; gap: var(--space-3); }
+
+/* --- 46×46 渐变图标 + 白色 SVG ------------------------------------------- */
+
+.icon {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  border-radius: var(--radius-icon);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;                       /* SVG 用 fill="currentColor" */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.icon svg { width: 24px; height: 24px; display: block; }
+
+/* 每个插件一条渐变：135°，克制（同色系深浅，不荧光）。新插件在这里加一格。 */
+.g-chat       { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.g-mem        { background: linear-gradient(135deg, #6366f1, #4338ca); }
+.g-todo       { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
+.g-pomodoro   { background: linear-gradient(135deg, #f43f5e, #be123c); }
+.g-voice      { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+.g-qq         { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.g-qqbot      { background: linear-gradient(135deg, #22d3ee, #0e7490); }
+.g-onebot     { background: linear-gradient(135deg, #10b981, #047857); }
+.g-websearch  { background: linear-gradient(135deg, #f59e0b, #b45309); }
+.g-bilibili   { background: linear-gradient(135deg, #fb7185, #e11d48); }
+.g-llmchannel { background: linear-gradient(135deg, #a78bfa, #5b21b6); }
+.g-clipask    { background: linear-gradient(135deg, #94a3b8, #475569); }
+.g-sense      { background: linear-gradient(135deg, #818cf8, #3730a3); }   /* pet-sense：系统感知 */
+.g-media      { background: linear-gradient(135deg, #f472b6, #be185d); }   /* media-sync：正在播放 */
+.g-weather    { background: linear-gradient(135deg, #38bdf8, #1d4ed8); }   /* weather-env：天 */
+
+/* --- 标签 / 状态 --------------------------------------------------------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tag.accent { background: var(--accent-soft); border-color: var(--accent-dim); color: var(--accent-strong); }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status .dot { width: 8px; height: 8px; border-radius: var(--radius-pill); }
+
+.status[data-state="running"] { background: var(--ok-soft); color: var(--ok); }
+.status[data-state="running"] .dot { background: var(--ok); animation: pulse 2.4s ease-in-out infinite; }
+
+.status[data-state="disabled"] { background: var(--bg-sunken); color: var(--text-dim); }
+.status[data-state="disabled"] .dot { background: var(--text-dim); opacity: 0.5; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* --- 开关（纯 CSS：input:checked 驱动） ----------------------------------- */
+
+.switch { position: relative; display: inline-flex; flex: none; }
+
+.switch input {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  cursor: pointer;
+  transition: background var(--dur) ease;
+}
+
+.switch input::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  box-shadow: var(--sh-xs);
+  transition: transform var(--dur) ease;   /* 状态切换动效：滑块位移 */
+}
+
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { transform: translateX(18px); } /* 位移 = 42 − 2×4 − 16，不是圆角 */
+
+.switch input:focus-visible { outline: none; box-shadow: var(--sh-ring); }
+
+/* 启用/停用对整卡的影响：停用的卡降透明度、去 hover 升起。
+ * 跟随**实时开关**（:has）而不是静态 data-state——用户拨动开关的这一刻卡片就要变，
+ * 那正是"状态切换动效"的一半（另一半是滑块位移与胶囊切换）。 */
+.plugin:has(input:not(:checked)) { opacity: 0.62; }
+.plugin:has(input:not(:checked)):hover { transform: none; box-shadow: var(--sh-xs); }
+
+/* --- 按钮 ---------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-ctl);
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur) ease, color var(--dur) ease, border-color var(--dur) ease, box-shadow var(--dur) ease;
+}
+
+.btn:hover { border-color: var(--accent-dim); color: var(--accent-strong); text-decoration: none; }
+
+.btn.primary {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #ffffff; }
+
+.btn.ghost { background: transparent; }
+
+.btn.danger { color: var(--danger); }
+.btn.danger:hover { border-color: var(--danger); background: var(--danger-soft); }
+
+/* --- 底部交互栏 ----------------------------------------------------------- */
+
+.bar {
+  position: sticky;
+  bottom: var(--space-4);
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-md);
+}
+
+.bar .spacer { flex: 1; }
+.bar .count { color: var(--text-dim); font-size: 12px; }
+
+/* 筛选 chips：radio + label，纯 CSS */
+.chips { display: inline-flex; gap: var(--space-2); }
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips label {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--dur) ease;
+}
+.chips input:checked + label {
+  background: var(--accent-soft);
+  border-color: var(--accent-dim);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+/* --- 卡片内部零件 ----------------------------------------------------------- */
+
+.titles { min-width: 0; flex: 1; }
+.titles h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+.titles .meta { margin-top: 2px; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+.actions { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-4); flex-wrap: wrap; }
+.actions .spacer { flex: 1; }
+
+/* --- 管理页：状态胶囊随开关切换（纯 CSS，:has 驱动） ------------------------ *
+ * 每张卡里两个胶囊（.st-running / .st-disabled）与开关同在一张卡，卡内
+ * :has(input:not(:checked)) 就是"这一张被停用"，不需要任何脚本。
+ * 动效三处：开关滑块位移（160ms）、卡片降透明度、运行中圆点的呼吸。
+ * 初始值跟随静态 data-state（刷新后首帧就正确），此后以开关的 :has 为准。 */
+
+.plugin[data-state="disabled"] .st-running { display: none; }
+.plugin[data-state="running"] .st-disabled { display: none; }
+.st-running, .st-disabled { transition: opacity var(--dur) ease; }
+
+.plugin:has(input:not(:checked)) .st-running { display: none; }
+.plugin:has(input:not(:checked)) .st-disabled { display: inline-flex; }
+.plugin:has(input:checked) .st-running { display: inline-flex; }
+.plugin:has(input:checked) .st-disabled { display: none; }
+
+/* --- 版式零件 ------------------------------------------------------------- */
+
+.grid { display: grid; gap: var(--space-3); }
+
+.meta { color: var(--text-dim); font-size: 12px; }
+.desc { margin: var(--space-2) 0 0; color: var(--text); }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+
+.divider { border: 0; border-top: 1px solid var(--line); margin: var(--space-4) 0; }
+
+.muted { color: var(--text-dim); }
+
+.foot { margin-top: var(--space-6); color: var(--text-dim); font-size: 12px; }
+
+/* --- 管理页：插件行 -------------------------------------------------------- *
+ * 一行一张卡：图标、名称与版本、状态胶囊、开关。名称与 id 占满剩余宽度，
+ * 溢出省略——id 可能很长（96 字符上限）。 */
+
+.plugin-row { display: flex; align-items: center; gap: var(--space-3); }
+.plugin-row .titles .meta code { font-size: 11px; }
+.plugin-row .st { flex: none; }
+.plugin-row .switch { margin-left: var(--space-2); }
+
+/* 权限 chips 一览 */
+.perms { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation: none !important; }
+}
+/* ==== end market.css copy ==== */
 </style>
 </head>
 <body>
-<main>
-  <h1>PetPC 插件市场</h1>
-  <p class="lede">桌宠 PetPC 的插件目录。每个插件就是一个目录（<code>manifest.json</code> + 前端资源），打包成 zip 后由桌宠安装。</p>
+<main class="page">
+  <header class="head">
+    <div class="head-row">
+      <div>
+        <h1>PetPC 插件市场</h1>
+        <p class="lede">桌宠 PetPC 的插件目录。每个插件就是一个目录（<code>manifest.json</code> + 前端资源），打包成 zip 后由桌宠安装。机器可读版本是同目录的 <a href="index.json">index.json</a>。</p>
+      </div>
+      <a class="btn ghost" href="manage.html">插件管理 →</a>
+    </div>
+  </header>
 
-  <section class="card">
-    <h2>对话插件</h2>
-    <p class="meta">版本 <code>1.1.0</code> · 作者 <code>shixiansi</code> · 标识 <code>com.shixiansi.plugin-chat</code></p>
-    <p class="desc">在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。</p>
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-chat" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4V6a2 2 0 0 1 2-2Zm4 6a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 8 10Zm4 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 12 10Zm4 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 16 10Z"/></svg></span>
+      <div class="titles">
+        <h2>对话插件</h2>
+        <div class="meta"><span>版本 <code>1.8.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-chat</code></div>
+      </div>
+    </div>
+    <p class="desc">在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。带五级兜底链：主模型 → 上下文减半 → 备用模型 → 借来的渠道 → 本地兜底。</p>
+    <div class="tags">
+      <span class="tag accent">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">pet.surface</span><span class="tag">plugin.config</span><span class="tag">storage</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-chat-1.8.0.zip" download>下载 1.8.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-chat-1.8.0.zip</span>
+    </div>
+  </section>
 
-    <h3>申请的权限</h3>
-    <ul>
-      <li><code>llm.chat</code> —— 调用插件自己配置的大模型（流式返回）</li>
-      <li><code>pet.bubble</code> —— 让桌宠弹出一句话的气泡</li>
-      <li><code>pet.surface</code> —— 在桌宠旁显示插件自己的浮层面</li>
-      <li><code>plugin.config</code> —— 保存插件自己的设置（存在插件私有目录里，插件之间互相读不到）</li>
-      <li><code>storage</code> —— 在自己的私有目录里存对话记录</li>
-    </ul>
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-mem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a7 7 0 0 1 7 7c0 2.4-1.2 4.4-3 5.7V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3C6.2 14.4 5 12.4 5 10a7 7 0 0 1 7-7Zm-3 6.2a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6Zm6 0a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6ZM10 21h4v1h-4v-1Z"/></svg></span>
+      <div class="titles">
+        <h2>记忆核心（人设 + 分层记忆）</h2>
+        <div class="meta"><span>版本 <code>0.2.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-memcore</code></div>
+      </div>
+    </div>
+    <p class="desc">人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.call</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-memcore-0.2.0.zip" download>下载 0.2.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-memcore-0.2.0.zip</span>
+    </div>
+  </section>
 
-    <h3>下载</h3>
-    <p><a class="dl" href="dist/com.shixiansi.plugin-chat-1.1.0.zip" download>下载 com.shixiansi.plugin-chat-1.1.0.zip</a></p>
-    <p class="note">下载地址：<code>dist/com.shixiansi.plugin-chat-1.1.0.zip</code>（相对本页）。安装包内容为 <code>manifest.json</code>、<code>panel.html</code>、<code>app.js</code>、<code>style.css</code>，全部位于 zip 根目录。</p>
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-llmchannel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h4v2H7v3h5V6h-2V4h4v2h-2v3h3a2 2 0 0 1 2 2v1h2v-2h2v6h-2v-2h-2v1a2 2 0 0 1-2 2h-3v3h2v2H9v-2h2v-3H7a2 2 0 0 1-2-2v-1H3v2H1v-6h2v2h2v-1a2 2 0 0 1 2-2h3V6H5V4Z"/></svg></span>
+      <div class="titles">
+        <h2>模型渠道（多渠道 / 多密钥 / 预设模型）</h2>
+        <div class="meta"><span>版本 <code>0.2.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-llmchannel</code></div>
+      </div>
+    </div>
+    <p class="desc">一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。</p>
+    <div class="tags">
+      <span class="tag accent">llm.chat</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-llmchannel-0.2.5.zip" download>下载 0.2.5</a>
+      <span class="meta">dist/com.shixiansi.plugin-llmchannel-0.2.5.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-todo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2.2 5.3a1 1 0 0 0-1.4 1.4l1.8 1.8a1 1 0 0 0 1.4 0l3.6-3.6a1 1 0 1 0-1.4-1.4L8.3 9.2 7.2 8.3Zm0 6a1 1 0 0 0-1.4 1.4l1.8 1.8a1 1 0 0 0 1.4 0l3.6-3.6a1 1 0 1 0-1.4-1.4l-2.9 2.7-1.1-.9ZM14 8h5v2h-5V8Zm0 6h5v2h-5v-2Z"/></svg></span>
+      <div class="titles">
+        <h2>待办插件</h2>
+        <div class="meta"><span>版本 <code>1.2.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-todo</code></div>
+      </div>
+    </div>
+    <p class="desc">桌宠的待办与提醒：列表、勾选、到期提醒都在这里。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-todo-1.2.0.zip" download>下载 1.2.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-todo-1.2.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-pomodoro" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.1 0 2.1.2 3 .5V4c-.6-.2-1.3-.3-2-.4V5a8 8 0 1 1-2 0V3.6c-.7.1-1.4.2-2 .4V2.5c.9-.3 1.9-.5 3-.5Zm0 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm1 2v4.6l3 1.7-.8 1.4L11.2 14V9h1.8Z"/></svg></span>
+      <div class="titles">
+        <h2>番茄钟插件</h2>
+        <div class="meta"><span>版本 <code>2.3.11</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pomodoro</code></div>
+      </div>
+    </div>
+    <p class="desc">桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-pomodoro-2.3.11.zip" download>下载 2.3.11</a>
+      <span class="meta">dist/com.shixiansi.plugin-pomodoro-2.3.11.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-voice" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Zm-7 9a7 7 0 0 0 6 6.9V21H8v2h8v-2h-3v-2.1A7 7 0 0 0 19 12h-2a5 5 0 0 1-10 0H5Z"/></svg></span>
+      <div class="titles">
+        <h2>语音插件</h2>
+        <div class="meta"><span>版本 <code>1.0.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-voice</code></div>
+      </div>
+    </div>
+    <p class="desc">让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。</p>
+    <div class="tags">
+      <span class="tag accent">audio</span><span class="tag">events</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">net.fetch</span><span class="tag">plugin.share</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-voice-1.0.2.zip" download>下载 1.0.2</a>
+      <span class="meta">dist/com.shixiansi.plugin-voice-1.0.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-qq" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c4.4 0 8 2.9 8 6.6 0 1.5-.6 2.9-1.6 4 .3.9.9 1.9 1.9 2.6.4.3.2.9-.3 1-.9.1-2-.1-2.9-.6-.6.4-1.3.7-2.1.9l.9 3.2c.1.4-.2.8-.6.8h-2.6c-.3 0-.5-.2-.6-.4l-.7-2.6-.7 2.6c-.1.2-.3.4-.6.4H7.5c-.4 0-.7-.4-.6-.8l.9-3.2c-.8-.2-1.5-.5-2.1-.9-.9.5-2 .7-2.9.6-.5-.1-.7-.7-.3-1 1-.7 1.6-1.7 1.9-2.6A6.1 6.1 0 0 1 4 8.6C4 4.9 7.6 2 12 2Zm-3.2 5.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm6.4 0a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Z"/></svg></span>
+      <div class="titles">
+        <h2>QQ 群聊插件</h2>
+        <div class="meta"><span>版本 <code>1.13.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-qq</code></div>
+      </div>
+    </div>
+    <p class="desc">把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。</p>
+    <div class="tags">
+      <span class="tag accent">net.ws</span><span class="tag">net.fetch</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-qq-1.13.2.zip" download>下载 1.13.2</a>
+      <span class="meta">dist/com.shixiansi.plugin-qq-1.13.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-qqbot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 1.5 3.3c2.9.6 5.2 2.2 6.3 4.7H22a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1.1c-.9 3.1-4.2 5-8.9 5s-8-1.9-8.9-5H2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h2.2c1.1-2.5 3.4-4.1 6.3-4.7A2 2 0 0 1 12 2Zm-4 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm8 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-6.9 5.6c1.9 1.3 3.9 1.3 5.8 0l.9 1.2c-2.4 1.7-5.2 1.7-7.6 0l.9-1.2Z"/></svg></span>
+      <div class="titles">
+        <h2>QQ 官方机器人</h2>
+        <div class="meta"><span>版本 <code>1.0.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-qqbot</code></div>
+      </div>
+    </div>
+    <p class="desc">把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。</p>
+    <div class="tags">
+      <span class="tag accent">net.ws</span><span class="tag">net.fetch</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-qqbot-1.0.2.zip" download>下载 1.0.2</a>
+      <span class="meta">dist/com.shixiansi.plugin-qqbot-1.0.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-onebot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3L18.5 8 12 11.7 5.5 8 12 4.3ZM5 9.6l6 3.4v6.6l-6-3.4V9.6Zm8 10V13l6-3.4v6.6l-6 3.4Z"/></svg></span>
+      <div class="titles">
+        <h2>OneBot 接入端（薄适配器）</h2>
+        <div class="meta"><span>版本 <code>0.1.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-onebot</code></div>
+      </div>
+    </div>
+    <p class="desc">把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。</p>
+    <div class="tags">
+      <span class="tag accent">net.ws</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-onebot-0.1.5.zip" download>下载 0.1.5</a>
+      <span class="meta">dist/com.shixiansi.plugin-onebot-0.1.5.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.8A4.2 4.2 0 0 0 5.8 10h2A2.2 2.2 0 0 1 10 7.8v-2Z"/></svg></span>
+      <div class="titles">
+        <h2>联网搜索</h2>
+        <div class="meta"><span>版本 <code>1.0.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-websearch</code></div>
+      </div>
+    </div>
+    <p class="desc">给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-websearch-1.0.0.zip" download>下载 1.0.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-websearch-1.0.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-bilibili" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 2.3 8.4 5h7.2l2.7-2.7 1.4 1.4L17.6 5H19a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h1.4L4.3 3.7l1.4-1.4ZM5 7a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H5Zm3 3.5 3 2.5-3 2.5v-5Zm8 0v5l-3-2.5 3-2.5Z"/></svg></span>
+      <div class="titles">
+        <h2>B 站刷视频插件</h2>
+        <div class="meta"><span>版本 <code>1.0.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-bilibili</code></div>
+      </div>
+    </div>
+    <p class="desc">按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">net.credentials</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">plugin.share</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-bilibili-1.0.0.zip" download>下载 1.0.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-bilibili-1.0.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-clipask" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 2h6a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1a2 2 0 0 1 2-2Zm0 2a1 1 0 0 0-1 1H7a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1a1 1 0 0 0-1-1H9Zm1 2h4v1h-4V6Zm-.3 5.3a2.8 2.8 0 1 1 4.6 2.2c-.7.6-1.3 1-1.3 1.9h-2c0-1.7 1-2.4 1.6-3 .4-.4.5-.7.5-1.1a1 1 0 1 0-2 0h-1.8ZM11 17h2v2h-2v-2Z"/></svg></span>
+      <div class="titles">
+        <h2>剪贴板助手</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-clipask</code></div>
+      </div>
+    </div>
+    <p class="desc">盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。</p>
+    <div class="tags">
+      <span class="tag accent">process</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-clipask-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-clipask-0.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-sense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.5 0 10 3.8 10 8.5 0 2.9-1.7 5.4-4.3 6.9-.2 1.5-1.2 2.9-2.7 3.5l-.5.2v-2.3c-.8.2-1.6.2-2.5.2-5.5 0-10-3.8-10-8.5S6.5 2 12 2Zm-4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span>
+      <div class="titles">
+        <h2>系统与 DSH 感知</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pet-sense</code><span class="tag accent">新</span></div>
+      </div>
+    </div>
+    <p class="desc">桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。</p>
+    <div class="tags">
+      <span class="tag accent">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.badge</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-pet-sense-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-pet-sense-0.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-2 5v10l8-5-8-5Z"/></svg></span>
+      <div class="titles">
+        <h2>媒体同步（正在播放）</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-media-sync</code><span class="tag accent">新</span></div>
+      </div>
+    </div>
+    <p class="desc">桌宠知道你正在听什么：由本机辅助脚本（Windows SMTC / macOS MediaControl）读出当前播放的歌曲、歌手与播放状态，桌宠问「我在听什么」时，模型经 now_playing 工具拿到答案；识别出的曲目也可以经 itunes_search 补全封面。监听与查询都在常驻帧里跑。</p>
+    <div class="tags">
+      <span class="tag accent">process</span><span class="tag">net.fetch</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.badge</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-media-sync-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-media-sync-0.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-weather" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 6a6 6 0 0 1 11.6 1.6A5 5 0 0 1 18 17.5H7a5.5 5.5 0 0 1-.6-11A6 6 0 0 1 7 6Zm-1 3.5A3.5 3.5 0 0 0 7 15.5h11a3 3 0 1 0-.7-5.9l-1.1.2-.2-1.1A4 4 0 0 0 8.3 7l-.5 1-1.2.2A3.5 3.5 0 0 0 6 9.5ZM5 19h14v2H5v-2Zm2 3h10v1.5H7V22Z"/></svg></span>
+      <div class="titles">
+        <h2>天气与环境感知</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-weather-env</code><span class="tag accent">新</span></div>
+      </div>
+    </div>
+    <p class="desc">桌宠出门前提醒你带伞：接入 Open-Meteo 公开天气 API（可配和风天气），get_weather(city) 工具让模型能回答任意城市的天气；下雨 / 放晴 / 高温时在桌宠头顶挂出徽标并经 plugin.share 推送 weather/condition 状态，提醒自动静音 3 小时。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.badge</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-weather-env-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">dist/com.shixiansi.plugin-weather-env-0.1.0.zip</span>
+    </div>
   </section>
 
   <section class="card">
-    <h2>如何安装</h2>
-    <ol>
+    <h2 style="margin:0 0 var(--space-2); font-size:16px">如何安装</h2>
+    <ol style="margin:0; padding-left: var(--space-5)">
       <li>在桌宠里打开「插件」标签页，把市场地址填成你使用的基址（默认走镜像）；</li>
       <li>在列表里点安装，桌宠会下载 zip、校验 sha256、解压到 <code>%AppData%\PetPC\plugins\&lt;插件id&gt;\</code>；</li>
       <li>安装完成后插件处于停用状态：先看清它申请的权限，再自行启用并逐项授权。</li>
     </ol>
-    <p class="note">离线也可以安装：桌宠内置了同一份插件包作为兜底源。完整的目录结构、打包发版步骤与镜像基址，见仓库根目录的 <a href="README.md">README.md</a>。</p>
+    <p class="meta" style="margin-top: var(--space-3)">离线也可以安装：桌宠内置了同一份插件包作为兜底源。完整的目录结构、打包发版步骤与镜像基址，见仓库根目录的 <a href="README.md">README.md</a>；每个插件声明的含义见 <a href="docs/plugin-dev.md">插件开发手册</a>。</p>
   </section>
 
-  <section class="card">
-    <h2>关于本页</h2>
-    <p class="note">本页是仓库内的静态 HTML，不执行任何脚本、不加载任何外部资源；市场目录的机器可读版本是同目录的 <code>index.json</code>，桌宠拉取的正是它。</p>
-  </section>
+  <p class="foot">本页是仓库内的静态 HTML，不执行任何脚本、不加载任何外部资源；设计令牌见 <code>docs/ui/market.css</code>（主色 #7C3AED、卡片圆角 18px、阴影 var(--sh-xs)、间距 4px 倍数）。本页 DOM 有一条校验测试：<code>tests/ui-market.test.js</code>。</p>
 </main>
 </body>
 </html>

@@ -23,6 +23,9 @@ const CALL_HANDLERS = {
   // 把接入端（例如 QQ 插件）已经攒下的记忆并进来。它不是"迁移工具"的装饰：没有它，用户打开
   // 记忆核心的那一刻，旧记忆会变成没人再读的文件，而看到的是"它把我记得的事忘了"。
   seed: handleSeed,
+  // 定时记忆压缩（0.3.0）：手动触发一次"把到昨天为止还没压的天压掉"。
+  // payload {daysBack?}；工坊页与测试用它，定时器走的同一个入口。
+  compact: handleCompact,
 };
 
 function applyTheme(theme) {
@@ -86,6 +89,9 @@ function onInit(payload) {
       }
       // 常驻帧：不画任何东西。它只需要"在"，并且随时答得上。
       if (els.root) els.root.classList.add('view-background');
+      // 定时记忆压缩（0.3.0）：每分钟看一次钟，本地日期一变就把前一天压成 L3。
+      // 开关关了就不启动；启动时还有一次补跑（宿主半夜重启错过定时的话）。
+      if (flag('compactEnabled', true)) startCompactTimer();
     })
     // 每一条"射后不理"的 promise 都得有接收者：否则一条拒绝会以"未处理的 promise 拒绝"
     // 收场，而它的原因（例如 storage 未授权）在界面上一个字都看不出。
@@ -130,6 +136,9 @@ postToHost({ type: 'ready' });
  */
 window.__memcore = Object.freeze({
   chat: handleChat,
+  compact: handleCompact,
+  compactTick,
+  stopCompactTimer,
   forget: forgetRole,
   renderWorkshop,
   forgetSelected,

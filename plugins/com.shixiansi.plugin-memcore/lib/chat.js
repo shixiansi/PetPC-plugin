@@ -347,6 +347,24 @@ async function handleSeed(payload) {
   };
 }
 
+// --- `compact`：定时记忆压缩的手动入口 ---------------------------------------------
+//
+// 定时器（lib/compact.js 的 startCompactTimer）在凌晨走的是 compactTick()；这里暴露
+// 同一条路的 plugin.call 版本，给工坊页的"现在就压"按钮与测试用。payload {daysBack?}。
+
+async function handleCompact(payload) {
+  const daysBack = Number(payload && payload.daysBack) || 1;
+  const day = text(payload && payload.day, 10).trim();
+  const out = await compactDue(daysBack, day);
+  return {
+    lastDay: out.lastDay,
+    days: out.days,                                   // 明细数组 [{day, roleKey, ok, skipped, reason}]
+    daysTotal: out.days.length,
+    ok: out.days.filter((d) => d.ok).length,
+    skipped: out.days.filter((d) => d.skipped).length,
+  };
+}
+
 // --- `forget`：清掉一个会话 -------------------------------------------------------
 //
 // 不是 plugin.call 的方法（接入端不需要它），只是插件页那个按钮的实现。放在这里是因为它

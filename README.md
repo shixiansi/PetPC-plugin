@@ -34,9 +34,12 @@ market/                                    ← 本仓根目录（独立 git 仓�
 │   └── plugin-testkit/                    自检工具：plugin-check.mjs（一个文件）+ 它的 README
 ├── index.json                             市场目录：桌宠拉取的唯一入口
 ├── index.html                             人看的静态市场页（单文件、无脚本、无外链）
-├── package.json / vitest.config.js        示例插件前端行为的测试（需要宿主仓的 node_modules）
+├── manage.html                            插件管理页（纯 CSS 的启停开关/筛选，与市场页同一套令牌）
+├── package.json / vitest.config.js        插件前端行为的测试（需要宿主仓的 node_modules）
 ├── tools/package.ps1                      打包 + 算 sha256 + 回写 index.json + 复制进宿主内置源
-├── tests/plugin-app.test.js               针对**对话插件** app.js 的桥接协议行为测试
+├── tools/package.py                       上面的 Linux 等价（内容一致，压缩器不同）
+├── tests/                                 每个有行为的插件一个测试文件（vitest + jsdom）
+├── docs/ui/market.css                     市场两页的设计令牌（主色 #7C3AED / 卡片 18px / --sh-xs / 4px 间距）
 ├── plugins/
 │   ├── com.shixiansi.plugin-chat/         一个插件一个目录，目录名 == 插件 id
 │   │   ├── manifest.json                  插件声明
@@ -387,6 +390,33 @@ chat 的流程按设置里的 `webSearch` 三档走：
 1. **搜索是增强，不是依赖**：搜索插件没装、没启用、没配好、超时，核心一律当作"没有搜索"，
    对话按纯记忆继续——用户看到的回答不会因为联网这一层而失败。
 2. **同一句话有缓存**（默认 30 分钟）：群聊里同一句"今天天气"反复被问，不会反复打引擎。
+
+### 0.3.0 起的生态扩展（2026-10-30）：感知三件套 + 定时压缩
+
+三个新插件都走同一条已验证的模式：**本机辅助脚本（process.launch）+ 常驻帧轮询 +
+plugin.share 发布 + plugin.call 当 Tool**。宿主的能力表是穷尽的（手册 §4.1），系统级
+信息（CPU、SMTC、HTTP 监听）只能委托给本机脚本；插件侧只做文件轮询与事件映射。
+
+| 插件 | 感知什么 | 对模型的 Tool | 对桌宠的输出 |
+|---|---|---|---|
+| `com.shixiansi.plugin-pet-sense` 0.1.0 | 系统 CPU/内存（每 5s）+ DSH 的 thinking/tool/done/error（HTTP :3210 `POST /api/state`） | `status`（一次拿全快照） | 「思考中…」「工具:xxx」「系统很忙」徽标 |
+| `com.shixiansi.plugin-media-sync` 0.1.0 | Windows SMTC 的当前曲目（歌名/歌手/专辑/状态） | `now_playing`（"我在听什么"） | `♪ 晴天 - 周杰伦` 徽标 |
+| `com.shixiansi.plugin-weather-env` 0.1.0 | Open-Meteo（默认，免 Key）/ 和风天气的当前天气 | `get_weather(city)` | `☂ 出门带伞` 等徽标（同事件 3h 节流） |
+
+```
+                                        ┌────────────────────────────────────────────┐
+ DSH ──POST :3210 /api/state──▶ pet-sense │  辅助脚本(采样/监听) → outbox → 常驻帧轮询  │
+ Windows SMTC ────────────────▶ media-sync│  ──▶ share.set + pet.badge + plugin.call   │
+ Open-Meteo/和风 ──net.fetch──▶ weather-env│                                            │
+                                        └────────────────────────────────────────────┘
+                                                      │ shareRead / plugin.call
+ 接入端/模型 ◀────────────────── 任何插件都能读快照、点名 Tool ──────────────────────┘
+```
+
+记忆核心 **0.3.0** 同步升级：**定时记忆压缩**——每天凌晨把前一天的 L1/L2 压成一段
+≤200 字的 L3 长期摘要（`mem/role/<会话>/l3`，按天存档，同一天重压替换不堆叠），
+prompt 永远带着"上一段长期摘要"接住故事线；定时 / 启动补跑 / `plugin.call compact`
+三道触发都幂等。详见 [`plugins/com.shixiansi.plugin-memcore/README.md`](plugins/com.shixiansi.plugin-memcore/README.md)。
 
 ---
 

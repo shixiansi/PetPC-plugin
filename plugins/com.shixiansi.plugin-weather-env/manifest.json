@@ -1,0 +1,53 @@
+{
+  "id": "com.shixiansi.plugin-weather-env",
+  "name": "天气与环境感知",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "桌宠出门前提醒你带伞：默认接入 Open-Meteo 公开天气 API（免密钥），也可配置和风天气。get_weather(city) 工具让模型能回答任意城市的天气；下雨、雷雨、下雪、晴天高温时在桌宠头顶挂出提醒徽标，并经 plugin.share 推送 weather/now 与 weather/condition 状态事件（同一事件 3 小时只提醒一次，不刷屏）。",
+  "permissions": [
+    "net.fetch",
+    "plugin.share",
+    "plugin.call",
+    "pet.surface",
+    "storage",
+    "plugin.config"
+  ],
+  "serves": ["get_weather"],
+  "background": true,
+  "assets": [
+    "lib/weather.js"
+  ],
+  "netHosts": [
+    "api.open-meteo.com",
+    "geocoding-api.open-meteo.com",
+    "geoapi.qweather.com",
+    "devapi.qweather.com"
+  ],
+  "config": [
+    {
+      "key": "defaultCity",
+      "label": "默认城市（自动推送与 get_weather 不带城市名时用它）",
+      "type": "text",
+      "default": "北京"
+    },
+    {
+      "key": "pushIntervalMin",
+      "label": "自动检查间隔（分钟，15–360）",
+      "type": "number",
+      "default": "60"
+    },
+    {
+      "key": "qweatherKey",
+      "label": "和风天气 Key（可选；填了就用和风，留空用 Open-Meteo）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "qweatherHost",
+      "label": "和风 API 域名（免费订阅填 devapi.qweather.com；商业版 api.qweather.com）",
+      "type": "text",
+      "default": "devapi.qweather.com"
+    }
+  ],
+  "entry": "panel.html"
+}

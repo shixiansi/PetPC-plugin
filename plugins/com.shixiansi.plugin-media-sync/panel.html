@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>媒体同步（正在播放）</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body id="root">
+  <header class="bar"><span class="title">媒体同步</span><span id="note" class="status">等待宿主初始化…</span></header>
+  <main class="body" id="workshop">
+    <section class="card" id="track-card">
+      <h2>正在播放</h2>
+      <p><span class="tag accent" id="track-state">未知</span></p>
+      <p id="track-line" class="muted">现在没在放</p>
+      <p class="hint">数据来自 Windows 的系统媒体控制（SMTC）：网易云、QQ 音乐、Spotify、浏览器播放器都会注册到这里。</p>
+    </section>
+    <section class="card" id="recent-card">
+      <h2>最近听过</h2>
+      <ul id="recent-list" class="plain"></ul>
+      <p class="hint">最多 10 条，存在插件的私有目录里。</p>
+    </section>
+    <section class="card" id="helper-card">
+      <h2>模型怎么用</h2>
+      <p class="hint">别的插件在 <code>callTargets</code> 里加 <code>com.shixiansi.plugin-media-sync/now_playing</code>，把「我在听什么」转发过来；返回 <code>{playing, title, artist, text}</code>。</p>
+    </section>
+    <section class="card">
+      <h2>辅助脚本</h2>
+      <p><span class="tag" id="helper-state">未启动</span></p>
+      <p class="hint">SMTC 监听由本机 PowerShell 脚本完成（需要 process 权限）。设置里填 <code>helperPath</code> 与 <code>helperScript</code> 后重启桌宠。</p>
+    </section>
+  </main>
+  <script src="lib/nowplaying.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

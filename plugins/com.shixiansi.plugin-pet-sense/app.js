@@ -1,0 +1,329 @@
+// app.js —— 系统与 DSH 感知：入口、轮询、发布
+//
+// 一个文档，三种身份：
+//
+//   background  常驻帧：唯一的工人。轮询 outbox、发布 share、挂徽标、答 plugin.call
+//   workshop    控制中心插件页：只读的当前状态（系统 / DSH / 辅助脚本健康）
+//   (无 surface) 这个插件不占浮层面——它的输出是徽标与共享键，不是一块屏幕
+//
+// 为什么流水线只住在 background：采样与 DSH 推送都要发生在"没人看着"的时候
+// （手册 §7 的送达条件）。工坊页只读牌盘，5 秒刷一次（与 websearch/memcore 同一型）。
+//
+// 数据流（每个键只有一个写者，手册 §6.3）：
+//
+//   辅助脚本 ──写──> outbox/*.json ──本文件轮询──> share.set（自己名下的键）
+//   DSH ──POST :3210──> 辅助脚本 ──┘
+//   别的插件 ──shareRead: sense/*──> 只读快照
+//   工坊页 ──plugin.call status──> 本文件回答当前一切
+//
+// 启动辅助脚本走 process.launch（clipask 的同一条路）：把脚本写进 storage.dir 给的
+// 目录，启动用户配置的 powershell.exe 去跑它；参数里带上 outbox 的绝对路径。
+
+'use strict';
+
+// sampler 的判定函数并进同一作用域（panel.html 会在 app.js 之前加载 lib/sampler.js，
+// 这里引用的是那边的全局；测试用 new Function 把两份拼起来跑）。
+
+const V = 1;
+const HOST = window.parent;
+let nextId = 1;
+const pending = new Map();
+
+const PERM = {
+  process: 'process',
+  share: 'plugin.share',
+  call: 'plugin.call',
+  storage: 'storage',
+  config: 'plugin.config',
+  surface: 'pet.surface',
+};
+
+/** 与宿主说话的唯一通道。 */
+function request(method, payload) {
+  const id = 'r' + nextId++;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    HOST.postMessage({ v: V, type: 'request', id, method, payload: payload ?? {} }, '*');
+  });
+}
+
+let granted = new Set();
+let self = { pluginId: '', slot: '' };
+let cfg = {};
+let started = false;
+
+window.addEventListener('message', (event) => {
+  if (event.source !== HOST) return;
+  const data = event.data;
+  if (!data || data.v !== V) return;
+  switch (data.type) {
+    case 'init':
+      void onInit(data);
+      break;
+    case 'response': {
+      const slot = pending.get(data.id);
+      if (!slot) return;
+      pending.delete(data.id);
+      if (data.ok) slot.resolve(data.result);
+      else slot.reject(new Error(data.error || '宿主拒绝了这次调用'));
+      break;
+    }
+    case 'theme':
+      document.documentElement.dataset.theme = data.theme === 'light' ? 'light' : 'dark';
+      break;
+    case 'call':
+      void onCall(data);
+      break;
+    default:
+      break;
+  }
+});
+
+// --- 小工具 -------------------------------------------------------------------
+
+function el(id) {
+  return document.getElementById(id);
+}
+
+function clamp(text, n) {
+  const s = String(text ?? '');
+  return s.length <= n ? s : s.slice(0, Math.max(0, n - 1)) + '…';
+}
+
+function now() {
+  return Date.now();
+}
+
+// --- 配置 ---------------------------------------------------------------------
+
+async function refreshConfig() {
+  try {
+    const out = await request('config.get', {});
+    cfg = Object.assign({}, (out && out.values) || {});
+  } catch {
+    // 沿用旧值。
+  }
+}
+
+function intervalSec() {
+  const n = Number.parseInt(String(cfg.sampleInterval ?? '5'), 10);
+  return Number.isFinite(n) ? Math.min(60, Math.max(2, n)) : 5;
+}
+
+function cpuThreshold() {
+  const n = Number.parseFloat(String(cfg.cpuThreshold ?? '80'));
+  return Number.isFinite(n) ? Math.min(99, Math.max(10, n)) : 80;
+}
+
+/** 负载要连续几次才报（默认 3 次 × 5 秒 = 15 秒的持续高压，一次尖峰不惊扰）。 */
+function highStreak() {
+  const n = Number.parseInt(String(cfg.highStreak ?? '3'), 10);
+  return Number.isFinite(n) ? Math.min(12, Math.max(1, n)) : 3;
+}
+
+// --- 启动辅助脚本 ---------------------------------------------------------------
+
+/** process.launch 一个 powershell 去跑辅助脚本。 */
+async function launchHelper(helperExe, scriptPath, outDir) {
+  const args = [
+    '-NoProfile',
+    '-ExecutionPolicy', 'Bypass',
+    '-File', scriptPath,
+    '-OutDir', outDir,
+    '-IntervalSec', String(intervalSec()),
+    '-CpuThreshold', String(cpuThreshold()),
+    '-HighStreak', String(highStreak()),
+  ];
+  const out = await request('process.launch', { path: helperExe, args });
+  return out;
+}
+
+// --- 轮询：outbox → share / badge ----------------------------------------------
+
+let lastDshAt = 0;
+let lastLoad = null;
+
+async function pollOnce() {
+  const [sysRaw, loadRaw, dshRaw] = await Promise.all([
+    request('storage.get', { key: 'outbox/system.json' }).catch(() => ({ value: '' })),
+    request('storage.get', { key: 'outbox/load.json' }).catch(() => ({ value: '' })),
+    request('storage.get', { key: 'outbox/dsh.json' }).catch(() => ({ value: '' })),
+  ]);
+
+  const system = parseSnapshot(sysRaw && sysRaw.value, now());
+  const load = parseSnapshot(loadRaw && loadRaw.value, now());
+  const dsh = parseSnapshot(dshRaw && dshRaw.value, now(), 24 * 3600 * 1000);
+
+  const actions = planActions({
+    system: system && { cpu: system.cpu, memUsedGb: system.memUsedGb, memTotalGb: system.memTotalGb, memPct: system.memPct, at: system.at },
+    load: load && { high: load.high, consecutive: load.consecutive, cpu: load.cpu, memPct: load.memPct, at: load.at },
+    dsh: dsh && { state: dsh.state, tool: dsh.tool, note: dsh.note, at: dsh.at },
+    prevDshAt: lastDshAt,
+    prevLoad: lastLoad,
+  });
+
+  for (const action of actions) {
+    if (action.share && granted.has(PERM.share)) {
+      await request('share.set', { name: action.share, value: JSON.stringify(action.value) }).catch(() => {});
+    }
+    if (action.share === FILE_LOAD) {
+      lastLoad = action.value;
+    }
+    if (action.share === FILE_DSH) {
+      lastDshAt = action.value.at || lastDshAt;
+    }
+    if (action.badge !== undefined && granted.has(PERM.surface)) {
+      await request('pet.badge', { text: action.badge }).catch(() => {});
+    }
+  }
+  return { system, load, dsh };
+}
+
+/** 轮询代数：stopPoll 之后旧的 tick 链全部失效（不靠 clearTimeout 猜时序）。 */
+let pollGen = 0;
+
+function startPollLoop() {
+  const gen = ++pollGen;
+  const tick = async () => {
+    if (gen !== pollGen) return;
+    try {
+      const snap = await pollOnce();
+      renderWorkshop(snap);
+    } catch {
+      // 一轮失败不算什么：下一轮再来。
+    }
+    if (gen === pollGen) setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+function stopPoll() {
+  pollGen += 1;
+}
+
+// --- plugin.call：别的插件问"现在怎么样" -----------------------------------------
+
+const CALL_HANDLERS = {
+  /** status: 一次拿全当前快照（别的插件不想自己解析三份 share）。 */
+  status: async () => {
+    const snap = await pollOnce();
+    return {
+      system: snap.system || null,
+      load: snap.load || null,
+      dsh: snap.dsh || null,
+      helper: { started, note: currentNote },
+    };
+  },
+};
+
+async function onCall(data) {
+  const ticket = typeof data.ticket === 'string' ? data.ticket : '';
+  if (!ticket) return;
+  const method = typeof data.method === 'string' ? data.method : '';
+  const handler = CALL_HANDLERS[method];
+  if (!handler) {
+    postCallResult(ticket, false, new Error(
+      `系统感知不认识方法 ${method || '(空)'}：它只回答 ${Object.keys(CALL_HANDLERS).join(' / ')}`));
+    return;
+  }
+  try {
+    postCallResult(ticket, true, await handler(data.payload === undefined ? {} : data.payload));
+  } catch (err) {
+    postCallResult(ticket, false, err);
+  }
+}
+
+function postCallResult(ticket, ok, value) {
+  const message = { v: V, type: 'call-result', ticket, ok: Boolean(ok) };
+  if (ok) message.result = value === undefined ? null : value;
+  else message.error = String(value && value.message ? value.message : value);
+  HOST.postMessage(message, '*');
+}
+
+// --- 工坊页（只读） ---------------------------------------------------------------
+
+let currentNote = '';
+
+function setNote(text) {
+  currentNote = text || '';
+  if (els.note) els.note.textContent = currentNote;
+}
+
+const els = {};
+
+function collectEls() {
+  for (const id of ['note', 'system-card', 'cpu', 'mem', 'dsh-card', 'dsh-state', 'dsh-tool', 'dsh-note', 'helper-card', 'helper-state']) {
+    els[id] = document.getElementById(id);
+  }
+}
+
+function renderWorkshop(snap) {
+  if (self.slot !== 'workshop') return;
+  if (snap && snap.system) {
+    if (els.cpu) els.cpu.textContent = `CPU ${snap.system.cpu >= 0 ? snap.system.cpu.toFixed(0) : '—'}% · 内存 ${snap.system.memUsedGb}/${snap.system.memTotalGb} GB（${snap.system.memPct}%）`;
+  }
+  if (snap && snap.dsh) {
+    if (els['dsh-state']) els['dsh-state'].textContent = { thinking: '思考中', tool: '在用工具', done: '完成', error: '出错' }[snap.dsh.state] || snap.dsh.state;
+    if (els['dsh-tool']) els['dsh-tool'].textContent = snap.dsh.tool ? `工具：${snap.dsh.tool}` : '';
+    if (els['dsh-note']) els['dsh-note'].textContent = snap.dsh.note || '';
+  }
+  if (els['helper-state']) els['helper-state'].textContent = started ? '运行中' : '未启动';
+}
+
+// --- init ----------------------------------------------------------------------
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+}
+
+async function onInit(data) {
+  self = {
+    pluginId: data.pluginId || '',
+    slot: (data.surface && data.surface.slot) || '',
+  };
+  granted.clear();
+  for (const name of data.granted || []) granted.add(name);
+  applyTheme(data.theme);
+  collectEls();
+
+  await refreshConfig().catch(() => {});
+
+  if (self.slot === 'workshop') {
+    // 控制中心不服务 process/pet.badge：这一页只显示共享键里的最近快照。
+    startPollLoop();
+    return;
+  }
+
+  // 常驻帧：启动辅助脚本，然后开始轮询。
+  if (granted.has(PERM.process)) {
+    const helperExe = String(cfg.helperPath || '').trim();
+    const scriptPath = String(cfg.helperScript || '').trim();
+    if (helperExe && scriptPath) {
+      const dirOut = await request('storage.dir', {}).catch(() => null);
+      const outDir = dirOut && dirOut.dir ? dirOut.dir : '';
+      if (outDir) {
+        try {
+          await launchHelper(helperExe, scriptPath, outDir);
+          setNote('辅助脚本已启动（采样 5s · HTTP 3210）');
+        } catch (err) {
+          setNote('启动失败：' + clamp(err && err.message, 120));
+        }
+      }
+    } else {
+      setNote('先在设置里填 helperPath 与 helperScript，再重启桌宠');
+    }
+  } else {
+    setNote('未获授权：process（只能读已有的 outbox）');
+  }
+  startPollLoop();
+}
+
+HOST.postMessage({ v: V, type: 'ready' }, '*');
+
+/** 测试接缝：判定逻辑是纯函数（lib/sampler.js），这里的接缝只暴露轮询的一次。 */
+window.__sense = Object.freeze({
+  pollOnce,
+  stopPoll,
+  handlers: CALL_HANDLERS,
+  snapshot: () => ({ slot: self.slot, granted: [...granted], started, lastDshAt, lastLoad, note: currentNote }),
+});

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>天气与环境感知</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body id="root">
+  <header class="bar"><span class="title">天气与环境感知</span><span id="note" class="status">等待宿主初始化…</span></header>
+  <main class="body" id="workshop">
+    <section class="card" id="now-card">
+      <h2>当前天气（<span id="now-cond">—</span>）</h2>
+      <p id="now-line" class="muted">还没查过</p>
+      <p class="hint">下雨、雷雨、下雪、晴天高温时，桌宠头顶会挂提醒徽标；同一事件 3 小时只提醒一次。</p>
+    </section>
+    <section class="card">
+      <h2>查一座城市</h2>
+      <div class="row">
+        <input id="lookup" class="input" type="text" placeholder="城市名，如 上海 / Tokyo" />
+        <button id="lookup-go" class="btn primary" type="button" disabled>查询</button>
+      </div>
+      <p id="lookup-out" class="muted"></p>
+      <p class="hint">模型也能查：把问题交给接入了大模型的插件，它在 <code>callTargets</code> 里点名 <code>com.shixiansi.plugin-weather-env/get_weather</code>。</p>
+    </section>
+    <section class="card" id="helper-card">
+      <h2>数据源</h2>
+      <p class="hint">默认 Open-Meteo（免密钥，<code>api.open-meteo.com</code>）。配置里填了和风天气 Key 就改走和风（<code>geoapi.qweather.com</code> + 你填的 API 域名）。域名白名单见 manifest 的 <code>netHosts</code>。</p>
+    </section>
+  </main>
+  <script src="lib/weather.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

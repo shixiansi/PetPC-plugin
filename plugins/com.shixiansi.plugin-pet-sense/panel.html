@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>系统与 DSH 感知</title>
+  <script>
+    // 主题要在样式之前应用：两个宿主都会把 ?theme=light|dark 放在帧地址上。
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body id="root">
+  <header class="bar"><span class="title">系统与 DSH 感知</span><span id="note" class="status">等待宿主初始化…</span></header>
+  <main class="body" id="workshop">
+    <section class="card" id="system-card">
+      <h2>系统负载</h2>
+      <p id="cpu" class="mono muted">采样未开始</p>
+      <p class="hint">每 5 秒采样一次（可在设置里改）。负载持续超过阈值时，宠物头顶会显示「系统很忙」，并把快照发布到 <code>sense/system</code> 与 <code>sense/load</code>。</p>
+    </section>
+    <section class="card" id="dsh-card">
+      <h2>DSH 状态</h2>
+      <p><span class="tag accent" id="dsh-state">未知</span> <span class="muted" id="dsh-tool"></span></p>
+      <p id="dsh-note" class="muted"></p>
+      <p class="hint">DSH 向 <code>http://127.0.0.1:3210/api/state</code> POST <code>{"state":"thinking"|"tool"|"done"|"error"}</code>，这里显示最近一次。</p>
+    </section>
+    <section class="card" id="helper-card">
+      <h2>辅助脚本</h2>
+      <p><span class="tag" id="helper-state">未启动</span></p>
+      <p class="hint">采样与 HTTP 监听由本机 PowerShell 脚本完成（需要 process 权限）。启动方法：设置里填 <code>helperPath</code>（powershell.exe 绝对路径）与 <code>helperScript</code>（包内 pet-sense-helper.ps1 的安装路径），然后重启桌宠。</p>
+    </section>
+  </main>
+  <script src="lib/sampler.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
