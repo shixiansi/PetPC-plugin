@@ -1,0 +1,154 @@
+/*
+ * 记忆核心：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写"记忆浏览"的布局：事实列表、会话表、详情区的几段。
+ *
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-1) var(--space-4);
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.fact-label {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.fact-value {
+  text-align: right;
+}
+
+.persona {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: var(--font);
+  color: var(--text);
+}
+
+table.roles {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.roles th,
+table.roles td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+table.roles th {
+  color: var(--text-dim);
+  font-weight: 550;
+  font-size: 12px;
+}
+
+table.roles tbody tr {
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease);
+}
+
+table.roles tbody tr:hover,
+table.roles tbody tr.selected {
+  background: var(--bg-hover);
+}
+
+.role-name {
+  font: var(--font-mono);
+}
+
+#detail-summary,
+#detail-profile {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text-dim);
+}
+
+#detail-episodes,
+#detail-chain {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+#detail-episodes li,
+#detail-chain li {
+  margin: var(--space-1) 0;
+}
+
+.status {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* 统计格子：标签在上、数值在下。
+ *
+ * 原来是"标签左、数值右"的一行——在 900px 的框里三列各约 270px，长标签（「全局事件链」
+ * 「跳过（没 @ 它、没前缀、冷却中）」）会被拆成两行、数值被挤到看不见。上下排之后，窄了也只是
+ * 换行，不会互相压。 */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.fact {
+  display: block;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.fact-label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.fact-value {
+  display: block;
+  margin-top: 2px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.45;
+  word-break: break-word;
+}

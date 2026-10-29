@@ -1,0 +1,128 @@
+/*
+ * OneBot 接入端：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写"连接状态 + 群列表 + 事件日志"的布局。
+ *
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+
+.lede {
+  color: var(--text-dim);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-1) var(--space-4);
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.fact-label {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.fact-value {
+  text-align: right;
+}
+
+.mono {
+  font: var(--font-mono);
+  background: none;
+  padding: 0;
+}
+
+table.groups {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.groups th,
+table.groups td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+table.groups th {
+  color: var(--text-dim);
+  font-weight: 550;
+  font-size: 12px;
+}
+
+.log {
+  margin: 0;
+  padding-left: var(--space-5);
+  max-height: 260px;
+  overflow-y: auto;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.log li {
+  margin: var(--space-1) 0;
+}
+
+.status {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* 统计格子：标签在上、数值在下。
+ *
+ * 原来是"标签左、数值右"的一行——在 900px 的框里三列各约 270px，长标签（「全局事件链」
+ * 「跳过（没 @ 它、没前缀、冷却中）」）会被拆成两行、数值被挤到看不见。上下排之后，窄了也只是
+ * 换行，不会互相压。 */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.fact {
+  display: block;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.fact-label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.fact-value {
+  display: block;
+  margin-top: 2px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.45;
+  word-break: break-word;
+}

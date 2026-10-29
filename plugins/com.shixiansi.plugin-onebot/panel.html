@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OneBot 接入端</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme= 放在帧地址上正是为了这个）。
+    已经开着的时候再切配色，由 app.js 收 `theme` 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔，由 init 的 surface.slot 决定：
+
+      常驻帧（slot: "background"）  桌宠挂的那份：不画任何东西，拥有那条 WebSocket 连接。
+      插件页（slot: "workshop"）    控制中心挂的那份：只读的状态与日志，不碰连接。
+
+    这个插件是"薄"的：人设、记忆、模型都在记忆核心里，它只负责收、判断、问、发。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">OneBot 接入端</span>
+          <span class="chip" id="chip-ws">连接：读取中…</span>
+          <span class="chip" id="chip-self">机器人：未知</span>
+        </div>
+        <p class="lede">
+          它只做两件事：把 OneBot 的一帧翻译成"谁在哪个会话里说了什么"，以及把回答发回去。
+          人设与记忆在记忆核心里（<code>plugin.call</code> → <code>com.shixiansi.plugin-memcore</code> 的
+          <code>chat</code>），所以换一个接入端不用搬记忆。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>现在什么情况</h2>
+        <div id="facts" class="facts"></div>
+        <p class="hint">
+          连接由<strong>桌宠的常驻帧</strong>持有（宿主负责重连与心跳），所以这一页不提供"连接/断开"按钮：
+          一个在这里点了没反应的开关比没有更糟。要改地址或令牌，去「设置」；改完下一轮连接生效。
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>见过的群</h2>
+        <table class="groups">
+          <thead>
+            <tr><th>群号</th><th>消息数</th><th>最后活跃</th></tr>
+          </thead>
+          <tbody id="groups-body"></tbody>
+        </table>
+        <p id="groups-empty" class="muted hidden">还没有收到任何群消息。</p>
+      </section>
+
+      <section class="card">
+        <h2>最近发生了什么</h2>
+        <ul id="log" class="log"></ul>
+        <p id="log-empty" class="muted hidden">还没有记录。</p>
+        <p class="hint">这里只放事件（连上没有、答了几个、为什么没答），不放消息正文。</p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域；顺序 = 依赖顺序，最后是入口。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/protocol.js"></script>
+  <script src="lib/send.js"></script>
+  <script src="lib/chat.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>记忆核心（人设 + 分层记忆）</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次。
+    宿主把 `?theme=light|dark` 放在帧地址上正是为了这件事：等 init 再上色会先闪一帧错的。
+    已经开着的时候用户再切，由 app.js 收 `theme` 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔。哪一副由 init 的 surface.slot 决定，不猜。
+
+      常驻帧（slot: "background"）  桌宠挂的那份：什么都不画，只负责答 plugin.call。
+      插件页（slot: "workshop"）    控制中心挂的那份：只读的人设与记忆浏览 + 清空一个会话。
+
+    两段都写在标记里，所以切换 appearance 不需要在运行时搭 DOM；任何时刻只有一段是显示的。
+    常驻帧那一份看不见，但它**不是空的**——它的行为住在脚本里。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">记忆核心</span>
+          <span class="chip" id="chip-model">模型：读取中…</span>
+        </div>
+        <p class="lede">
+          人设与记忆只在这一个插件里存一份。接入端（QQ、OneBot……）把每句话用
+          <code>plugin.call</code> 交给这里，这里拼上下文、问模型、把这一轮记下来，再把回答交回去。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>现在记着什么</h2>
+        <div id="facts" class="facts"></div>
+        <h3>正在生效的人设（L0，每一轮整段注入）</h3>
+        <pre id="persona-preview" class="persona"></pre>
+        <p class="hint">人设与各层上限在「设置」里改——这份页面只读，因为 config 的编辑器由宿主按声明画。</p>
+      </section>
+
+      <section class="card">
+        <h2>按会话</h2>
+        <table class="roles">
+          <thead>
+            <tr>
+              <th>会话</th>
+              <th>缓冲往来</th>
+              <th>长期记忆</th>
+              <th>摘要</th>
+            </tr>
+          </thead>
+          <tbody id="roles-body"></tbody>
+        </table>
+        <p id="roles-empty" class="muted hidden">还没有任何会话。接入端第一次提问之后，这里会出现它用的会话键。</p>
+      </section>
+
+      <section class="card" id="detail" hidden>
+        <h2 id="detail-title">会话</h2>
+        <h3>摘要（L2）</h3>
+        <p id="detail-summary" class="muted"></p>
+        <h3>长期记忆（L3）</h3>
+        <ul id="detail-episodes"></ul>
+        <h3>用户画像（L4）</h3>
+        <p id="detail-profile" class="muted"></p>
+        <h3>最近事件（角色工作链）</h3>
+        <ol id="detail-chain"></ol>
+        <button id="forget" class="danger" type="button">清掉这个会话的记忆</button>
+        <p class="hint">清掉的是这个会话的四份记忆。全局事件链（发生过什么的账本）不动，它也不会进入任何回答。</p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），所以这里不需要 import/export——
+    也就不会和"把脚本 eval 进 jsdom"的测试方式打架。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/memory.js"></script>
+  <script src="lib/prompt.js"></script>
+  <script src="lib/chat.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

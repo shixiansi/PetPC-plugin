@@ -1,0 +1,87 @@
+{
+  "id": "com.shixiansi.plugin-memcore",
+  "name": "记忆核心（人设 + 分层记忆）",
+  "version": "0.1.7",
+  "author": "shixiansi",
+  "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。换一个接入端不用搬记忆，改一次人设所有接入端同时生效。",
+  "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
+  "serves": ["chat", "seed"],
+  "background": true,
+  "config": [
+    {
+      "key": "personaName",
+      "label": "角色名（回答里用它自称；也是记忆按角色分开的键之一）",
+      "type": "text",
+      "default": "小记"
+    },
+    {
+      "key": "persona",
+      "label": "人设（L0，每一轮都整段注入；留空=默认那个话不多但记得住事的搭子）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "replyMaxChars",
+      "label": "回复字数上限（群里三句话比一段话好读；也压低一次调用占用这 30 秒的风险）",
+      "type": "number",
+      "default": "240"
+    },
+    {
+      "key": "bufferTurns",
+      "label": "每个会话最近记住几轮往来（L1 滚动缓冲；超过就压成摘要）",
+      "type": "number",
+      "default": "8"
+    },
+    {
+      "key": "summaryChars",
+      "label": "会话摘要最多多少字（L2）",
+      "type": "number",
+      "default": "500"
+    },
+    {
+      "key": "episodeMax",
+      "label": "每个会话最多留几条长期记忆（L3，满了丢最旧的）",
+      "type": "number",
+      "default": "40"
+    },
+    {
+      "key": "profileEvery",
+      "label": "每攒够几次摘要，就把它们合成一份用户画像（L4；0=不做画像）",
+      "type": "number",
+      "default": "3"
+    },
+    {
+      "key": "llmBaseUrl",
+      "label": "接口地址（留空=借用对话插件的配置）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmModel",
+      "label": "模型（留空=借用对话插件的配置）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmApiKey",
+      "label": "API Key（留空=借用对话插件的配置；密钥只在宿主里，本插件读不到明文）",
+      "type": "secret",
+      "secret": true
+    },
+    {
+      "key": "llmDailyBudget",
+      "label": "每日请求上限（次，0=不限；摘要与画像也会花掉几次）",
+      "type": "number",
+      "default": "200"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/memory.js",
+    "lib/prompt.js",
+    "lib/chat.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

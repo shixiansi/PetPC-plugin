@@ -1,0 +1,89 @@
+{
+  "id": "com.shixiansi.plugin-onebot",
+  "name": "OneBot 接入端（薄适配器）",
+  "version": "0.1.5",
+  "author": "shixiansi",
+  "description": "把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。",
+  "permissions": ["net.ws", "plugin.call", "storage", "plugin.config"],
+  "callTargets": ["com.shixiansi.plugin-memcore/chat"],
+  "background": true,
+  "netHosts": ["127.0.0.1:3001"],
+  "config": [
+    {
+      "key": "wsUrl",
+      "label": "OneBot WebSocket 地址（正向 WS，例如 ws://127.0.0.1:3001）",
+      "type": "text",
+      "default": "ws://127.0.0.1:3001",
+      "hostWhitelist": true
+    },
+    {
+      "key": "accessToken",
+      "label": "访问令牌（协议端配了 token 才填；它会作为握手请求头发出去，所以不是 secret 项）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "selfId",
+      "label": "机器人自己的 QQ 号（留空=连上之后问协议端 get_login_info）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "atOnly",
+      "label": "群里只在 @ 机器人时回答",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "prefix",
+      "label": "前缀触发（留空=关闭；例如 #问，则「#问 今天天气」会被当成在问它）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "privateReply",
+      "label": "私聊一律回答",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "groupAllow",
+      "label": "只在这些群生效（群号，逗号分隔；留空=所有群）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "quoteReply",
+      "label": "回答时引用提问的那条消息",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "atSender",
+      "label": "回答时 @ 提问的人",
+      "type": "bool",
+      "default": "false"
+    },
+    {
+      "key": "cooldownSec",
+      "label": "同一个会话的最小回答间隔（秒）",
+      "type": "number",
+      "default": "3"
+    },
+    {
+      "key": "errorToChat",
+      "label": "记忆核心答不上来时，把原因发到会话里（默认只在插件页显示）",
+      "type": "bool",
+      "default": "false"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/protocol.js",
+    "lib/send.js",
+    "lib/chat.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

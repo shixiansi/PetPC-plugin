@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>模型渠道</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来，所以随包带一份。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    渠道编辑器。这个页面**就是**这个插件的设置界面——它不用 manifest 的 config 表单，
+    因为那里一个插件只能填一个地址、一个模型、一个密钥，而这个插件要管的是
+    「多个渠道 × 每个渠道多个模型 × 每个渠道多个密钥」。
+
+    数据落在两处，都由宿主保存：
+      · 渠道表（地址、模型名、key 的 id 与标签）→ llm.channels.set 写进插件私有目录；
+      · 每个 key 的明文 → 宿主用 DPAPI 加密，单独一个文件，**任何读接口都不返回它**。
+    这一页能看到的永远只是 mask（…abcd）。
+  -->
+  <main class="page">
+    <header class="head">
+      <div>
+        <h1>模型渠道</h1>
+        <p class="lede">
+          一个插件管住所有模型连接。<strong>它自己从不对话</strong>：别的插件申请 <code>llm.borrow</code>
+          就会借这里的一套，也可以用 <code>llm.chat</code> 的 <code>provider</code> + <code>channel</code> 点名。
+        </p>
+      </div>
+      <div class="head-actions">
+        <button type="button" id="add" class="btn secondary">+ 添加渠道</button>
+        <button type="button" id="save" class="btn primary">保存</button>
+      </div>
+    </header>
+
+    <p class="hint" id="status">正在读取…</p>
+    <p class="hint error" id="error" hidden></p>
+
+    <section class="card default-card">
+      <div class="row">
+        <span class="k">默认渠道</span>
+        <div id="default-channel" class="grow"></div>
+      </div>
+      <p class="hint">
+        不点名的调用（绝大多数）走这一个。多个渠道时按 id 排序挑"第一个就绪的"是宿主的老规则——
+        在这里选一个，就不用依赖那个规则。
+      </p>
+    </section>
+
+    <div id="channels" class="channels"></div>
+
+    <section class="card">
+      <h2>它是怎么被用掉的</h2>
+      <ol class="steps">
+        <li>消费方（对话、QQ、记忆核心……）申请了 <code>llm.borrow</code> 时，自己没配置就借这里。</li>
+        <li>一个渠道的密钥可以有多个：宿主用**第一个已保存的**；某个 key 欠费了，删掉或换成下一个即可。</li>
+        <li>每天请求上限按<strong>调用方</strong>算，不在这里——渠道不分流别人的额度。</li>
+        <li>渠道地址也要过 <code>net.fetch</code> 的白名单：保存时这一页会把新地址自动加进
+          「额外允许的地址」，这样你不必手抄域名。</li>
+      </ol>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
