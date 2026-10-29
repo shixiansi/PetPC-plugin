@@ -1,0 +1,82 @@
+{
+  "id": "com.shixiansi.plugin-clipask",
+  "name": "剪贴板助手",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
+  "permissions": [
+    "process",
+    "llm.chat",
+    "llm.borrow",
+    "storage",
+    "plugin.config",
+    "plugin.share",
+    "events",
+    "pet.surface",
+    "pet.bubble"
+  ],
+  "surface": [
+    {
+      "dx": -79,
+      "dy": -148,
+      "w": 308,
+      "h": 44,
+      "maxH": 180,
+      "radius": 16
+    },
+    {
+      "dx": -79,
+      "dy": -60,
+      "w": 308,
+      "h": 60,
+      "maxH": 156,
+      "radius": 16
+    }
+  ],
+  "background": true,
+  "config": [
+    {
+      "key": "helperPath",
+      "label": "辅助脚本启动器（powershell.exe 的绝对路径；留空=不启动监听）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "provider",
+      "label": "模型渠道（留空=自动：先用渠道插件，再借对话插件的配置）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "channel",
+      "label": "渠道名（配合上一项的渠道表行 id，留空=渠道默认模型）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "codeExplain",
+      "label": "解释代码时用中文",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "askCooldownSec",
+      "label": "同样的内容最少间隔几秒再问一次",
+      "type": "number",
+      "default": "120"
+    },
+    {
+      "key": "askMaxChars",
+      "label": "超过多少字的复制不弹卡（0=不限制）",
+      "type": "number",
+      "default": "6000"
+    },
+    {
+      "key": "llmDailyBudget",
+      "label": "每日请求上限（次）",
+      "type": "number",
+      "default": "200"
+    }
+  ],
+  "entry": "panel.html"
+}

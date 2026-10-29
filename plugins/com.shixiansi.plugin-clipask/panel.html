@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>剪贴板助手</title>
+  <script>
+    // 主题要在样式之前应用：控制中心把 ?theme=light|dark 放在帧地址上，
+    // 桌宠不给（它永远是深色），否则首帧会闪一下浅色。
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body id="root" data-view="boot">
+  <!--
+    一个文档，四种身份（见 app.js 头注）：boot / ask / result / workshop / background。
+    boot 与 background 画不出东西；ask 与 result 是宠物旁的两块浮层；
+    workshop 是控制中心里的插件页（设置 + 最近记录）。
+    每一种身份都是 body[data-view] 上的一个类切换，同一时刻只有一种可见——
+    浮层卡是固定矩形，叠在一起靠 flex 抢空间的下场见手册 8.2b。
+  -->
+
+  <!-- 浮层块 0：询问卡（宠物头顶）。iframe 之外的部分不可见。 -->
+  <div id="ask" class="ask" hidden>
+    <div class="ask-line">
+      <span id="ask-kind" class="ask-kind">翻译</span>
+      <span id="ask-text" class="ask-text">…</span>
+    </div>
+    <div class="ask-actions">
+      <button id="ask-yes" class="btn primary">好的</button>
+      <button id="ask-no" class="btn soft">不用</button>
+    </div>
+  </div>
+
+  <!-- 浮层块 1：结果卡（宠物正上方，带尖角）。 -->
+  <div id="result" class="result" hidden>
+    <div class="result-card">
+      <div class="result-bar">
+        <span id="result-title" class="result-title">剪贴板</span>
+        <span id="result-status" class="result-status">…</span>
+        <button id="result-close" class="btn ghost tiny">关</button>
+      </div>
+      <div id="result-body" class="result-body">…</div>
+    </div>
+    <div id="result-tail" class="tail"><span class="tail-dot"></span></div>
+  </div>
+
+  <!-- 控制中心里的插件页：设置 + 最近记录。 -->
+  <main id="workshop" class="page" hidden>
+    <header class="head">
+      <div>
+        <h1>剪贴板助手</h1>
+        <p class="hint">复制一段代码、文章或单词，桌宠头顶会弹一张询问卡。模型配置走对话插件或模型渠道。</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">运行状态</div>
+          <div class="field-sub" id="ws-status">…</div>
+        </div>
+        <span id="ws-badge" class="tag">…</span>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">辅助脚本启动器（powershell.exe 的绝对路径）</div>
+          <div class="field-sub">监听剪贴板的本机脚本由它启动；桌面端要求绝对路径且是用户亲手填的值。留空后保存 = 不再启动新的脚本。</div>
+        </div>
+        <div class="field-control"><input id="cfg-helperPath" class="input" type="text" /></div>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">模型渠道（提供方插件 id，可留空）</div>
+          <div class="field-sub">例如 com.shixiansi.plugin-llmchannel。留空 = 自动借用（先渠道插件，再对话插件）。</div>
+        </div>
+        <div class="field-control"><input id="cfg-provider" class="input" type="text" /></div>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">渠道里的模型（配合上一项，可留空）</div>
+          <div class="field-sub">点名 provider 后用它选渠道表里的某一行（channel id）；留空 = 该渠道的默认模型。</div>
+        </div>
+        <div class="field-control"><input id="cfg-channel" class="input" type="text" /></div>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">解释代码时用中文</div>
+          <div class="field-sub">关闭后按代码里主要注释语言回答。</div>
+        </div>
+        <div class="field-control"><label class="switch"><input id="cfg-codeExplain" type="checkbox" /><span></span></label></div>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">同样的内容最少间隔几秒再问一次</div>
+          <div class="field-sub">防止反复复制同一段时连环弹卡。</div>
+        </div>
+        <div class="field-control"><input id="cfg-askCooldownSec" class="input" type="number" min="0" /></div>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">超过多少字的复制不弹卡（0 = 不限制）</div>
+          <div class="field-sub">整本书复制进去的时候别问，等用户自己来。</div>
+        </div>
+        <div class="field-control"><input id="cfg-askMaxChars" class="input" type="number" min="0" /></div>
+      </div>
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">每日请求上限（次）</div>
+          <div class="field-sub">翻译、总结、解释各算一次。</div>
+        </div>
+        <div class="field-control"><input id="cfg-llmDailyBudget" class="input" type="number" min="1" /></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="field">
+        <div class="field-text">
+          <div class="field-title">最近的复制与回答</div>
+          <div class="field-sub" id="ws-history-sub">…</div>
+        </div>
+        <button id="ws-clear" class="btn danger">清空记录</button>
+      </div>
+      <div id="ws-history" class="history"></div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

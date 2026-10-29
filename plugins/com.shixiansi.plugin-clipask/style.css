@@ -1,0 +1,391 @@
+/* 剪贴板助手 —— 样式纪律（每条都来自手册 §8.4 与对话插件的翻车记录）：
+ *
+ * - 浮层块按 manifest 声明的矩形被原生裁剪：不许 box-shadow / filter / transform /
+ *   text-shadow —— 它们画在盒子之外，画出去的部分被切掉，看起来就是"缺一块"。
+ *   需要边框用 border，需要圆角用 border-radius，需要分层用背景色差。
+ * - :root 必须透明 + color-scheme: only light：矩形里"没画"的地方要透出桌面。
+ * - [hidden] 必须带 !important：浏览器默认规则在 UA 表里，任何写了 display 的作者规则
+ *   都会把它顶掉——这个文档同时画浮层与工坊页，全靠 [hidden] 分身份。
+ * - 一张卡里同一时刻只有一组内容可见；会滚动的是 .result-body / .history，min-height: 0。
+ * - 颜色全部用本文件顶部声明的 token（与对话插件同一做法：浮层插件带不动共享 ui.css，
+ *   Soft UI 的彩色阴影与 hover 位移在矩形裁剪下会被切掉）。
+ * - 字号 ≥12px，间距只用 --space-*，动效只做透明度。
+ * - 桌宠窗口永远是深色（?theme= 不存在），浅色只出现在控制中心 —— 两套都必须好看。
+ */
+
+:root {
+  /* The palette. Two schemes, one set of names: the light block below redefines
+   * these, so not one rule in this file has to know which scheme is in force.
+   * 桌宠窗口永远是深色（?theme= 不存在）→ 默认就是深色。 */
+  --bg: #14161c;
+  --bg-raised: #1b2330;
+  --bg-well: #0e131b;
+  --line: #232d3d;
+  --line-soft: #1b2330;
+  --text: #e8eaf0;
+  --text-dim: #a2b0c2;
+  --accent: #7c3aed;
+  --accent-strong: #8b5cf6;
+  --danger: #e5646c;
+  --radius: 16px;
+  color-scheme: only light;
+  background: transparent;
+}
+
+html[data-theme='light'] {
+  --bg: #f6f7fb;
+  --bg-raised: #ffffff;
+  --bg-well: #f1f3f9;
+  --line: #e4e8f2;
+  --line-soft: #eef1f7;
+  --text: #23293a;
+  --text-dim: #5f6b82;
+  --accent: #6d4de0;
+  --accent-strong: #5f3fd6;
+  --danger: #c0392b;
+}
+
+* { box-sizing: border-box; }
+
+/* [hidden] 是权威：作者规则里的 display 一律压不过它。 */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  color: var(--text);
+  font: var(--font);
+  background: transparent;
+  overflow: hidden;
+}
+
+/* 深浅两套的浮层卡底色：桌宠（无主题）走深色变量，控制中心浅色。 */
+html[data-theme='dark'] body { color: var(--text); }
+html:not([data-theme='dark']) body { color: var(--text); }
+
+/* --- 询问卡（浮层块 0，宠物头顶 308×44..180） ------------------------------ */
+
+.ask {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.ask-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ask-kind {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ask-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ask-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ask-actions .btn {
+  flex: 1;
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: 12px;
+}
+
+/* --- 结果卡（浮层块 1，宠物正上 308×60..156，底部 10px 是尖角带） ---------- */
+
+.result {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+
+.result-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.result-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.result-title {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.result-status {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 尖角：画在声明的矩形之内（块的底部 10px）。不用 transform —— 它画在盒子之外，
+ * 会被矩形裁剪切掉。方案：一个 10×10 的方块，只有右下两边描边，靠旋转前的几何
+ * 摆位把"三角"读出来——这里直接用两层色块拼：上层卡色、下层线色，错位 1px。 */
+.tail {
+  position: relative;
+  height: 10px;
+  flex: none;
+  background: transparent;
+}
+
+.tail::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-bottom-right-radius: 2px;
+}
+
+/* --- 工坊页（控制中心，铺满面板，可以有背景与滚动） ------------------------ */
+
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  background: var(--bg);
+}
+
+html:not([data-theme]) .page { background: var(--bg); }
+
+.head h1 {
+  margin: 0 0 var(--space-2);
+  font-size: 18px;
+}
+
+.head .hint { margin: 0; }
+
+.history {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow: auto;
+  border-top: 1px solid var(--line);
+}
+
+.history-row {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* --- 控件：ui.css 不在包里（见文件头），按钮/输入框在这里自带 ---------------- */
+
+.btn {
+  height: 32px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.btn.primary:hover { background: var(--accent-strong); }
+
+.btn.soft { color: var(--text-dim); }
+
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.btn.danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--danger);
+}
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.input {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-well);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex: none;
+}
+
+.switch input { display: none; }
+
+.switch span {
+  position: absolute;
+  inset: 0;
+  border-radius: 11px;
+  background: var(--line);
+}
+
+.switch span::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--bg-raised);
+}
+
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { left: 21px; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: 12px;
+  font-size: 12px;
+  background: var(--bg-well);
+  color: var(--text-dim);
+}
+
+.tag.ok { background: var(--bg-well); color: var(--accent-strong); }
+.tag.warn { color: var(--danger); }
+
+/* --- 工坊页的字段行（ui.css 的 .field 同款布局，本地自带） ------------------ */
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.field:last-child { border-bottom: 0; }
+
+.field-text { min-width: 0; }
+
+.field-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.field-control { flex: none; }
+
+.field-control .input { width: 220px; }
+
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* --- 控件微调：浮层里的按钮比工坊页的小一号 -------------------------------- */
+
+.btn.tiny {
+  height: 22px;
+  padding: 0 var(--space-2);
+  font-size: 12px;
+}
+
+/* 动效：只有透明度，120ms（手册 §8.4：动效 120–320ms 且只做位移/透明度/阴影）。 */
+.ask, .result-card { animation: clipask-fade 160ms ease-out; }
+
+@keyframes clipask-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

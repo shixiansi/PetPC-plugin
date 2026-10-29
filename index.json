@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T17:46:51Z",
+  "updatedAt": "2026-10-29T17:52:54Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -118,6 +118,16 @@
       "download": "dist/com.shixiansi.plugin-websearch-1.0.0.zip",
       "sha256": "8e53f4b9759df9cbdff5400c540218265959b6e8ea2a7f8f9a08ac1a1ab2bc5d",
       "netHosts": ["api.tavily.com", "api.bing.microsoft.com"]
+    },
+    {
+      "id": "com.shixiansi.plugin-clipask",
+      "name": "剪贴板助手",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
+      "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-clipask-0.1.0.zip",
+      "sha256": "b8acecb6a6ab7738df3f8f3849e783ab4bfb16e9ee1dd8acc7375581e56cea4f"
     }
   ]
 }
