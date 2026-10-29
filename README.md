@@ -13,7 +13,7 @@
 
 | 文件 | 是什么 |
 | --- | --- |
-| [`docs/plugin-dev.md`](docs/plugin-dev.md) | **插件开发手册**：manifest 的每个字段与校验规则、桥接协议的每条消息、13 项权限与 34 个能力方法的 payload/返回/上限、浮层面几何与主题、打包与发布、常见故障对照。示例插件是逐字能跑的 |
+| [`docs/plugin-dev.md`](docs/plugin-dev.md) | **插件开发手册**：manifest 的每个字段与校验规则、桥接协议的每条消息、14 项权限与 39 个能力方法的 payload/返回/上限、浮层面几何与主题、打包与发布、常见故障对照。示例插件是逐字能跑的 |
 | [`docs/plugin-testkit/`](docs/plugin-testkit/README.md) | **自检工具**：一个文件（`plugin-check.mjs`），零必需依赖，跑四组检查——manifest / 包里的文件 / 静态红线 / **把文档真的跑一遍**（假宿主，含"宿主拒绝一切"那一遍）。它不需要宿主 |
 
 ```bash
@@ -75,14 +75,14 @@ market/                                    ← 本仓根目录（独立 git 仓�
 | `version` | ✅ | 语义化版本，`^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`，如 `1.0.0` |
 | `author` | ✅ | 作者，非空 |
 | `description` | ✅ | 说明，非空，长度 ≤ 512 |
-| `permissions` | ✅ | 权限数组，可为空数组；每项必须是下表的**十一项**之一，**不允许重复** |
+| `permissions` | ✅ | 权限数组，可为空数组；每项必须是手册 §4.1 那**十四项**之一，**不允许重复** |
 | `netHosts` | 选填 | `net.fetch` 的域名白名单，元素形如 `host` 或 `host:port`。**声明了 `net.fetch` 却不给 `netHosts` 视为非法**；反之不声明 `net.fetch` 就不需要这个键 |
 | `panel` | 选填 | 布尔；是否注册面板视图（插件 tab 已移除，面板视图现在挂在宿主的面板槽位上） |
-| `panelSlot` | 选填 | 面板槽位名，目前只接受 `"chat"`；声明它必须同时 `panel: true` |
+| `panelSlot` | 选填 | 认领桌宠右键菜单的哪一格：`"chat"` / `"todos"` / `"pomodoro"`；它决定"用户点那一格时找谁"，不再是"占哪个 tab" |
 | `surface` | 选填 | 浮层面矩形数组，最多 8 块；每块 `w>0 && h>0`、边长 ≤ 2000、`0 ≤ radius ≤ 200`、`|dx| ≤ 4000`、`|dy| ≤ 4000`；`"ellipse": true` 的块画成椭圆而非圆角矩形 |
-| `background` | 选填 | 布尔；申请一个**无界面的常驻帧**（桌宠会挂一个隐藏 iframe，生命周期与进程相同）。用于"没有界面打开时也要做事"的插件。**必须同时申请 `events` 权限**，否则拒绝——常驻帧的用途就是无人看着时收事件 |
+| `background` | 选填 | 布尔；申请一个**无界面的常驻帧**（桌宠会挂一个隐藏 iframe，生命周期与进程相同）。用于"没有界面打开时也要做事"的插件。**必须同时申请 `events` / `net.ws` / `net.fetch` / `plugin.call` 之一**，否则拒绝——常驻帧的用途就是无人看着时收东西 |
 | `assets` | 选填 | 包内额外携带的文件数组，最多 32 项；每项是相对路径（通过 `ValidRelPath`），不得绝对、不含 `..`。`audio.import` 只接受**在这里声明过**的路径 |
-| `config` | 选填 | 插件自己的设置声明，最多 16 项；每项 `key`/`label`/`type`（`text`/`number`/`bool`/`secret`）与 `default`；`secret: true` 的项值加密存储且永不出现在任何返回值里；`hostWhitelist: true` 至多一项，它的当前值会成为该插件的 `net.fetch` 额外主机白名单 |
+| `config` | 选填 | 插件自己的设置声明，最多 40 项；每项 `key`/`label`/`type`（`text`/`number`/`bool`/`secret`）与 `default`；`secret: true` 的项值加密存储且永不出现在任何返回值里；`hostWhitelist: true` 至多一项，它的当前值会成为该插件的 `net.fetch` 额外主机白名单 |
 | `entry` | ✅ | 入口 HTML，相对路径、以 `.html` 结尾、不含 `\` 与 `..`、不以 `/` 开头；`panel`、`surface`、`background` **三者至少有一个**（插件总得有个界面落点，或者至少有个宿主会挂起来的文档） |
 
 官方示例插件 `plugins/com.shixiansi.plugin-chat/manifest.json`：
@@ -119,35 +119,33 @@ market/                                    ← 本仓根目录（独立 git 仓�
 
 ---
 
-## 3. 十一项权限的含义
+## 3. 权限（14 项）
 
-插件能做的事**只有**这十一项，全部由宿主程序侧门控；插件本身读写不了文件、也发不出网络请求。
+插件能做的事**只有**这十四项，全部由宿主程序侧门控；插件本身读写不了文件、也发不出网络请求。
 
-| 权限 | 含义 |
-|---|---|
-| `todos.read` | 读取待办列表 |
-| `todos.write` | 新增、修改、完成与删除待办 |
-| `pet.bubble` | 让桌宠弹出一句话的气泡 |
-| `timer.read` | 读取番茄钟阶段与剩余时间 |
-| `events` | 订阅待办与番茄钟的变化事件（`todos.changed` / `timer.changed` / `timer.phaseEnded` / `reminder.fired`）。**关闭界面后也会送达**——前提是插件用 `background` 申请了常驻帧 |
-| `net.fetch` | 访问网络，**仅限**该插件 `manifest.json` 里 `netHosts` 声明的域名，外加它 `hostWhitelist` 配置项当前值里的域名。默认按**文本**返回正文，`encoding: "base64"` 才取二进制（文本形式对 WAV 这类数据是**有损**的：非法字节会被替换成 U+FFFD，文件大小看着对、播出来是噪声） |
-| `storage` | 在插件自己的私有目录里保存数据。键是**相对路径**（`media/stickers/bytes/<hash>`），所以可以自己分文件夹；`storage.dir` 的 `sub` 把子目录的绝对路径交给插件启动的程序，`storage.list` 让插件看清自己文件夹里到底有什么，`storage.move` 在自己的目录里改名（迁移用，零拷贝） |
-| `pet.surface` | 在桌宠旁显示自定义浮层面 |
-| `llm.chat` | 调用该插件自己配置的大模型（流式返回）；**模型密钥归插件所有**，加密存在插件私有目录里 |
-| `plugin.config` | 保存插件自己的设置；存在插件私有目录里，插件之间互相读不到 |
-| `audio` | 在插件自己的私有目录里保存并播放音频（`audio.save/list/remove/play/stop/import`，单条上限 16 MiB） |
+**权威的表只有一份**：手册 [`docs/plugin-dev.md`](docs/plugin-dev.md) §4.1（权限全表）与 §6
+（每个方法）。这一节不再抄一份——两份清单必然分叉，而这个 README 曾经抄的就是分叉掉的那一份
+（它还列着早已退休的 `todos.read` / `todos.write` / `timer.read`）。
 
-**没有 `background` 权限**：常驻帧由 manifest 的 `background` 字段申请、由既有的 `events` 权限门控。门禁里有一条「权限表与方法表逐项一致」的断言——每个权限都必须被某个方法使用，所以一个只用来"批准后台运行"、背后没有方法的权限会正好违反它。
+几条容易搞错的：
 
-**`audio` 不是 `storage` 的加宽**：`storage` 的接口是**文本**（插件自己的 JSON，以及像表情包那样被编码成 base64 的字节——能存，但代价是 4/3），`audio` 是**二进制、几百 KB 量级**而且要能直接播放。只想记住一个设置的插件，不该为此被授予一个它永远不用的音频出口。
+- **没有 `background` 权限**：常驻帧由 manifest 的 `background` 字段申请，由 `events` /
+  `net.ws` / `net.fetch` / `plugin.call` 之一门控。门禁里有一条「权限表与方法表逐项一致」的
+  断言——每个权限都必须被某个方法使用，所以一个只用来"批准后台运行"、背后没有方法的权限会
+  正好违反它。
+- **`audio` 不是 `storage` 的加宽**：`storage` 的接口是**文本**（插件自己的 JSON，以及像表情包
+  那样被编码成 base64 的字节——能存，但代价是 4/3），`audio` 是**二进制、几百 KB 量级**而且要
+  能直接播放。只想记住一个设置的插件，不该为此被授予一个它永远不用的音频出口。
+- **`plugin.share` 与 `plugin.call` 是两种不同的距离**：前者是"贴一张便条"（没有推送、没有回答，
+  想知道对方在干什么只能自己轮询），后者是"问一句、等它答"（一次调用一个答案、带超时）。
+  详见手册 §6.7 / §6.8。
+- 安装完成时插件是**停用**状态：你可以先看清它申请的权限，再自行启用并逐项授权。插件调用了未
+  授权的能力时，宿主会直接拒绝，且**不产生任何副作用**。
 
-示例插件申请 `llm.chat`、`pet.bubble`、`pet.surface`、`plugin.config`、`storage` 五项。它**不**申请 `net.fetch`（请求统一由宿主的 `llm.chat` 发出），因此它既不需要也不包含 `netHosts`。
-
-语音插件申请 `audio`、`events`、`storage`、`plugin.config`、`net.fetch` 五项，并声明 `background: true` 与 `netHosts: ["127.0.0.1:9880"]`（它直连本机 GPT-SoVITS 渲染台词）。
-
-安装完成时插件是**停用**状态：你可以先看清它申请的权限，再自行启用并逐项授权。插件调用了未授权的能力时，宿主会直接拒绝，且**不产生任何副作用**。
-
-> **两个宿主程序的能力表不同。** 桌宠与市场共用同一套调度器与资源路由，但市场没有待办文件、没有番茄钟、没有宠物窗口，所以 `todos.*` / `timer.*` / `bubble.say` / `surface.*` / `llm.chat` / `events.subscribe` 从市场调用会得到「本程序不支持该方法」。插件界面被市场托管时（语音插件的配音工坊），这一点要记住。
+> **两个宿主程序的能力表不同。** 桌宠与市场共用同一套调度器与资源路由，但市场没有待办文件、
+> 没有番茄钟、没有宠物窗口、也不挂常驻帧，所以 `bubble.say` / `surface.*` / `llm.chat` /
+> `events.subscribe` / `plugin.call` 从市场调用会得到「本程序不支持该方法」。插件界面被市场托管时
+> （语音插件的配音工坊、记忆核心的记忆浏览页），这一点要记住。
 
 ---
 
@@ -314,6 +312,49 @@ node node_modules\vitest\vitest.mjs run
 番茄钟的设置项（`focusMinutes` / `shortBreakMinutes` / `longBreakMinutes` / `longBreakEvery` /
 `autoStartNextPhase`）在 manifest 里**声明**，默认值与 `machine.js` 原本的兜底一致（25/5/15/4），
 所以升级不会改掉正在用的人的专注时长；它们在控制中心的「设置」弹窗里编辑，插件自己负责读。
+
+---
+
+## 4.6 记忆核心 + 接入端（`plugin.call` 的用户）
+
+`plugin.call` 加进来是为了让"人设与记忆只有一份"这件事成立。**一个核心 + 任意多个接入端**：
+
+| 插件 | 角色 | 权限 |
+|---|---|---|
+| `com.shixiansi.plugin-memcore` | **记忆核心**：人设（L0）、最近往来（L1）、会话摘要（L2）、长期记忆（L3）、用户画像（L4）＋ 只写不读的全局事件链。常驻后台，用 `serves: ["chat", "seed"]` 对外承诺"你可以问我"。 | `plugin.call` `llm.chat` `llm.borrow` `storage` `plugin.config` |
+| `com.shixiansi.plugin-qq` **1.13.0+** | **Milky 接入端**（Yogurt 那套）。打开插件页的「把回答交给记忆核心」之后，群里每一句问答都走 `plugin.call`，本插件不再自己拼 prompt。 | 原有 + `plugin.call`；`callTargets: ["…memcore/chat", "…memcore/seed"]` |
+| `com.shixiansi.plugin-onebot` | **OneBot v11 接入端**（NapCat / Lagrange，正向 WS）。从第一天起就是薄的：只做"谁在哪个会话说了什么"和发回去。 | `net.ws` `plugin.call` `storage` `plugin.config`；`callTargets: ["…memcore/chat"]` |
+
+```
+协议端 ──ws──▶ 宿主(net.ws) ──event──▶ 接入端 ──plugin.call──▶ 记忆核心 ──llm.chat──▶ 模型
+                    ▲                      │                    │
+                    └── 发回平台 ◀── 回答 ──┘        四层记忆写在自己的 storage
+```
+
+于是：**换接入端不丢记忆**（新接入端点名 `memcore/chat` 即可）；**改一次人设全端生效**；**两个接入端
+默认不互相污染**（记忆按 `roleId` 分目录，`qq-group-<群号>` / `onebot-group-<群号>`；想共享就用同一个
+`roleId`）。
+
+### 打开 QQ 端的核心模式要付的代价（明写在这里，也在插件页上）
+
+- **本插件的人设与群记忆设置不再参与回答**——人设在核心里。它们仍然继续写盘，所以关掉开关就立刻退回原样。
+- **主动开口与攒批插话停下**：那两条路要靠结构化回复里的 `silent` 与表情选择才成立，而核心只给一句话
+  （每次 tick 都会变成"一定要说点什么"，那比不说更糟）。日志里会写明原因。
+- **看图不在核心模式里**：图片过不了 `plugin.call`（它是 JSON，不是多模态），所以把"这条带了 N 张图"
+  如实告诉核心，让它别装作看过。要看图就关掉核心。
+- **表情包只剩随机贴一张**；模型点名那张要靠围栏。
+- 开关存在插件自己的 `state/core` 里，**最多 10 秒**生效（它跟着 `config.get` 那条轮询一起读）。
+  为什么不放 config：manifest 的 config 上限是宿主的 40 项，QQ 插件已经用满了。
+- 已经有群记忆的人不必手动搬：**开关被打开之后，桌宠那边的常驻帧会自动把它们导入核心一次**
+  （最多 10 秒后开始；幂等靠 `state/core` 里的 `seededAt`）。插件页不给按钮 —— 那一页跑在控制中心里，
+  而控制中心不服务 `plugin.call`，一个点了会报「本程序不支持该方法」的按钮比没有更糟。
+
+两条使用上的实话：
+
+1. **回答要穿过两次跨越**（接入端 → 宿主 → 核心 → 宿主 → 接入端），所以核心默认把回复压在 240 字以内：
+   一次 `plugin.call` 的超时是 30 秒。
+2. **两端都要装、都授予 `plugin.call`**，否则接入端会以「plugin.call 的目标插件未启用」失败——那是一句
+   会出现在接入端插件页日志里的中文，不是静默。
 
 ---
 

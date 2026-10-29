@@ -49,10 +49,12 @@
 | `workshop` | 用户在**控制中心**打开你的插件页时 | 一个 |
 
 多个挂载之间**没有共享内存**，它们是彼此独立的文档、独立的 iframe。要传递数据只能：
-`storage.*`（自己读写自己的文件）、`plugin.share`（发布/订阅明文键值）、或 `init` 里宿主告诉你的事。
+`storage.*`（自己读写自己的文件）、`plugin.share`（发布/订阅明文键值）、`plugin.call`
+（问**另一个插件**并拿到它的答案），或 `init` 里宿主告诉你的事。
 
 > 这条事实决定了大量设计：一个"输入框"浮层与一个"回答"浮层是两个文档，
-> 想知道对方在干什么，只能靠 `storage` 或 `plugin.share` 往返。
+> 想知道对方在干什么，只能靠 `storage` 或 `plugin.share` 往返，或者用 `plugin.call`
+> 直接问（第 6.8 节）——但它问不了你自己：同一次安装的多个挂载之间没有调用通道。
 
 ### 三种"界面落点"，至少要有一种
 
@@ -61,7 +63,7 @@
 
 1. `panel: true` + `panelSlot`（占用宿主的一个固定槽位，今天只有 `chat`）；
 2. 至少一块 `surface`（宠物旁边的浮层矩形）；
-3. `background: true`（常驻帧；要求同时申请 `events` / `net.ws` / `net.fetch` 之一）。
+3. `background: true`（常驻帧；要求同时申请 `events` / `net.ws` / `net.fetch` / `plugin.call` 之一）。
 
 ---
 
@@ -346,16 +348,18 @@ body[data-surface='boot'] { background: transparent; }
 | `netHosts` | | ≤ 见规则 | `net.fetch`/`net.ws` 的白名单；声明了 `net.fetch` 就至少要一项 |
 | `shareRead` | | ≤8 项 | 你能读**别人**的哪些共享键，格式 `<插件id>/<名字>` |
 | `shareLLM` | | bool | 允许**别人**借你的模型配置；要求同时申请 `llm.chat` |
+| `serves` | | ≤8 项 | 你**会回答**哪些方法名（`^[A-Za-z0-9_.-]{1,64}$`），别的插件用 `plugin.call` 问你时用得上；要求申请了 `plugin.call` |
+| `callTargets` | | ≤8 项 | 你**能问**谁，格式 `<对方的插件id>/<方法名>`；要求申请了 `plugin.call`，不能写自己，没有通配 |
 | `assets` | | ≤32 项 | 包里除入口与固定资源之外、需要按相对路径取用的文件（例如内置音频） |
 
 **至少要有一种界面落点**：`panel:true`、非空 `surface`、`background:true` 三者之一。
 
-### 4.1 权限（13 项，全表）
+### 4.1 权限（14 项，全表）
 
 | 权限 | 用户看到的文案 | 它 gates 的方法 |
 | --- | --- | --- |
 | `pet.bubble` | 让桌宠弹出一句话的气泡 | `bubble.say` |
-| `events` | 订阅待办与番茄钟的变化事件（关闭界面后也会送达） | `events.subscribe`，以及 `background` 帧的一个依据 |
+| `events` | 订阅宿主的状态变化事件（提醒触发、计时阶段结束、配置变更） | `events.subscribe`，以及 `background` 帧的一个依据 |
 | `net.fetch` | 访问网络（仅限插件声明的域名） | `net.fetch`，以及 `background` 的一个依据 |
 | `net.credentials` | 以你保存的网站登录凭据发请求（凭据本身不会显示给插件） | **不是独立方法**：`net.fetch` 携带 `credentials`/`referer`/`readCookies` 的第二道开关。声明了它就必须同时声明 `net.fetch` |
 | `storage` | 在自己的私有目录里保存数据 | `storage.get/set/remove/dir/stat/list/move`、`memory.read/append` |
@@ -367,12 +371,14 @@ body[data-surface='boot'] { background: transparent; }
 | `llm.borrow` | 使用其它插件已配置的大模型与密钥（密钥不会显示给你） | `llm.profile` |
 | `process` | 启动本机程序 | `process.launch/state` |
 | `plugin.share` | 与其它插件交换消息（只能读清单里点名的键，只能写自己名下的键） | `share.set/get/remove` |
+| `plugin.call` | 与其它插件互相调用（只能调用清单里点名的目标，也只能回答清单里声明的方法） | `plugin.call`。**调用方与被调用方都要有这一项**：调用方用 `callTargets` 点名要问谁，被调用方用 `serves` 点名自己答什么 |
 
-> **没有 `background` 权限**：常驻帧由 `events` / `net.ws` / `net.fetch` 之一门控。
+> **没有 `background` 权限**：常驻帧由 `events` / `net.ws` / `net.fetch` / `plugin.call` 之一门控。
 >
 > 这张表就是全部。宿主**不认识任何具体插件**，所以也不存在"待办"或"番茄钟"这一类以业务
 > 命名的能力：待办列表、番茄钟状态都住在各自插件的私有目录里，别的插件要读只能走
-> `plugin.share`（第 6.7 节），而且要写进自己 manifest 的 `shareRead`。
+> `plugin.share`（第 6.7 节），而且要写进自己 manifest 的 `shareRead`；要它**回答一个问题**，
+> 走 `plugin.call`（第 6.8 节）。
 
 ### 4.2 `config`（你的设置项）
 
@@ -426,6 +432,8 @@ body[data-surface='boot'] { background: transparent; }
 | 宿主 → 插件 | `event` | `name` `payload` | 你订阅且帧在的情况下 |
 | 宿主 → 插件 | `theme` | `theme: "light"\|"dark"` | 用户切换配色时（桌宠右键菜单的「主题」、控制中心的「偏好」页）。首帧的色在 URL 的 `?theme=` 上 |
 | 宿主 → 插件 | `surface` | `rect` | 帧的矩形变了（内容长高、被裁、被移） |
+| 宿主 → 插件 | `call` | `ticket` `from` `method` `payload` | 另一个插件通过 `plugin.call` 问你（第 6.8 节）。**只有声明了 `serves` 的插件会收到** |
+| 插件 → 宿主 | `call-result` | `ticket` `ok` `result` \| `error` | 对上面那条的**唯一**回法：`ticket` 必须原样带回 |
 
 ### 5.2 `init` 的 `surface`
 
@@ -584,11 +592,25 @@ body[data-surface='boot'] { background: transparent; }
     { "role": "assistant", "text": "…" }
   ],
   "model": "…",                         // 可选：只对这一次生效的模型名（≤96）
+  "provider": "com.example.llm-ollama", // 可选：点名一个模型渠道（提供方插件的 id），见下
   "images": ["https://…"],              // 可选，≤4 张；http(s)，必须落在你的 netHosts 里
   "tools": ["pet_say", "memory_read"]   // 可选：宿主工具目录里的名字，见下
 }
 // → { "requestId": "…", "text": "完整回复" }
 ```
+
+**端点与密钥从哪来，只有宿主知道**，顺序是：
+
+1. **你自己配置的**（`llmBaseUrl` / `llmModel` / `llmApiKey`）——填了就用它，借用在你自己配置齐全时
+   不会发生；
+2. 否则**借**另一个插件的：那个插件必须已安装、已启用、已配置齐全，并在自己的 manifest 里声明了
+   `"shareLLM": true`。你要在**自己**的 manifest 里申请 `llm.borrow`（安装时用户为这一条点头）。
+   多个借出方时取 **id 最小**的那个——那是为了让答案不依赖安装顺序，不是一条策略；
+3. 想**指定**用哪个渠道，就给 `provider`：值是提供方插件的 **id**。点名之后**不会回退**到默认渠道
+   （否则"成功了，但花的是另一个账号"会变成一个查不出来的现象）。名字写错、对方没配置好、或者你没有
+   `llm.borrow`，都会得到一句点名原因的拒绝。
+
+端点地址与密钥**永远不进你的文档**：你只知道"用的是谁、哪个模型"（见 `llm.profile` / `llm.providers`）。
 
 流式结果**同时**通过 `event` 推给你（名字以 `llm.` 开头，只有发起者能收到）：
 
@@ -628,6 +650,57 @@ other
 - 回复**不会**被宿主写进任何转写：历史是你的责任（存进 `storage`）。
 - 一条 `llm.chat` 可能因为工具跑好几轮，每一轮都算一次请求上限。
 
+#### `llm.channels.*` — 自己的渠道表（多渠道 / 多密钥）
+
+manifest 的 `config` 只能声明**一个** `llmBaseUrl`、一个 `llmModel`、一个 secret。要存"多个渠道、每个渠道多个模型、每个渠道多个密钥"，用这两支方法——表存在你自己的私有目录里，密钥由宿主 DPAPI 加密、**只写不读**。
+
+| 方法 | payload | 返回 |
+| --- | --- | --- |
+| `llm.channels.get` | `{}` | `{channels:[{id,name,baseUrl,provider,models,defaultModel,keys:[{id,label,set,mask}]}], defaultChannel}` |
+| `llm.channels.set` | 同上（`keys[].value` 可选） | 保存后的同一形状（key 仍只有 `set`/`mask`） |
+
+```jsonc
+{
+  "defaultChannel": "openai",
+  "channels": [
+    { "id": "openai", "name": "主号", "baseUrl": "https://api.openai.com/v1",
+      "provider": "openai", "models": ["gpt-4o", "gpt-4o-mini"], "defaultModel": "gpt-4o",
+      "keys": [{ "id": "k1", "label": "主号", "value": "sk-…" }] }   // value 只在写的时候出现
+  ]
+}
+```
+
+规则（宿主逐条校验，违反即拒绝，**不会**部分写入）：
+
+- 最多 **8** 个渠道、每渠道 **16** 个模型、**8** 个 key；`id` 是 `^[A-Za-z0-9_-]{1,32}$`（它同时是密钥文件名的一半，所以不允许别的字符）；`baseUrl` 必须是 http(s)、≤300 字。
+- **`keys` 列表就是真相**：从列表里去掉一个 key，它的密钥文件会被清掉（否则是一个谁都看不见也删不掉的凭据）。
+- 保存时**不带 `value` 的 key 保留原来的密钥**——所以界面可以在从来没有明文的情况下重存整张表。
+- **地址也要过 `net.fetch` 的白名单**（你的 manifest `netHosts` + `hostWhitelist` 那一项）。这是硬约束：表是插件写的数据，宿主不能因为"用户可能在界面里打过它"就放开。
+- 权限是 `llm.chat`（"我自己的模型配置"），两个宿主**都**服务它——控制中心的插件页要能编辑它，而那里没有模型调用。
+
+`llm.chat` 里对应的三个可选字段：`provider`（用哪个插件的表）、`channel`（表里的哪一行）、`keyId`（哪把钥匙）。
+#### `llm.providers`
+
+“现在有哪些模型渠道可用”。`llm.profile` 回答“我这次会用谁”（一个），这个回答“都有哪些、默认是哪个”。
+同一个权限（`llm.borrow`）门控，因为它同样是**别人配置**的信息。
+
+```jsonc
+// payload {}
+{
+  "providers": [
+    { "id": "com.example.lender", "name": "对话插件", "model": "deepseek-chat", "ready": true, "self": false },
+    { "id": "com.example.llm-ollama", "name": "本地 Ollama", "model": "qwen2.5:7b", "ready": false, "self": false }
+  ],
+  "default": "com.example.lender",       // 不点名 provider 时宿主会用的那个（没有就是空串）
+  "own": { "ready": false, "model": "" } // 你自己的配置是否齐全
+}
+```
+
+- `ready: false` 的渠道**存在但不可用**（没填端点/模型）；点名它会得到拒绝，不会悄悄换成默认。
+- **不含端点、不含量本身份**：这是 `llm.profile` 已经画好的那条线——你被告知“用谁的配置”，但拿不到
+  “它连哪儿、什么钥匙”。
+- `self: true` 表示那一行是你自己（你借不到你自己）。
+
 #### `llm.profile`
 
 ```jsonc
@@ -663,7 +736,71 @@ other
 - 读一个"还没人发布"的键返回 `{value:"", at:0}`，**不是错误**——轮询的第一次都是这样。
 - 典型用法：一个插件发布快照，另一个按 `at` 判断新旧，避免拿三天前的任务当真。
 
-### 6.8 `audio` — 保存并播放音频
+### 6.8 `plugin.call` — 问另一个插件一个问题
+
+这是**唯一**能拿到"另一个插件的回答"的能力。它和第 6.7 节的牌盘是两件不同的事：牌盘是
+**贴一张便条**（没有推送、没有回答，谁想知道对方在干什么只能自己轮询）；`plugin.call` 是
+**问一句、等它答**，一次调用一个答案，带超时、带失败原因。
+
+| 方法 | payload | 返回 |
+| --- | --- | --- |
+| `plugin.call` | `{target, method, payload?}` | **对方返回的值**（它回什么，你就拿到什么） |
+
+三处声明，缺一不可：
+
+```json
+// 调用方（例如接入端适配器）
+{ "permissions": ["plugin.call", "net.ws"],
+  "callTargets": ["com.example.memory-core/chat"] }
+
+// 被调用方（例如记忆核心：要常驻，才答得上没人看着时的问）
+{ "permissions": ["plugin.call", "llm.chat", "storage"],
+  "background": true,
+  "serves": ["chat"] }
+```
+
+只有**被调用方**需要写代码——收到 `call` 就回 `call-result`：
+
+```js
+window.addEventListener('message', async (e) => {
+  const m = e.data;
+  if (!m || m.v !== 1 || m.type !== 'call') return;
+  try {
+    const value = await answer(m.method, m.payload);        // 你自己的逻辑
+    window.parent.postMessage(
+      { v: 1, type: 'call-result', ticket: m.ticket, ok: true, result: value }, '*');
+  } catch (err) {
+    window.parent.postMessage(
+      { v: 1, type: 'call-result', ticket: m.ticket, ok: false,
+        error: String((err && err.message) || err) }, '*');
+  }
+});
+```
+
+宿主发给被调用方的消息：
+
+| 字段 | 含义 |
+| --- | --- |
+| `v` | 协议版本，`1` |
+| `type` | `"call"` |
+| `ticket` | 本次调用的关联号，**回包必须原样带回**；带错了宿主不会认 |
+| `from` | 谁在问（插件 id） |
+| `method` | 你 `serves` 里点名的那个方法名 |
+| `payload` | 调用方给的任意 JSON（没给就是 `{}`） |
+
+规则与上限：
+
+- **调用不转移权限**：你用它自己已授予的权限干活；调用方只拿到你选择返回的那点东西。
+- payload **≤64 KiB**、返回值 **≤64 KiB**（超了是错误，不会截断）。
+- **最多 3 跳**（A 问 B、B 问 C、C 问 D 为止）。两个插件互相提问会在这里停下，不会转圈。
+- **30 秒**没有回包 = 超时。慢活（例如先 `llm.chat` 再回答）要把这 30 秒算进去。
+- 目标必须**此刻有帧**：`background` 常驻插件随时答得上；只有浮层面的插件要在它显示时才行。
+  没有帧时调用**立刻**失败——等下去不会出现一个帧。
+- `serves` 里点名了却没实现 `call` 处理器，调用方会一直等到超时：宿主不替你答。
+- 失败原因会原样成为调用方那次 `plugin.call` 的错误文本（`等 <id>/<method> 的回答超时`、
+  `问不到 <id>`、或对方自己给的 `error`）。
+
+### 6.9 `audio` — 保存并播放音频
 
 只接受 **WAV**，只在你的私有目录里，名字是扁平名。
 
@@ -680,7 +817,7 @@ other
 - 播放是**按文件**的（不是内存里的字节）：所以 `data`/`import` 必须是**已经写完**的文件。
 - 同一时刻只有一段音频在播；`audio.play` 会顶掉前一段。
 
-### 6.9 `net.fetch` / `net.credentials`
+### 6.10 `net.fetch` / `net.credentials`
 
 ```jsonc
 // payload
@@ -706,7 +843,7 @@ other
 - 请求头是白名单制：`cookie`/`referer` 不在其中，因为它们由宿主填（见 `credentials`/`referer`）。
 - 单个头值 ≤1024 字节；不允许换行。
 
-### 6.10 `net.ws` — 一条宿主代持的长连接
+### 6.11 `net.ws` — 一条宿主代持的长连接
 
 | 方法 | payload | 返回 |
 | --- | --- | --- |
@@ -723,7 +860,7 @@ other
 - 入站文本帧通过 `event` 推给你：`ws.message {text}`；状态变化推 `ws.state {state,…}`。
 - 出站单帧上限 **512 KiB**。
 
-### 6.11 `process` — 启动本机程序
+### 6.12 `process` — 启动本机程序
 
 | 方法 | payload | 返回 |
 | --- | --- | --- |
@@ -832,8 +969,11 @@ other
 
 ### 8.4 CSS 纪律（每条都是踩过的）
 
-- **不许 `box-shadow` / `filter` / `transform`**：它们在矩形之外绘制，会直接画到用户的桌面上。
-  需要边框就用 `border`，需要圆角就用 `border-radius`。
+- **声明了 `surface` 的插件不许 `box-shadow` / `filter` / `transform`**：那些装饰在矩形之外绘制，
+  而窗口区域是按矩形裁剪的，画出去的部分会被切掉（在用户桌面上看就是"缺了一块"）。需要边框就用
+  `border`，需要圆角就用 `border-radius`。
+  **只在控制中心里铺满面板的插件（`surface` 为空）不受这一条限制**——它活在一个正常滚动的容器里，
+  卡片阴影与 hover 位移都落在页面内部。自检工具按 `manifest.surface` 是否为空来分。
 - `:root { background: transparent }`：浮层面矩形里"你没画"的地方是要透出桌面的。
   同时要 `color-scheme: only light` 写在 `:root` 上——Chromium 在 `color-scheme: dark` 下会给
   **画布**铺 `#121212`，根元素的 `background:transparent` 压不住那一层。
@@ -841,6 +981,46 @@ other
   用 `init.surface.kind === 'surface'` 决定要不要铺底色。
 - 滚动条：`overflow:auto` 放在**会增长的那个元素**上，并把它的 `min-height` 设为 `0`
   （否则内容会把外层盒子撑高、把工具栏顶出去）。
+
+### 8.6 样式：把 `ui.css` 打进你的包（**别再自己调色**）
+
+插件文档是 opaque origin 的 iframe，**宿主的 CSS 变量进不来**——`var(--accent)` 在你的文档里不存在。
+所以"跟宿主长得一样"只能靠**同一份定义各带一份**：
+
+```html
+<link rel="stylesheet" href="ui.css" />      <!-- 宿主的 token 副本，排在前面 -->
+<link rel="stylesheet" href="style.css" />   <!-- 只写这一页特有的布局 -->
+```
+
+`ui.css` 在 [`docs/ui/petpc-ui.css`](ui/petpc-ui.css)，与宿主 `cc/src/tokens.css` 逐字对应
+（浅色 + `[data-theme="dark"]` 两套）。它给 token（`--bg` / `--bg-raised` / `--line` / `--text` /
+`--text-dim` / `--accent` / `--radius-xl` / `--space-*` / `--sh-xs` …）与几个原语：
+
+| 原语 | 规格 |
+| --- | --- |
+| `.card` | `--bg-raised` 底 + 1px `--line` + **18px** 圆角 + `--sh-xs` + **24px** 内边距 |
+| `.field` / `.field-title` / `.field-sub` / `.field-control` | 设置项行：左文右控件、行高 ≥64px、1px 分割线、窄屏自动堆叠 |
+| `.btn` + `.primary` / `.secondary` / `.soft` / `ghost` / `danger` | 38px 高、10px 圆角；**一屏只有一个 `.primary`** |
+| `.input`（含 `select` / `textarea`） | 38px 高、10px 圆角、聚焦有 `--sh-ring` |
+| `.switch` | 42×24 |
+| `.tag`（`.ok` / `.warn` / `.accent`） | 24px 高、全圆角 |
+| `.danger-zone` | `--danger-bg` 底 + `--danger` 文字 |
+| `.hint` / `.muted` / `code` / `.divider` / `.page` / `.head` | 版式零件 |
+
+**下拉框不要用原生 `<select>`。** 它的弹层是系统画的（方角、灰底高亮、系统字体），CSS 只能改
+收起时的外观——`appearance: none` 之后如果不再画箭头，就只剩一个"没有箭头的方框"，比原生更怪。
+`ui.css` 提供了自绘版：`.select` > `.select-trigger`（button）+ `.select-list`（`ul[role=listbox]`）
++ `.select-option`，配一段 30 行脚本即可（参考 `com.shixiansi.plugin-llmchannel/app.js` 的
+`makeSelect`）。键盘照 listbox 惯例：Enter/Space/↓ 打开、↑↓ 移动、Home/End 到首尾、Enter 选中、
+Esc 关闭；焦点留在触发按钮上。
+三条硬规矩：
+
+1. **`style.css` 里不许出现十六进制色值**——颜色只能来自 token。出现了就说明它该在 `ui.css` 里有名字。
+2. 包内那份 `ui.css` 必须与 `docs/ui/petpc-ui.css` **逐字节相同**，并写进 `manifest.assets`。
+3. 字号 ≥12px、间距只用 4 的倍数（`--space-*`）、动效 120–320ms 且只做位移/透明度/阴影。
+
+宿主换配色时：改 `cc/src/tokens.css` → 同步 `docs/ui/petpc-ui.css` → 各插件重新打包。
+`market/tests/ui-tokens.test.js` 盯着这三步（副本分叉、或谁又写死了颜色，都会红）。
 
 ### 8.5 关于 `slot` 与 `background`
 
@@ -868,6 +1048,7 @@ other
 | `llm.chat` / `llm.profile` | ✅ | ❌ |
 | `events.subscribe` | ✅ | ❌ |
 | `ws.*` / `process.launch` / `process.state` | ✅ | ❌ |
+| `plugin.call` | ✅ | ❌（只挂一页、没有常驻帧，另一端没人答） |
 | 主题 | 只有深色 | `?theme=` + `theme` 消息 |
 
 未被服务的能力**不是"没授予"**，而是 `response.error = "本程序不支持该方法 X"`。
@@ -894,8 +1075,8 @@ other
 | 从 payload 里给路径 | ❌ 宿主从不接受 payload 里的路径（`entry`、`assets`、`from` 都是**包内相对路径**且被校验） |
 | 绕过权限 | ❌ 每次请求都过闸门；闸门在前三步拒绝时**什么都不发生**（不写文件、不弹气泡、不发请求） |
 
-另外：**你的 manifest 会被用户看见**。`permissions`、`config` 的 `label`、`shareRead`
-都出现在安装对话框里——写得含糊，用户就会拒绝。
+另外：**你的 manifest 会被用户看见**。`permissions`、`config` 的 `label`、`shareRead`、
+`serves` / `callTargets` 都出现在安装对话框里——写得含糊，用户就会拒绝。
 
 ---
 
@@ -972,6 +1153,23 @@ com.example.hello-1.0.0.zip
 > **排版也查得到**：[`preview.mjs`](plugin-testkit/README.md) 用你机器上的 Edge/Chrome 把插件装进
 > 声明的矩形里跑一遍，越界就 FAIL（--check），也能截图（--shot）、能点（--click）、能直达
 > 「等你回答」那一屏（--state gate）。
+>
+> **只在控制中心里挂的插件（没有 `surface`）要看整页，用这两个开关**：
+>
+> ```powershell
+> node docs/plugin-testkit/preview.mjs <插件目录> --shot out.png --slot workshop --theme light `
+>      --frame 900x1250 --bare
+> ```
+>
+> - `--frame WxH`：这个插件**实际的框**多大。不给就用声明矩形，而没有 `surface` 的插件会退回
+>   380×260（退休面板的尺寸）——用那个尺寸看"间距是否合规、布局是否合理"，看到的是一屏被裁掉
+>   大半的页面，什么问题都看不出来。
+> - `--bare`：去掉虚线框、右栏与留白，截图就是页面本身。
+> - 预览默认按**清单声明的全部权限**授权（`--granted none` 复现"什么都没给"那一屏）：以前它
+>   写死了一份六项列表，声明 `llm.chat` 的插件永远停在"没有权限"，等于从没被真正看过。
+> - 假宿主对 `llm.channels.get` 返回**一张示例渠道表**（两个渠道、一个带两个密钥），
+>   否则渠道类界面在预览里只有空状态。
+>
 > 下面这张清单是它查不到的部分（观感、真实宿主行为），以及给你自己过一遍用的。
 
 在你认为"做完了"之前，逐条确认：
@@ -1065,9 +1263,13 @@ com.example.hello-1.0.0.zip
 | `pet.badge` | `pet.surface` | 宠物头顶的一行字（借 surface 的授权，见 6.5） |
 | `llm.chat` | `llm.chat` | 用你自己的配置调模型（流式） |
 | `llm.profile` | `llm.borrow` | 现在能用谁的模型 |
+| `llm.providers` | `llm.borrow` | 有哪些模型渠道可用、默认是哪个（不含端点与密钥） |
+| `llm.channels.get` | `llm.chat` | 读你自己的渠道表（密钥只有 `set`/`mask`） |
+| `llm.channels.set` | `llm.chat` | 写你自己的渠道表（`keys[].value` 只写不读） |
 | `share.set` | `plugin.share` | 发布一个值（只能是你名下的） |
 | `share.get` | `plugin.share` | 读一个值（只能读 `shareRead` 点名的） |
 | `share.remove` | `plugin.share` | 删你自己发布的值 |
+| `plugin.call` | `plugin.call` | 问另一个插件一个问题并拿回它的答案（两端都要有该权限，见 6.8） |
 | `audio.save` | `audio` | 存一段 WAV（base64） |
 | `audio.import` | `audio` | 把包内音频复制进你的音频目录 |
 | `audio.list` | `audio` | 列你的音频 |

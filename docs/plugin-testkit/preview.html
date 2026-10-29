@@ -35,6 +35,12 @@
   .dir-in { color: #fbbf24; }
   .err { color: #f87171; }
   .who { color: #6b7280; }
+  /* bare：只留插件页面本身（--bare 用）。 */
+  body.bare { display: block; }
+  body.bare #stage { padding: 0; height: 100vh; }
+  body.bare #card { outline: none; }
+  body.bare #card::after { display: none; }
+  body.bare #side { display: none; }
 </style>
 </head>
 <body>
@@ -93,7 +99,14 @@ const params = {
   rect: Number(q.get('rect') || 0),
   slot: q.get('slot') || 'pomodoro',
   kind: q.get('kind') || 'surface',
-  granted: (q.get('granted') || 'storage,plugin.config,plugin.share,events,pet.surface,pet.bubble').split(',').filter(Boolean),
+  // 默认给**清单声明的全部权限**：预览要看的是「用户全授权之后长什么样」。
+  // 以前这里是一份写死的六项列表（storage / plugin.config / plugin.share / events /
+  // pet.surface / pet.bubble），于是声明了 llm.chat、net.ws 的插件在预览里永远停在
+  // 「没有权限」那一屏——2026-10-29 三个插件页的截图全是那个状态，等于从没被真正看过。
+  // `--granted none` 仍然可以复现"什么都没给"的那一屏。
+  granted: q.get('granted') === 'none'
+    ? []
+    : (q.get('granted') ? q.get('granted').split(',').filter(Boolean) : null),
   deny: q.get('deny') === '1',
   state: q.get('state') || 'idle',
   // `--theme light`：宿主给插件的那套配色。真宿主用两条通道（帧地址上的 `?theme=` 与
@@ -102,7 +115,22 @@ const params = {
   theme: q.get('theme') === 'light' ? 'light' : 'dark',
   // `--click "#ask-ok"`：等握手与首帧都稳定之后点一下，再继续量/继续截。
   click: q.get('click') || '',
+  // `--frame 900x760`：**这个插件的框多大**，而不是清单声明的矩形。
+  //
+  // 为什么需要它：只在控制中心里挂载的插件（没有 `surface`）没有声明矩形，默认会退回
+  // 380×260——那是退休面板的尺寸。拿它去看"间距是否合规、布局是否合理"，看到的是一屏被裁掉
+  // 大半的页面，什么问题都看不出来。工作区实际约 720×560，所以给一个真实的框是必要的。
+  frameW: Number(q.get('w') || 0),
+  frameH: Number(q.get('h') || 0),
+  // `--bare`：去掉虚线框、右栏与留白，截图就是插件页面本身。
+  bare: q.get('bare') === '1',
 };
+
+if (params.bare) {
+  // 只加类，**不删节点**：右栏里的 #report/#log 是脚本的记账处，删了它们第一个消息就会抛异常，
+  // 而异常发生在握手之前——页面上就是一片空白（这一条是被自己的截图当场抓到的）。
+  document.body.classList.add('bare');
+}
 
 const els = {
   frame: document.getElementById('frame'),
@@ -131,7 +159,12 @@ const tray = createMemoryStore();
 
 function currentRect() {
   const r = rects[params.rect] || { w: 380, h: 260, radius: 14 };
-  return { w: Math.round(r.w), h: Math.round(r.h), radius: r.radius || 0 };
+  // 显式的框优先：一个没有 surface 的插件（只在控制中心里挂）不该被 380×260 限制。
+  return {
+    w: Math.round(params.frameW || r.w),
+    h: Math.round(params.frameH || r.h),
+    radius: r.radius || 0,
+  };
 }
 
 function applySize() {
@@ -140,7 +173,7 @@ function applySize() {
   els.frame.style.height = h + 'px';
   els.card.style.width = w + 'px';
   els.card.style.height = h + 'px';
-  els.card.dataset.label = `declared rect ${w}×${h}`;
+  els.card.dataset.label = params.frameW || params.frameH ? `frame ${w}×${h}` : `declared rect ${w}×${h}`;
 }
 
 function logLine(who, dir, text) {
@@ -230,7 +263,7 @@ function surfaceFor() {
 function makeFrame(el, label, surface) {
   const host = createFakeHost({
     manifest,
-    granted: params.granted,
+    granted: params.granted || (manifest.permissions || []),
     surface,
     theme: params.theme,
     mode: params.deny ? 'deny' : 'ok',

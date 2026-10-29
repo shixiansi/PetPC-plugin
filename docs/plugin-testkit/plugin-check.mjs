@@ -47,6 +47,7 @@ const LIMITS = {
   configOptions: 64,
   assets: 32,
   shareRead: 8,
+  callList: 8,
   entry: null,
 };
 
@@ -54,6 +55,9 @@ const ID_PATTERN = /^[a-z0-9]+(\.[a-z0-9][a-z0-9-]*)+$/;
 const VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/;
 const NET_HOST_PATTERN = /^[A-Za-z0-9.-]+(:\d+)?$/;
 const CONFIG_KEY_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+// 一个被服务的方法名，和宿主 manifest.go 的 servedMethodPattern 是同一个形状（点可以是
+// "memory.get" 这种名字，但永不落到文件系统上）。
+const SERVED_METHOD_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
 const CONFIG_TYPES = ['text', 'number', 'bool', 'secret', 'select'];
 const PANEL_SLOTS = ['', 'chat', 'todos', 'pomodoro'];
 
@@ -114,7 +118,7 @@ function checkManifest(report, manifest) {
   else {
     const seen = new Set();
     for (const p of perms) {
-      if (typeof p !== 'string' || !(p in PERMISSIONS)) add('permission-unknown', 'FAIL', `permissions 含非法权限名 ${JSON.stringify(p)}`, '13 项见手册 4.1 节');
+      if (typeof p !== 'string' || !(p in PERMISSIONS)) add('permission-unknown', 'FAIL', `permissions 含非法权限名 ${JSON.stringify(p)}`, '14 项见手册 4.1 节');
       else if (seen.has(p)) add('permission-dup', 'FAIL', `permissions 含重复项 ${p}`);
       else declared.add(p);
       seen.add(p);
@@ -149,8 +153,8 @@ function checkManifest(report, manifest) {
   if (manifest.panel !== true && surface.length === 0 && !hasBackground) {
     add('no-mount-point', 'FAIL', '必须声明 panel / surface / background 之一：否则没有任何宿主会加载这个 entry');
   }
-  if (hasBackground && !['events', 'net.ws', 'net.fetch'].some((p) => declared.has(p))) {
-    add('background-without-permission', 'FAIL', 'background 需要 events / net.ws / net.fetch 之一（常驻帧的用途是无人看着时收发消息）');
+  if (hasBackground && !['events', 'net.ws', 'net.fetch', 'plugin.call'].some((p) => declared.has(p))) {
+    add('background-without-permission', 'FAIL', 'background 需要 events / net.ws / net.fetch / plugin.call 之一（常驻帧的用途是无人看着时收发消息）');
   }
 
   // panelSlot
@@ -175,6 +179,39 @@ function checkManifest(report, manifest) {
       if (!CONFIG_KEY_PATTERN.test(key)) add('shareRead-name', 'FAIL', `shareRead 的键名不是扁平名（[A-Za-z0-9_-]{1,64}）：${key}`);
       if (owner === id) add('shareRead-self', 'FAIL', 'shareRead 不该列出自己（读自己的值是默认允许的）');
       if (seen.has(item)) add('shareRead-dup', 'FAIL', `shareRead 有重复项 ${item}`);
+      seen.add(item);
+    }
+  }
+
+  // serving: 我会答哪些方法；calling: 我能问谁。宿主对这两张表的规则见手册 4 节与 6.8。
+  const serves = Array.isArray(manifest.serves) ? manifest.serves : [];
+  const callTargets = Array.isArray(manifest.callTargets) ? manifest.callTargets : [];
+  if ((serves.length > 0 || callTargets.length > 0) && !declared.has('plugin.call')) {
+    add('call-without-permission', 'FAIL', '声明了 serves / callTargets 却没有 plugin.call 权限（两端都要有这把开关）');
+  }
+  if (serves.length > LIMITS.callList) add('serves-long', 'FAIL', `serves 最多 ${LIMITS.callList} 项`);
+  {
+    const seen = new Set();
+    for (const name of serves) {
+      if (typeof name !== 'string' || !SERVED_METHOD_PATTERN.test(name)) {
+        add('serves-shape', 'FAIL', `serves 项不是合法方法名（[A-Za-z0-9_.-]{1,64}）：${JSON.stringify(name)}`);
+        continue;
+      }
+      if (seen.has(name)) add('serves-dup', 'FAIL', `serves 有重复项 ${name}`);
+      seen.add(name);
+    }
+  }
+  if (callTargets.length > LIMITS.callList) add('callTargets-long', 'FAIL', `callTargets 最多 ${LIMITS.callList} 项`);
+  {
+    const seen = new Set();
+    for (const item of callTargets) {
+      const parts = typeof item === 'string' ? item.split('/') : [];
+      if (parts.length !== 2) { add('callTargets-shape', 'FAIL', `callTargets 项必须形如 "<插件id>/<方法名>"：${JSON.stringify(item)}`); continue; }
+      const [target, method] = parts;
+      if (!ID_PATTERN.test(target)) add('callTargets-target', 'FAIL', `callTargets 的目标不是合法插件 id：${target}`);
+      if (!SERVED_METHOD_PATTERN.test(method)) add('callTargets-method', 'FAIL', `callTargets 的方法名不合法（[A-Za-z0-9_.-]{1,64}）：${method}`);
+      if (target === id) add('callTargets-self', 'FAIL', 'callTargets 不该列出自己（那是循环，不是调用）');
+      if (seen.has(item)) add('callTargets-dup', 'FAIL', `callTargets 有重复项 ${item}`);
       seen.add(item);
     }
   }
@@ -424,16 +461,23 @@ function checkSource(report, dir, info) {
   // CSS 也先去注释：样式表里"不许用 box-shadow"这类说明同样会被当成真声明。
   const stripCss = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '');
   const cssTexts = [...cssFiles.map((f) => [f, stripCss(safeRead(f))]), ...(info?.entry ? [[join(dir, info.entry), stripCss(html)]] : [])];
-  for (const [file, text] of cssTexts) {
-    for (const prop of ['box-shadow', 'filter', 'transform', 'text-shadow']) {
-      const re = new RegExp(`(^|[;{\\s])${prop}\\s*:([^;}]+)`, 'gi');
-      if (!re.test(text)) continue;
-      re.lastIndex = 0;
-      let hit;
-      while ((hit = re.exec(text))) {
-        // `box-shadow: inset …` 画在盒子**里面**，不违反这条规则。
-        if (prop === 'box-shadow' && /^\s*inset\b/i.test(hit[2])) continue;
-        add('css-forbidden', 'FAIL', `${short(dir, file)} 里有 ${prop}`, '它在矩形之外绘制，会直接画到用户桌面上；用 border / border-radius / 背景色代替');
+  // 这条规则只对**声明了浮层面**的插件成立：窗口区域按矩形裁剪，画到盒子外的装饰会被切掉，
+  // 在用户桌面上看起来就是"缺了一块"。而一个只在控制中心里铺满面板的插件（没有 surface）活在
+  // 一个正常滚动的容器里，卡片阴影与 hover 位移都落在页面内部，不会被裁——对它禁 shadow 只会
+  // 逼作者把界面做丑（2026-10-29：三个插件页"特别丑"的一部分原因就是这条被无条件套用）。
+  const croppedByRegion = (info?.surface?.length ?? 0) > 0;
+  if (croppedByRegion) {
+    for (const [file, text] of cssTexts) {
+      for (const prop of ['box-shadow', 'filter', 'transform', 'text-shadow']) {
+        const re = new RegExp(`(^|[;{\\s])${prop}\\s*:([^;}]+)`, 'gi');
+        if (!re.test(text)) continue;
+        re.lastIndex = 0;
+        let hit;
+        while ((hit = re.exec(text))) {
+          // `box-shadow: inset …` 画在盒子**里面**，不违反这条规则。
+          if (prop === 'box-shadow' && /^\s*inset\b/i.test(hit[2])) continue;
+          add('css-forbidden', 'FAIL', `${short(dir, file)} 里有 ${prop}`, '它在矩形之外绘制，会直接画到用户桌面上；用 border / border-radius / 背景色代替');
+        }
       }
     }
   }

@@ -126,7 +126,7 @@ function startServer(pluginDir, port) {
 // ---------------------------------------------------------------------------
 // Driving the browser.
 // ---------------------------------------------------------------------------
-function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, theme, click }) {
+function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, theme, click, frame, bare }) {
   const u = new URL(`http://127.0.0.1:${port}/`);
   u.searchParams.set('plugin', plugin);
   u.searchParams.set('rect', String(rect));
@@ -136,6 +136,12 @@ function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, them
   if (deny) u.searchParams.set('deny', '1');
   if (theme) u.searchParams.set('theme', theme);
   if (click) u.searchParams.set('click', click);
+  // 显式的框（--frame）与裸模式（--bare）：一个没有 surface 的插件需要真实的框才看得出布局。
+  if (frame) {
+    u.searchParams.set('w', String(frame.w));
+    u.searchParams.set('h', String(frame.h));
+  }
+  if (bare) u.searchParams.set('bare', '1');
   u.searchParams.set('state', state);
   return u.toString();
 }
@@ -222,7 +228,7 @@ async function check(browser, url) {
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const opts = { dir: null, shot: null, check: false, open: false, port: 7801, rect: 0, rectGiven: false, slot: 'pomodoro', kind: 'surface', state: 'gate', granted: null, deny: false, size: null, click: null };
+  const opts = { dir: null, shot: null, check: false, open: false, port: 7801, rect: 0, rectGiven: false, slot: 'pomodoro', kind: 'surface', state: 'gate', granted: null, deny: false, size: null, click: null, frame: null, bare: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--shot') opts.shot = argv[++i];
@@ -238,6 +244,12 @@ function parseArgs(argv) {
     else if (a === '--granted') opts.granted = argv[++i];
     else if (a === '--deny') opts.deny = true;
     else if (a === '--size') opts.size = argv[++i];
+    else if (a === '--frame') {
+      const [w, h] = String(argv[++i]).split('x').map(Number);
+      if (!w || !h) throw new Error('--frame 要写成 WxH，例如 --frame 900x760');
+      opts.frame = { w, h };
+    }
+    else if (a === '--bare') opts.bare = true;
     else if (a === '--click') opts.click = argv[++i];
     else if (a.startsWith('-')) throw new Error('未知参数 ' + a);
     else opts.dir = a;
@@ -258,7 +270,7 @@ async function main() {
     opts = parseArgs(process.argv.slice(2));
   } catch (err) {
     console.error(err.message);
-    console.error('用法：node preview.mjs <插件目录> [--open] [--check] [--shot out.png] [--state gate|running|idle] [--rect N] [--slot S] [--kind surface|panel] [--deny] [--click "#id"]');
+    console.error('用法：node preview.mjs <插件目录> [--open] [--check] [--shot out.png] [--state gate|running|idle] [--rect N] [--slot S] [--kind surface|panel] [--deny] [--click "#id"] [--frame WxH] [--bare]');
     process.exit(2);
   }
   const pluginDir = resolve(opts.dir);
@@ -278,6 +290,7 @@ async function main() {
   const url = (rectIndex) => previewURL({
     port, plugin: manifest.id, rect: rectIndex, slot: opts.slot, kind: opts.kind,
     granted: opts.granted, deny: opts.deny, state: opts.state, theme: opts.theme, click: opts.click,
+    frame: opts.frame, bare: opts.bare,
   });
 
   try {
@@ -292,7 +305,13 @@ async function main() {
     if (opts.shot) {
       // The screenshot is of the PAGE (card + side panel), so the window has to be wider than the
       // card. `--size` overrides; the default leaves room for the message column.
-      const pageSize = opts.size ? size : { w: size.w + 460, h: Math.max(size.h + 120, 420) };
+      // --bare 截的就是插件页面本身：窗口尺寸 = 框的尺寸（+1px 防亚像素滚动条）。
+      const box = opts.frame ? { w: opts.frame.w, h: opts.frame.h } : size;
+      const pageSize = opts.bare
+        ? { w: box.w + 1, h: box.h + 1 }
+        : opts.size
+          ? size
+          : { w: box.w + 460, h: Math.max(box.h + 120, 420) };
       const out = await shot(browser, url(opts.rect), opts.shot, pageSize);
       console.log(`已截图：${out}`);
     }

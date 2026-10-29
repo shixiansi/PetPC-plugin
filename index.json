@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-29T05:51:49Z",
+  "updatedAt": "2026-10-29T14:14:21Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -24,6 +24,38 @@
       "sha256": "0bff33af028e7af381a1dac459287240e772b2956cf3a17057f1e9c393c26147"
     },
     {
+      "id": "com.shixiansi.plugin-llmchannel",
+      "name": "模型渠道（多渠道 / 多密钥 / 预设模型）",
+      "version": "0.2.5",
+      "author": "shixiansi",
+      "description": "一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。",
+      "permissions": ["llm.chat", "plugin.config"],
+      "netHosts": ["api.openai.com", "api.moonshot.cn", "open.bigmodel.cn", "dashscope.aliyuncs.com", "127.0.0.1:11434"],
+      "download": "dist/com.shixiansi.plugin-llmchannel-0.2.5.zip",
+      "sha256": "8d44e4818044a5f1301f01eb9bdda9db8d093a2fa2c10b3edf142e56b4184ac8"
+    },
+    {
+      "id": "com.shixiansi.plugin-memcore",
+      "name": "记忆核心（人设 + 分层记忆）",
+      "version": "0.1.7",
+      "author": "shixiansi",
+      "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。换一个接入端不用搬记忆，改一次人设所有接入端同时生效。",
+      "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
+      "download": "dist/com.shixiansi.plugin-memcore-0.1.7.zip",
+      "sha256": "f4a86ab33cbcd3b409c7e2c566e8b5ab001bec000ded62abea4cbe38efa7fa89"
+    },
+    {
+      "id": "com.shixiansi.plugin-onebot",
+      "name": "OneBot 接入端（薄适配器）",
+      "version": "0.1.5",
+      "author": "shixiansi",
+      "description": "把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。",
+      "permissions": ["net.ws", "plugin.call", "storage", "plugin.config"],
+      "netHosts": ["127.0.0.1:3001"],
+      "download": "dist/com.shixiansi.plugin-onebot-0.1.5.zip",
+      "sha256": "7f03fa392d7321bf3783be5ba88df276a9c2ae0ac9f003bb5f6e9c58dde68a51"
+    },
+    {
       "id": "com.shixiansi.plugin-pomodoro",
       "name": "番茄钟插件",
       "version": "2.3.11",
@@ -36,13 +68,13 @@
     {
       "id": "com.shixiansi.plugin-qq",
       "name": "QQ 群聊插件",
-      "version": "1.12.0",
+      "version": "1.13.2",
       "author": "shixiansi",
       "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
-      "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share"],
+      "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
       "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
-      "download": "dist/com.shixiansi.plugin-qq-1.12.0.zip",
-      "sha256": "52ebe4526b78529fabac7ab2ae8785cfe0c103ef53e6f155cd30559207f17985"
+      "download": "dist/com.shixiansi.plugin-qq-1.13.2.zip",
+      "sha256": "e69e9db497f38505888fca6dd437cd856bbe7c8b9750798da0ebd7feb40ede6e"
     },
     {
       "id": "com.shixiansi.plugin-qqbot",

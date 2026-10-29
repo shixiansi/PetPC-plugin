@@ -18,7 +18,7 @@
 
 export const PERMISSIONS = {
   'pet.bubble': '让桌宠弹出一句话的气泡',
-  events: '订阅待办与番茄钟的变化事件（关闭界面后也会送达）',
+  events: '订阅宿主的状态变化事件（提醒触发、计时阶段结束、配置变更）',
   'net.fetch': '访问网络（仅限插件声明的域名）',
   'net.credentials': '以你保存的网站登录凭据发请求（凭据本身不会显示给插件）',
   storage: '在自己的私有目录里保存数据',
@@ -30,6 +30,7 @@ export const PERMISSIONS = {
   'llm.borrow': '使用其它插件已配置的大模型与密钥（密钥不会显示给你）',
   process: '启动本机程序',
   'plugin.share': '与其它插件交换消息（只能读清单里点名的键，只能写自己名下的键）',
+  'plugin.call': '与其它插件互相调用（只能调用清单里点名的目标，也只能回答清单里声明的方法）',
 };
 
 /** 方法表：名字 → { perm, where }。where: 'pet' 只有桌宠服务、'both' 两个宿主都服务。 */
@@ -55,9 +56,14 @@ export const METHODS = {
   'pet.badge': { perm: 'pet.surface', where: 'pet' },
   'llm.chat': { perm: 'llm.chat', where: 'pet' },
   'llm.profile': { perm: 'llm.borrow', where: 'pet' },
+  'llm.providers': { perm: 'llm.borrow', where: 'pet' },
+  // 渠道表：两个宿主都服务（控制中心的渠道编辑器就靠它），因为它是插件自己的设置。
+  'llm.channels.get': { perm: 'llm.chat', where: 'both' },
+  'llm.channels.set': { perm: 'llm.chat', where: 'both' },
   'share.set': { perm: 'plugin.share', where: 'both' },
   'share.get': { perm: 'plugin.share', where: 'both' },
   'share.remove': { perm: 'plugin.share', where: 'both' },
+  'plugin.call': { perm: 'plugin.call', where: 'pet' },
   'audio.save': { perm: 'audio', where: 'both' },
   'audio.import': { perm: 'audio', where: 'both' },
   'audio.list': { perm: 'audio', where: 'both' },
@@ -90,6 +96,28 @@ export function okResult(method) {
     case 'storage.move': return { ok: true, moved: true };
     case 'config.get': return { values: {}, secrets: {} };
     case 'llm.profile': return { ownReady: false, borrowAllowed: false, ready: false, source: 'none', model: '' };
+    case 'llm.providers': return { providers: [], default: '', own: { ready: false, model: '' } };
+    // 一张**非空**的示例渠道表：空表会让渠道编辑器只画出空状态，而空状态看不出布局问题
+    // （行高、标签列宽、密钥行的网格、按钮层级全都藏起来了）。密钥只有 mask——和真宿主一致。
+    case 'llm.channels.get': return {
+      defaultChannel: 'openai',
+      channels: [
+        {
+          id: 'openai', name: '主号 OpenAI', baseUrl: 'https://api.openai.com/v1',
+          provider: 'openai', models: ['gpt-4o', 'gpt-4o-mini'], defaultModel: 'gpt-4o',
+          keys: [
+            { id: 'k1', label: '主号', set: true, mask: '…7f3a' },
+            { id: 'k2', label: '备用', set: true, mask: '…9c11' },
+          ],
+        },
+        {
+          id: 'local', name: '本机 Ollama', baseUrl: 'http://127.0.0.1:11434/v1',
+          provider: 'ollama', models: ['qwen2.5:7b'], defaultModel: 'qwen2.5:7b',
+          keys: [],
+        },
+      ],
+    };
+    case 'llm.channels.set': return { channels: [], defaultChannel: '' };
     case 'llm.chat': return { requestId: 'sim', text: '（模拟回复）' };
     case 'events.subscribe': return [];
     case 'ws.state': return { state: 'closed', received: 0, sent: 0 };
@@ -100,6 +128,9 @@ export function okResult(method) {
     case 'audio.save':
     case 'audio.import': return { name: 'sim', bytes: 0 };
     case 'share.get': return { value: '', at: 0, key: '' };
+    // 假宿主里没有"另一个插件"，所以这里如实模拟成"问不到"：插件应当把这句话显示出来，
+    // 而不是假设一定有答案（真宿主在没有常驻帧时给的也是同一类错误）。
+    case 'plugin.call': throw new Error('模拟拒绝：假宿主里没有可以被调用的插件');
     default: return { ok: true };
   }
 }

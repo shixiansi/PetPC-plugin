@@ -177,6 +177,24 @@ node docs/plugin-testkit/preview.mjs plugins/… --shot gate.png --state gate
 node docs/plugin-testkit/preview.mjs plugins/… --shot after.png --state gate --click "#ask-ok"
 ```
 
+**只在控制中心里挂的插件（没有 `surface`）：要判断布局/间距/元素规范，必须给一个真实的框。**
+默认会退回 380×260（退休面板的尺寸），用它看"间距是否合规"只会看到一屏被裁掉大半的页面：
+
+```bash
+node docs/plugin-testkit/preview.mjs plugins/… --shot page.png --slot workshop \
+     --theme light --frame 900x1250 --bare
+```
+
+| 开关 | 作用 |
+| --- | --- |
+| `--frame WxH` | 这个插件**实际的框**多大（工作区约 720×560，想一次看全就给 900×1250） |
+| `--bare` | 去掉虚线框、右栏与留白，截图就是页面本身 |
+| `--theme light` | 宿主给插件的配色；深浅两套都该看一眼 |
+| `--granted none` | 复现"什么都没授权"那一屏（默认按清单声明的**全部**权限授权） |
+
+假宿主对 `llm.channels.get` 返回**一张示例渠道表**（两个渠道，其中一个带两把掩码密钥），
+否则渠道类界面在预览里只有空状态，行高/标签列/密钥网格全都看不见。
+
 退出码：`0` 全部在框内（或没找到浏览器 → `SKIP`）· `1` 有元素越界 · `2` 用法/环境问题。
 
 没有声明 `surface` 的插件（只有常驻帧，或者铺满宿主窗口的面板）会报 `SKIP`：那种界面没有
