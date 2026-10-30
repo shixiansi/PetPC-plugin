@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T11:09:27Z",
+  "updatedAt": "2026-10-30T11:15:53Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
       "name": "B 站刷视频插件",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "author": "shixiansi",
       "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
       "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share", "plugin.call"],
       "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
-      "download": "dist/com.shixiansi.plugin-bilibili-1.1.0.zip",
-      "sha256": "52644992953597823558ba76b213a3dedcde908c58b7e6b9aeda20af3c2f3456"
+      "download": "dist/com.shixiansi.plugin-bilibili-1.1.1.zip",
+      "sha256": "f3bef5a9c424b133005d09d5dc464fda499b99b7ae325327cd54a79146168f25"
     },
     {
       "id": "com.shixiansi.plugin-chat",
