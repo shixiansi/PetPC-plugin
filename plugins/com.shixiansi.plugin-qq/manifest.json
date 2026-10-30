@@ -1,13 +1,13 @@
 {
   "id": "com.shixiansi.plugin-qq",
   "name": "QQ 群聊插件",
-  "version": "1.13.2",
+  "version": "1.14.0",
   "author": "shixiansi",
   "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
   "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
   "background": true,
   "shareRead": ["com.shixiansi.plugin-bilibili/bili-results", "com.shixiansi.plugin-bilibili/recommend"],
-  "callTargets": ["com.shixiansi.plugin-memcore/chat", "com.shixiansi.plugin-memcore/seed"],
+  "callTargets": ["com.shixiansi.plugin-memcore/chat", "com.shixiansi.plugin-memcore/seed", "com.shixiansi.plugin-diange/song"],
   "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
   "config": [
     { "key": "server", "label": "Milky 协议端地址（host:port，或 http://host:port/前缀）", "type": "text", "default": "127.0.0.1:3000", "hostWhitelist": true },
@@ -62,6 +62,7 @@
     "lib/reminders.js",
     "lib/memory.js",
     "lib/proactive.js",
+    "lib/song.js",
     "lib/bili.js",
     "lib/admin.js",
     "lib/workshop.js",

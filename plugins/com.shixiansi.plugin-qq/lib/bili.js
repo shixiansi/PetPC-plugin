@@ -682,6 +682,13 @@ async function onGroupMessage(event) {
   // long round trip cannot delay the answer to a real question. The SEGMENTS travel with
   // the text because B 站 的分享卡片把链接放在段里，纯文本里没有。
   void maybeRequestBiliVideo(raw, segments, groupID, senderID);
+  // 点歌是**命令**，不是聊天：命中了当场发卡片，绝不喂给模型（和下面的 `#状态` 同一类）。
+  // 放在 B 站链接之后：那条是不 await 的旁路，而点歌要自己发消息、还要决定"这条消息到此为止"。
+  //
+  // **先用同步的 `songCommandOf` 判一次**：`maybeHandleSongCommand` 是 async，直接 await 会给
+  // 每一条普通消息平白加一个微任务（真机上无所谓，但测试里"跑几个 tick 再断言"的写法就少一拍，
+  // 于是 65 个用例一起红）。不是点歌就一步都不多走。
+  if (songCommandOf(raw) && (await maybeHandleSongCommand(raw, groupID))) return;
   // 群内管理命令在触发规则之前处理：`#状态` / `#忘掉` 不是聊天，不该喂给模型。
   const command = groupCommandOf(raw);
   if (command) {
