@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T12:16:57Z",
+  "updatedAt": "2026-10-30T13:00:18Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -34,6 +34,17 @@
       "sha256": "1239ae9ab9b97d071fbe4f6d34f563fa9e6ac53a91a0371e2ffee607aef4450e"
     },
     {
+      "id": "com.shixiansi.plugin-diange",
+      "name": "点歌（酷我搜索 + 直链）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "把「点歌 晴天」变成一首歌：歌名、歌手、专辑、封面，和一条能直接播的直链。搜索走酷我（替它查的是 oiapi 那个公开接口），链接按码率逐档回退，并在域名可探测时验证一次能不能播。别的插件用 plugin.call 问它 song（按一句话找歌）或 song_link（已知歌名，要一条当下的链接）；记忆核心在用户点歌时调它，把直链原样给出来。插件页可以手动点一首。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
+      "netHosts": ["oiapi.net", "kw-er.kuwo.cn", "kw-lv.kuwo.cn"],
+      "download": "dist/com.shixiansi.plugin-diange-0.1.0.zip",
+      "sha256": "783645c9615c78b470f11746d1fd833e45f646db1753d05ccc172b0215cf2e10"
+    },
+    {
       "id": "com.shixiansi.plugin-llmchannel",
       "name": "模型渠道（多渠道 / 多密钥 / 预设模型）",
       "version": "0.2.5",
@@ -57,12 +68,23 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.5.0",
+      "version": "0.6.0",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.5.0.zip",
-      "sha256": "1b8e40e7aab1ba20168575e6690baae6904f48ed729a62cf85ee9a08de6cb3fd"
+      "download": "dist/com.shixiansi.plugin-memcore-0.6.0.zip",
+      "sha256": "38894e3c3aebd46018fdb7f9d5610b0599773bed0eeebde102ff5a2f0d9afd5b"
+    },
+    {
+      "id": "com.shixiansi.plugin-moegirl",
+      "name": "萌娘百科",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
+      "netHosts": ["zh.moegirl.org.cn"],
+      "download": "dist/com.shixiansi.plugin-moegirl-0.1.0.zip",
+      "sha256": "8b9c1d54483e3338c04207b0c53df3dc3483f49dbba18140e381cdf736d4ced0"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
