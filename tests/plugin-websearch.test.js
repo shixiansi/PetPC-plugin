@@ -359,3 +359,38 @@ test('says ready first, and nothing before init', async () => {
   expect(first && first.type).toBe('ready');
   expect(requests()).toHaveLength(0);
 });
+
+// 「试一下」能不能点，取决于**宿主服务不服务 net.fetch**，而不是 slot 叫什么。
+//
+// 之前这里写死 `slot === 'workshop'` → 禁用按钮，理由是"控制中心不服务 net.fetch"——那条前提是错的
+// （tools/plugin-market/pluginhost.go 注册了 net.fetch）。于是插件页上唯一能点搜索的地方永远是灰的。
+test('workshop + 宿主服务 net.fetch：搜索按钮可用', async () => {
+  const parsed = new JSDOM(html);
+  document.body.innerHTML = parsed.window.document.body.innerHTML;
+  loadApp();
+  hostSends({
+    v: 1, type: 'init', pluginId: PLUGIN_ID, permissions: manifest.permissions,
+    granted: [...manifest.permissions],
+    surface: { kind: 'panel', slot: 'workshop' },
+    host: { program: 'workshop', methods: ['config.get', 'storage.get', 'net.fetch'] },
+  });
+  await pump();
+  expect(document.getElementById('go').disabled, '宿主服务 net.fetch，按钮却是灰的').toBe(false);
+});
+
+test('workshop + 宿主不服务 net.fetch：按钮禁用，并说清去哪里搜', async () => {
+  const parsed = new JSDOM(html);
+  document.body.innerHTML = parsed.window.document.body.innerHTML;
+  loadApp();
+  hostSends({
+    v: 1, type: 'init', pluginId: PLUGIN_ID, permissions: manifest.permissions,
+    granted: [...manifest.permissions],
+    surface: { kind: 'panel', slot: 'workshop' },
+    host: { program: 'workshop', methods: ['config.get', 'storage.get'] },
+  });
+  await pump();
+  expect(document.getElementById('go').disabled).toBe(true);
+  const note = document.querySelector('.desktop-only');
+  expect(note, '没有那句"在哪搜"的提示').toBeTruthy();
+  expect(note.classList.contains('hidden'), '提示被藏起来了').toBe(false);
+});
