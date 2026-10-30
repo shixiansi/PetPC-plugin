@@ -86,8 +86,9 @@ function normalizeEvent(type, d, frame) {
     case 'GROUP_DEL_ROBOT':
       void logEvent('退群', `机器人被移出群（openid ${truncate(String(d.group_openid || ''), 16)}）`);
       // 顺手清掉这个群的记忆：不在群里了，留着也是误导下一次加入的自己。
+      // 两个键都在（往来在 `s/`、节流状态在同级的 `m/`），少删一个就是留下半个会话。
       void storageRemove(flatKey(d.group_openid));
-      void storageRemove(`${flatKey(d.group_openid)}/meta`);
+      void storageRemove(metaKey(d.group_openid));
       return null;
     case 'FRIEND_ADD':
       void logEvent('新好友', `用户 ${d.user_openid || ''} 添加了机器人`);

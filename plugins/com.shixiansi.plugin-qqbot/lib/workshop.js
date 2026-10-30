@@ -101,9 +101,10 @@ function renderState(state, extra) {
 
 // --- 会话列表 ------------------------------------------------------------------
 //
-// 会话历史键是 `s/<8位十六进制哈希>`（见 core.js 的 flatKey），meta 是 `s/<哈希>/meta`。
-// storage.list 的 files 里两者都出现，这里按名字长度区分：哈希键 8 个字符，带 /meta
-// 后缀的更长。展示的是往来，meta（冷却/seq）不展示。
+// 会话历史键是 `s/<8位十六进制哈希>`（见 core.js 的 flatKey），节流状态是 `m/<同一个哈希>`
+// （metaKey）——两个**同级**目录，因为 `s/<哈希>` 是文件，它不可能是 `s/<哈希>/meta` 的父目录
+// （那正是 2026-10-29 那 6 次 mkdir 失败）。所以这一页只列 `s/`，看到的就是往来，不需要再按
+// 名字长度把 meta 筛出去。
 
 async function renderSessions() {
   if (view === 'background' || !els.botList) return;
@@ -119,7 +120,7 @@ async function renderSessions() {
   els.botList.hidden = false;
   const rows = [];
   for (const f of files) {
-    if (f.name.length !== 8) continue; // 只看会话往来键（8 位哈希），跳过 …/meta
+    if (f.name.length !== 8) continue; // 只认 8 位哈希：别的名字不是会话键
     const raw = await storageGet(`s/${f.name}`).catch(() => '');
     let history = [];
     try {
@@ -130,7 +131,9 @@ async function renderSessions() {
     const last = history[history.length - 1];
     rows.push({
       key: `s/${f.name}`,
-      metaKey: `s/${f.name}/meta`,
+      // The throttling state lives in a SIBLING folder, not under the transcript key:
+      // `s/<hash>` is a file, so `s/<hash>/meta` could never be created.
+      stateKey: metaKeyForFlat(`s/${f.name}`),
       turns: history.length,
       at: Number(last.at) || 0,
       preview: truncate(String(last.text || ''), 40),
@@ -156,7 +159,7 @@ async function renderSessions() {
     del.addEventListener('click', () => {
       void (async () => {
         await request('storage.remove', { key: row.key }).catch(() => {});
-        await request('storage.remove', { key: row.metaKey }).catch(() => {});
+        await request('storage.remove', { key: row.stateKey }).catch(() => {});
         await renderSessions();
       })();
     });
@@ -240,7 +243,7 @@ function bindWorkshop() {
         const res = await request('storage.list', { sub: 's' }).catch(() => ({ files: [] }));
         for (const f of (res && res.files) || []) {
           await request('storage.remove', { key: `s/${f.name}` }).catch(() => {});
-          await request('storage.remove', { key: `s/${f.name}/meta` }).catch(() => {});
+          await request('storage.remove', { key: metaKeyForFlat(`s/${f.name}`) }).catch(() => {});
         }
         await renderSessions();
       })();

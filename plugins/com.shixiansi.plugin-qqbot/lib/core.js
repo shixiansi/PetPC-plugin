@@ -163,6 +163,13 @@ function flatten(text) {
 // 会话键 = 群 OpenID 或单聊用户 OpenID。它们是官方发下来的不透明字符串
 //（"1B2C3D4E…"），字母数字组成，但长度不受扁平名 64 字符的约束没有保证，
 // 所以进 storage 前先哈希成定长的扁平名，原文存在 JSON 里。
+//
+// 一个会话要两样东西（往来记录、回复节流/message seq），它们必须是**同级的两个键**，
+// 不能是「文件 + 它的子目录」。原来写的是 `s/<hash>` 与 `s/<hash>/meta`：前者是文件，
+// 后者要求前者是目录，于是 storage.set 在 mkdir 那一步就失败——报的是 Windows 的
+// 「The system cannot find the path specified」，看着像磁盘问题，其实是键设计自撞
+// （2026-10-29 真机上 6 次）。现在两个目录各管一件事：`s/` 是往来，`m/` 是节流状态。
+// 没有迁移负担：`s/<hash>/meta` 从来没写成功过。
 
 function flatKey(openid) {
   let h = 0x811c9dc5;
@@ -172,6 +179,16 @@ function flatKey(openid) {
     h = Math.imul(h, 0x01000193) >>> 0;
   }
   return `s/${h.toString(16).padStart(8, '0')}`;
+}
+
+/** 同一个会话的节流状态键：与往来键同级，**不是**它的子路径。 */
+function metaKey(openid) {
+  return metaKeyForFlat(flatKey(openid));
+}
+
+/** `s/<hash>` → `m/<hash>`；给工坊页用（它手里只有从 storage.list 拿到的扁平名）。 */
+function metaKeyForFlat(flat) {
+  return String(flat || '').replace(/^s\//, 'm/');
 }
 
 async function storageGet(key) {
@@ -204,7 +221,7 @@ async function saveHistory(openid, history, turns) {
 
 /** 每个会话的回复节流与 msg_seq 计数：{lastReplyAt, seq:{msgId:seq}}。 */
 async function loadSessionState(openid) {
-  const raw = await storageGet(`${flatKey(openid)}/meta`);
+  const raw = await storageGet(metaKey(openid));
   if (!raw) return { lastReplyAt: 0, seq: {} };
   try {
     const parsed = JSON.parse(raw);
@@ -222,7 +239,7 @@ async function saveSessionState(openid, state) {
   for (const [k, v] of Object.entries(state.seq || {})) {
     if (now - (Number(v.at) || 0) < 600000) seq[k] = v;
   }
-  await storageSet(`${flatKey(openid)}/meta`, JSON.stringify({ lastReplyAt: state.lastReplyAt || 0, seq }));
+  await storageSet(metaKey(openid), JSON.stringify({ lastReplyAt: state.lastReplyAt || 0, seq }));
 }
 
 /** 机器人身份（READY 事件里来）：[{id, username, at}]，给工坊页展示。 */
