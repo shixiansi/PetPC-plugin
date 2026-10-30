@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-weather-env",
   "name": "天气与环境感知",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "桌宠出门前提醒你带伞：默认接入 Open-Meteo 公开天气 API（免密钥），也可配置和风天气。get_weather(city) 工具让模型能回答任意城市的天气；下雨、雷雨、下雪、晴天高温时在桌宠头顶挂出提醒徽标，并经 plugin.share 推送 weather/now 与 weather/condition 状态事件（同一事件 3 小时只提醒一次，不刷屏）。",
   "permissions": [
@@ -15,8 +15,7 @@
   "serves": ["get_weather"],
   "background": true,
   "assets": [
-    "lib/weather.js"
-  ],
+    "lib/weather.js", "ui.css"],
   "netHosts": [
     "api.open-meteo.com",
     "geocoding-api.open-meteo.com",
