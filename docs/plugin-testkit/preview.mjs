@@ -505,11 +505,19 @@ async function main() {
     }
     if (opts.check) {
       if (rects.length === 0) {
-        // A plugin with no `surface` has no declared rect to fit into (a `background` frame is
-        // invisible, a `panel` fills the window it is given). Inventing 380x260 here would be a
-        // number the plugin never agreed to - report SKIP, never a green check.
-        console.error(`SKIP  ${manifest.id} 没有声明浮层面（surface）：排版检查只对声明的矩形有意义。`);
-        console.error('      它的界面要么是常驻帧（看不见），要么铺满宿主给的窗口——没有"放不放得下"这回事。');
+        // A plugin with no `surface` has no DECLARED rect, and that is the only thing `--check` can
+        // judge: a surface block is cropped by the native window region, so "taller than the box"
+        // really is "clipped". A panel page is NOT - an iframe scrolls by default, so a page that is
+        // taller than the window is simply scrollable, and calling that a failure would be a false
+        // alarm on every settings page in the market.
+        //
+        // 2026-10-30 tried the opposite (let an explicit `--frame` drive the check) and got exactly
+        // that: 10 of 11 panel plugins "FAILED" with scrollHeight 600–1900, while the plugins whose
+        // workspace sets `overflow: auto` were fine all along. Fitting a scrolling page into a
+        // window is not a property to check - it is what scrolling is for.
+        console.error(`SKIP  ${manifest.id} 没有声明浮层面（surface）：排版断言只对"被裁出来的矩形"有意义。`);
+        console.error('      工坊页是可滚动的（iframe 默认就能滚），"比窗口高"不是缺陷——所以这里不判定。');
+        console.error('      要看它长什么样：--shot page.png --slot workshop --kind panel --frame 720x560 --bare');
         process.exitCode = 0;
         return;
       }
