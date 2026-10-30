@@ -123,8 +123,16 @@ async function handleChat(payload) {
       searchUsed = await askWebSearch(line, searchCount());
     }
 
-    const system = buildSystem(state, profile, payload && payload.hint,
+    // --- 网络词：先查本地词库 ------------------------------------------------
+    //
+    // 它排在搜索**之前**，因为它是免费的（本机 plugin.call，微秒级）而且更准：模型对
+    // 「尊嘟假嘟」这类词答错，不是因为缺少网页，而是因为没有释义——词库给的正是释义本身。
+    // 查不到就是 null，下面什么都不加（见 lib/slang.js）。
+    const slang = await askSlang(line);
+
+    let system = buildSystem(state, profile, payload && payload.hint,
       mode !== 'off' && !searchUsed ? searchInstruction() : '');
+    if (slang) system = `${system}\n\n${slang.text}`;
     const history = buildHistory(state.turns);
 
     let reply = tidyReply(await askModel({
@@ -182,6 +190,8 @@ async function handleChat(payload) {
         webSearch: searchUsed
           ? { engine: searchUsed.engine, results: searchUsed.results.length }
           : null,
+        // 词库命中：一轮对话到底靠什么答的，事后要能看出来。
+        slang: slang && slang.matched ? slang.matched : null,
       },
     };
   });

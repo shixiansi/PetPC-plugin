@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "com.shixiansi.plugin-slang",
+  "name": "网络词词典",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
+  "entry": "panel.html",
+  "background": true,
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "plugin.call"
+  ],
+  "serves": [
+    "slang"
+  ],
+  "config": [
+    {
+      "key": "enabled",
+      "label": "启用查词（关掉后别的插件问不到）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "maxHits",
+      "label": "一次最多给几条释义",
+      "type": "number",
+      "default": "2"
+    },
+    {
+      "key": "allowPartial",
+      "label": "允许模糊命中（句子里含某个词条也算）",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "assets": [
+    "app.js",
+    "style.css",
+    "ui.css",
+    "lib/lexicon.js",
+    "lib/seed.js"
+  ]
+}

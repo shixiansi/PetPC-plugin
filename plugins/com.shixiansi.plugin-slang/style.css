@@ -1,0 +1,126 @@
+/*
+ * 网络词词典 —— 只覆盖 kit 没给的那几块：页头、卡片内的行、试查结果、最近记录。
+ *
+ * 颜色一律走 kit 的 token（`ui.css` 里的 :root），这里不写任何十六进制色值：换配色时不用改这个文件。
+ * 这个页面只在控制中心的插件页出现（不是浮层面），所以没有"矩形裁剪"的禁忌，可以用 kit 的间距与圆角。
+ */
+
+/* 常驻帧（桌宠那边）什么都不画：整页收起来，省得它占着布局。 */
+body.view-background {
+  display: none;
+}
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.head h1 {
+  margin: 0 0 var(--space-1);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.head .hint {
+  margin: 0;
+  max-width: 62ch;
+}
+
+.card .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.card .label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.card .value {
+  font-size: 14px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.card .hint {
+  margin: var(--space-2) 0 0;
+}
+
+.card .hint.tiny {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.card .hint.ok {
+  color: var(--success);
+}
+
+.card .hint.bad {
+  color: var(--danger);
+}
+
+.card .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 试查结果 */
+.out {
+  margin-top: var(--space-3);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.out.muted,
+.muted {
+  color: var(--text-dim);
+}
+
+.out .hit + .hit {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.out .hit b {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.out .hit p {
+  margin: var(--space-1) 0 0;
+}
+
+.out .hit .ex {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* 最近记录：一行一条，时间在前，不换行挤成一团。 */
+.recent {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.recent li {
+  padding: var(--space-1) 0;
+  border-bottom: 1px dashed var(--line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent li:last-child {
+  border-bottom: 0;
+}

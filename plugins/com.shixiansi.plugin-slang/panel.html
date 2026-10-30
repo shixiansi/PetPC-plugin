@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<!--
+  网络词词典 —— 入口文档。
+
+  同一份文件挂两种身份（见 app.js 头注）：
+    · 桌宠的常驻帧（slot=background）：整页被 `.view-background` 收起来，什么都不画；
+    · 控制中心的插件页（slot=workshop）：导入词库、试查、看最近查过什么。
+
+  `ui.css` 是宿主那份 kit 的逐字副本（手册 §8.6）。这一页只在控制中心出现，所以它可以直接用
+  kit 的按钮与卡片——没有"矩形裁剪"要担心（那是浮层面的事，§8.4）。
+-->
+<head>
+  <meta charset="utf-8" />
+  <title>网络词词典</title>
+  <script>
+    // 首帧就把配色定下来，避免深色宿主里闪一下浅色（手册 §8.5）。
+    document.documentElement.dataset.theme =
+      new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark';
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body id="root" class="view-workshop">
+  <main id="workshop" class="page">
+    <header class="head">
+      <div>
+        <h1>网络词词典</h1>
+        <p class="hint">
+          让桌宠认得出梗。别的插件（比如记忆核心）会通过 <code>plugin.call</code> 来问「这个词什么意思」，
+          查到就把释义交给模型——它于是不会再对「尊嘟假嘟」答非所问。
+        </p>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <div>
+          <div class="label">词库</div>
+          <div class="value" id="ws-count">…</div>
+        </div>
+        <button id="ws-pick" class="btn primary" type="button">导入词库…</button>
+      </div>
+      <p class="hint" id="ws-status">…</p>
+      <input id="ws-file" type="file" accept=".jsonl,.json,.txt" hidden />
+      <p class="hint" id="ws-note"></p>
+      <p class="hint tiny">
+        导入什么：任何每行一个 <code>{"id":…,"text":"【词条】…【释义】…"}</code> 的 <code>.jsonl</code>，
+        例如 <code>astrbot-rag-kb</code> 的 <code>corpora/01_cheer_terms/chunks.jsonl</code>
+        （1200 条左右，≈1.2&nbsp;MB）。语料由你自己准备并导入本机——插件不附带第三方语料，因为那份
+        上游没有开放再分发许可。
+      </p>
+    </section>
+
+    <section class="card">
+      <div class="label">试查一句</div>
+      <div class="row">
+        <input id="try-input" class="input" type="text" placeholder="今天好破防啊 / 尊嘟假嘟" />
+        <button id="try-go" class="btn" type="button">查一下</button>
+      </div>
+      <div id="try-out" class="out muted">还没有查过。</div>
+    </section>
+
+    <section class="card">
+      <div class="label">最近查过</div>
+      <ul id="recent" class="recent"><li class="muted">…</li></ul>
+    </section>
+  </main>
+
+  <script src="lib/seed.js"></script>
+  <script src="lib/lexicon.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

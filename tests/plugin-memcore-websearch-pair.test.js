@@ -20,6 +20,7 @@ const SEARCH_DIR = path.join(here, '..', 'plugins', 'com.shixiansi.plugin-websea
 
 const CORE_ID = 'com.shixiansi.plugin-memcore';
 const SEARCH_ID = 'com.shixiansi.plugin-websearch';
+const SLANG_ID = 'com.shixiansi.plugin-slang';
 
 const coreManifest = JSON.parse(readFileSync(path.join(CORE_DIR, 'manifest.json'), 'utf8'));
 const searchManifest = JSON.parse(readFileSync(path.join(SEARCH_DIR, 'manifest.json'), 'utf8'));
@@ -170,6 +171,25 @@ function answerRequest(doc, req) {
         doc.send({
           v: 1, type: 'response', id: req.id, ok: false,
           error: `插件 ${CORE_ID} 没有声明要调用 ${target}/${method}：manifest 的 callTargets 里没有这一项`,
+        });
+        return;
+      }
+      if (target === SLANG_ID) {
+        const asked = String((payload.payload && payload.payload.query) || '');
+        if (!asked.includes('破防')) {
+          doc.send({ v: 1, type: 'response', id: req.id, ok: true, result: { query: asked, matched: '', hits: [], total: 40, text: '' } });
+          return;
+        }
+        // 本地词库：立即回一段释义（真插件也在这个量级——纯本地查表）。
+        doc.send({
+          v: 1, type: 'response', id: req.id, ok: true,
+          result: {
+            query: String((payload.payload && payload.payload.query) || ''),
+            matched: '破防',
+            hits: [{ term: '破防', meaning: '心理防线被击穿。' }],
+            total: 40,
+            text: '【网络词】用户提到的词在本地词库里查到了，可以直接用它的意思，不要再说「不知道」：\n- 破防：心理防线被击穿。',
+          },
         });
         return;
       }
@@ -429,7 +449,8 @@ describe('后备链：搜索引擎搜不到就用 B 站', () => {
     engineReplies.push({ status: 200, body: JSON.stringify({ results: [] }) });
     const packet = await chat('区在网络用语中是什么意思');
     expect(packet.ok).toBe(true);
-    expect(callTargets[0], '第一家不是搜索引擎').toBe('com.shixiansi.plugin-websearch/search');
+    expect(callTargets[0], '第一顺位应当是本地词库（免费）').toBe('com.shixiansi.plugin-slang/slang');
+    expect(callTargets[1], '词库没查到，第二顺位应当是搜索引擎').toBe('com.shixiansi.plugin-websearch/search');
     expect(callTargets, '搜索引擎没结果时没有去问 B 站').toContain(BILI);
     // 这一轮里 B 站在 harness 中不存在 → 问不到 → 仍然按记忆回答，不失败
     expect(packet.result.text.trim().length).toBeGreaterThan(0);
@@ -468,7 +489,8 @@ describe('B 站意图：先问 B 站', () => {
     });
     const packet = await chat('看一下b站原神现在的最新pv叫啥，链接发来');
     expect(packet.ok).toBe(true);
-    expect(callTargets[0], '第一顺位应当是 B 站，不是整网搜索').toBe(BILI);
+    expect(callTargets[0], '第一顺位应当是本地词库').toBe('com.shixiansi.plugin-slang/slang');
+    expect(callTargets[1], '词库没查到，B 站意图应当排第二（在整网搜索之前）').toBe(BILI);
     // harness 里 B 站不存在 → 问不到 → 仍然会退回整网搜索（后备链不能因此断掉）
     expect(callTargets).toContain(WEB);
     expect(packet.result.text).toContain('BV');
@@ -483,7 +505,7 @@ describe('B 站意图：先问 B 站', () => {
     });
     const packet = await chat('今天天气怎么样');
     expect(packet.ok).toBe(true);
-    expect(callTargets[0], '普通问题不该先问 B 站').toBe(WEB);
+    expect(callTargets[1], '普通问题：词库之后应当整网搜索，不是 B 站').toBe(WEB);
     expect(callTargets).not.toContain(BILI);
   });
 });
@@ -500,8 +522,44 @@ describe('搜索有时间预算', () => {
     engineReplies.push({ status: 200, body: JSON.stringify({ results: [{ title: 't', url: 'https://x.example', content: 'c' }] }) });
     await chat('今天天气怎么样');
     expect(callPayloads.length, '没有发出 plugin.call').toBeGreaterThan(0);
-    expect(typeof callPayloads[0].timeoutMs, 'payload 里没有 timeoutMs：搜索方只能跑满 25 秒').toBe('number');
-    expect(callPayloads[0].timeoutMs).toBeGreaterThan(1000);
-    expect(callPayloads[0].timeoutMs, '预算比宿主的 30 秒还宽就没意义了').toBeLessThan(30000);
+    const at = callTargets.indexOf('com.shixiansi.plugin-websearch/search');
+    expect(at, '没有发出搜索请求').toBeGreaterThanOrEqual(0);
+    const searchPayload = callPayloads[at];
+    expect(typeof searchPayload.timeoutMs, 'payload 里没有 timeoutMs：搜索方只能跑满 25 秒').toBe('number');
+    expect(searchPayload.timeoutMs).toBeGreaterThan(1000);
+    expect(searchPayload.timeoutMs, '预算比宿主的 30 秒还宽就没意义了').toBeLessThan(30000);
+  });
+});
+
+// 网络词：先查本地词库，查到了就拼进 prompt。
+//
+// 顺序是刻意的——词库排在搜索**之前**：它免费（本机 plugin.call，微秒级）、更准（给的是释义而不是
+// 网页），而且能省下那条有预算上限的搜索链。查不到就什么都不加，对话照旧。
+describe('网络词：先查词库', () => {
+  const SLANG = 'com.shixiansi.plugin-slang/slang';
+
+  test('词库命中 → 排在搜索之前，且释义进了 system prompt', async () => {
+    bootDocs();
+    llmReplies.push('破防就是心理防线被击穿。');
+    const packet = await chat('我今天真的破防了');
+    expect(packet.ok).toBe(true);
+    // 第一顺位是词库，不是搜索引擎
+    expect(callTargets[0], '第一个问的不是词库').toBe(SLANG);
+    expect(llmCalls[0].system, 'system prompt 里没有词库给的释义').toContain('心理防线被击穿');
+    expect(packet.result.meta.slang, 'meta 里没有记下命中的词').toBe('破防');
+    // 词库答上来了，就不该再花 20 秒去上网
+    expect(callTargets, '词库已经答上，却又去搜索了').not.toContain('com.shixiansi.plugin-websearch/search');
+  });
+
+  test('词库没装（问不到）时：什么都不加，对话照常', async () => {
+    bootDocs();
+    // 让 slang 也走"问不到"那条：把它的 handler 关掉
+    const before = callTargets.length;
+    llmReplies.push('嗯。');
+    const packet = await chat('随便说一句');
+    expect(packet.ok).toBe(true);
+    expect(packet.result.meta.slang, '这轮不该记下任何命中').toBeNull();
+    expect(llmCalls[0].system).not.toContain('【网络词】');
+    expect(callTargets.length).toBeGreaterThanOrEqual(before);
   });
 });
