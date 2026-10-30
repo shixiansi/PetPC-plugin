@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "com.shixiansi.plugin-moegirl",
   "name": "萌娘百科",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": "shixiansi",
   "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
   "entry": "panel.html",

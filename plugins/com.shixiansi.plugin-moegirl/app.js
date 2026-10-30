@@ -12,7 +12,10 @@
 'use strict';
 
 const PROTOCOL = 1;
-const CACHE_PREFIX = 'cache/entry/';
+// **行为版本**进键名：0.1.4 的降级改了"一个词条取到什么"，而 0.1.3 已经把消歧义页存进过缓存
+// （`cache/entry/49gf-1` 里就是「区可以指：…」）。键里不带版本，装载新版本后仍会命中那些旧条目，
+// 一命中就是 12 小时——用户看到的会是"明明更新了还是那套答非所问"。
+const CACHE_PREFIX = 'cache/entry/v2/';
 
 let self = { pluginId: '', slot: '', host: null };
 const granted = new Set();
