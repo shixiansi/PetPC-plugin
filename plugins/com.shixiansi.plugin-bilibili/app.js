@@ -3522,9 +3522,88 @@ function onMessage(event) {
     case 'event':
       // This plugin subscribes to no host events: its schedule is its own.
       break;
+    case 'call':
+      // 别的插件问 `search`（见 onCall）：这是本插件唯一的对外出口。
+      void onCall(data);
+      break;
     default:
       break;
   }
+}
+
+/**
+ * `plugin.call` 的 `search`：把**站内搜索**借给别的插件。
+ *
+ * 为什么要这个出口：搜索引擎对"网络梗 / 二创术语 / UP 主黑话"经常搜不到，而 B 站站内搜索恰好是
+ * 这些词的富矿——视频标题与简介就是"大家平时怎么用这个词"的现场记录。记忆核心的联网档位里
+ * 「搜索引擎没结果 → 换一家再试」就是接在这里（它的 callTargets 点名了本插件的 search）。
+ *
+ * 返回形状与「联网搜索」插件**逐字一致**（{query, engine, count, tookMs, text, results}），
+ * 调用方不需要知道资料来自哪一家；`engine` 写 `bilibili`，meta 里能看出来。
+ */
+async function onCall(data) {
+  const ticket = data && data.ticket;
+  const method = String((data && data.method) || '');
+  const reply = (ok, value) => {
+    const message = { type: 'call-result', ticket, ok: Boolean(ok) };
+    if (ok) message.result = value === undefined ? null : value;
+    else message.error = String(value && value.message ? value.message : value);
+    postToHost(message);
+  };
+  if (method !== 'search') {
+    reply(false, new Error(`这个插件只提供 search，不认识 ${method || '(空)'}`));
+    return;
+  }
+  try {
+    const payload = (data && data.payload) || {};
+    const query = String(payload.query || '').trim().slice(0, 120);
+    if (!query) throw new Error('search 需要 query：要查的那句话');
+    const count = Math.min(10, Math.max(1, Number(payload.count) || 5));
+    const started = Date.now();
+    const dataOut = await biliGet('search', {
+      search_type: 'video',
+      keyword: query,
+      page: 1,
+      page_size: Math.min(30, count * 2),
+    });
+    const rows = (dataOut && dataOut.data && dataOut.data.result) || [];
+    const results = [];
+    for (const raw of rows) {
+      const item = normaliseItem(raw, '');
+      if (!item) continue;
+      // B 站搜索会把命中的词用 <em> 包起来：那是给页面看的，给模型的应该是一句干净的标题。
+      results.push({
+        title: item.title.replace(/<[^>]+>/g, ''),
+        url: `https://www.bilibili.com/video/${item.bvid}`,
+        snippet: [item.up ? `UP：${item.up}` : '', item.play ? `播放 ${item.play}` : '', item.tname]
+          .filter(Boolean).join(' · '),
+      });
+      if (results.length >= count) break;
+    }
+    const tookMs = Date.now() - started;
+    reply(true, {
+      query,
+      engine: 'bilibili',
+      count: results.length,
+      tookMs,
+      results,
+      text: renderSearchText(query, results, tookMs),
+    });
+  } catch (err) {
+    reply(false, err);
+  }
+}
+
+/** 给模型读的结果文本：与「联网搜索」插件同一版式，调用方拼 prompt 时不必区分来源。 */
+function renderSearchText(query, results, tookMs) {
+  if (!results.length) return `没有搜到「${query}」相关的视频。`;
+  const lines = [`「${query}」的 B 站搜索结果（bilibili，${results.length} 条，${Math.max(1, Math.round(tookMs / 1000))} 秒内）：`];
+  results.forEach((item, index) => {
+    lines.push(`[${index + 1}] ${item.title}`);
+    lines.push(`    ${item.url}`);
+    if (item.snippet) lines.push(`    ${item.snippet}`);
+  });
+  return lines.join('\n');
 }
 
 window.addEventListener('message', onMessage);

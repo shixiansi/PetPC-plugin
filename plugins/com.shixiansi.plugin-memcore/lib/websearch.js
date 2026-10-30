@@ -23,8 +23,20 @@
 
 'use strict';
 
-const SEARCH_TARGET = 'com.shixiansi.plugin-websearch';
-const SEARCH_METHOD = 'search';
+/**
+ * 搜索的后备链。**先搜全网，搜不到就搜 B 站。**
+ *
+ * 为什么不只留一家：搜索引擎对"网络梗 / 二创术语 / UP 主黑话"经常一片空白——它们没有词条，
+ * 或者词条是几天前的烂梗。而 B 站站内搜索恰好是这些词的富矿：视频标题与简介就是"大家平时怎么
+ * 用这个词"的现场记录。反过来，B 站搜不到新闻、文档、百科，所以两家是互补而不是替代。
+ *
+ * 顺序是"全网优先"：一般问题搜索引擎更快更准，B 站是**补位**。只有前一家**一条结果都没有**
+ * （或者它自己失败/没装/没配好）才问下一家——不是每次都问两遍，那要多花一次往返。
+ */
+const SEARCH_TARGETS = [
+  { id: 'com.shixiansi.plugin-websearch', method: 'search' },
+  { id: 'com.shixiansi.plugin-bilibili', method: 'search' },
+];
 
 /** 回答里出现这些信号 = 模型在说"我答不了"（只匹配"没答上"，不匹配"提到了新词"）。 */
 const NO_ANSWER_RE = /(我不知道|我不清楚|我不了解|我没听过|我不记得|记不得|想不起来|没[法办]回答|答不了|答不上|无法回答|不太确定|没有相关的?(记忆|信息|资料)|找不到相关的?)/;
@@ -82,25 +94,37 @@ function looksLikeNoAnswer(reply) {
  *
  * @returns {Promise<{text:string, engine:string, results:Array}|null>}
  */
-async function askWebSearch(query, count) {
-  const trimmed = text(query, 300).trim();
-  if (!trimmed) return null;
+async function askOne(target, query, count) {
   try {
     const out = await request('plugin.call', {
-      target: SEARCH_TARGET,
-      method: SEARCH_METHOD,
-      payload: { query: trimmed, count },
+      target: target.id,
+      method: target.method,
+      payload: { query, count },
     });
     if (!out || typeof out.text !== 'string' || !out.text.trim()) return null;
+    const results = Array.isArray(out.results) ? out.results : [];
+    // 一条结果都没有 = 这一家没帮上忙 → 让调用方换下一家（而不是把它当成"搜过了"）。
+    if (!results.length) return null;
     return {
       text: out.text,
       engine: typeof out.engine === 'string' ? out.engine : '',
-      results: Array.isArray(out.results) ? out.results : [],
+      results,
     };
   } catch {
-    // 目标没装 / 未启用 / 超时（plugin.call 的 30 秒上限）：全部当作"没有搜索"。
+    // 目标没装 / 未启用 / 没声明在 callTargets 里 / 超时（plugin.call 的 30 秒上限）：
+    // 一律当作"这一家问不到"，接着问下一家。
     return null;
   }
+}
+
+async function askWebSearch(query, count) {
+  const trimmed = text(query, 300).trim();
+  if (!trimmed) return null;
+  for (const target of SEARCH_TARGETS) {
+    const hit = await askOne(target, trimmed, count);
+    if (hit) return hit;
+  }
+  return null;
 }
 
 /** auto 档的第一问之前，告诉模型有一个 [SEARCH] 出口。 */

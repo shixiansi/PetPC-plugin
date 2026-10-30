@@ -1558,3 +1558,14 @@ describe('扫码登录（常驻帧执行）', () => {
     expect(report.status).toBe('cancelled');
   });
 });
+
+// 对外提供 `search`：记忆核心在"搜索引擎搜不到"时会来问本插件（见 memcore 的 callTargets）。
+//
+// 宿主 `CallPlugin` 的第 4 条要求**被调用的插件也持有 plugin.call**，所以这一条不是装饰：
+// 少了它，调用方拿到的是"目标插件没有获得 plugin.call 权限"，而 manifests 看起来一切正常。
+describe('对外提供 search', () => {
+  test('serves 里有 search，并且自己持有 plugin.call', () => {
+    expect(Array.isArray(manifest.serves) ? manifest.serves : []).toContain('search');
+    expect(manifest.permissions, '宿主要求被调方也持有 plugin.call，否则调用会被拒').toContain('plugin.call');
+  });
+});

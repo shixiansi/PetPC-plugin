@@ -89,6 +89,8 @@ let llmCalls;
 let llmReplies;
 /** 每一次发往搜索引擎插件的 net.fetch（websearch 那一侧）。 */
 let searchFetches;
+/** 每次 plugin.call 的目标（`<id>/<method>`），按调用顺序——后备链的用例靠它断言。 */
+let callTargets;
 /** 搜索引擎应答（按队列；函数形式按请求算）。 */
 let engineReplies;
 let answered;
@@ -158,6 +160,7 @@ function answerRequest(doc, req) {
       return;
     case 'plugin.call': {
       const target = String(payload.target || '');
+      callTargets.push(`${target}/${String(payload.method || '')}`);
       const method = String(payload.method || '');
       const declared = Array.isArray(coreManifest.callTargets) ? coreManifest.callTargets : [];
       if (!declared.includes(`${target}/${method}`)) {
@@ -249,6 +252,8 @@ beforeEach(() => {
   llmCalls = [];
   llmReplies = [];
   searchFetches = [];
+  callTargets = [];
+  callTargets = [];
   engineReplies = [];
   answered = { requests: new Set(), calls: new Map() };
 });
@@ -404,5 +409,39 @@ describe('模型的 [SEARCH] 出口', () => {
     expect(packet.result.text, '把 [SEARCH] 标记发给用户了').not.toContain('[SEARCH]');
     expect(packet.result.text.trim().length, '回答变成空的了').toBeGreaterThan(0);
     expect(packet.result.meta.webSearch).toBeNull();
+  });
+});
+
+// 搜索引擎搜不到 → 换 B 站搜。用户的原话："网络梗搜索引擎不一定搜得到，b站插件也可以提供搜索的
+// 能力，当搜索引擎搜不到时，使用 b站的搜索"。
+//
+// 判据是**一条结果都没有**（不是"报错"）：搜索引擎对网络梗经常返回 200 + 空列表，那也算没帮上忙。
+describe('后备链：搜索引擎搜不到就用 B 站', () => {
+  const BILI = 'com.shixiansi.plugin-bilibili/search';
+
+  test('搜索引擎返回 0 条 → 接着问 B 站（并如实说明问不到时仍按记忆回答）', async () => {
+    bootDocs();
+    llmReplies.push('这个我不清楚。', '「区」是「区区」的自谦说法。');
+    // 搜索引擎：200 但零结果
+    engineReplies.push({ status: 200, body: JSON.stringify({ results: [] }) });
+    const packet = await chat('区在网络用语中是什么意思');
+    expect(packet.ok).toBe(true);
+    expect(callTargets[0], '第一家不是搜索引擎').toBe('com.shixiansi.plugin-websearch/search');
+    expect(callTargets, '搜索引擎没结果时没有去问 B 站').toContain(BILI);
+    // 这一轮里 B 站在 harness 中不存在 → 问不到 → 仍然按记忆回答，不失败
+    expect(packet.result.text.trim().length).toBeGreaterThan(0);
+  });
+
+  test('搜索引擎有结果 → 不去问 B 站（别多花一次往返）', async () => {
+    bootDocs();
+    llmReplies.push('这个我不清楚。', '今天是 2026 年 10 月 30 日。');
+    engineReplies.push({
+      status: 200,
+      body: JSON.stringify({ results: [{ title: '天气', url: 'https://w.example.com', content: '晴' }] }),
+    });
+    const packet = await chat('今天天气怎么样');
+    expect(packet.ok).toBe(true);
+    expect(callTargets).toContain('com.shixiansi.plugin-websearch/search');
+    expect(callTargets, '搜索引擎已经有结果，却又问了 B 站').not.toContain(BILI);
   });
 });

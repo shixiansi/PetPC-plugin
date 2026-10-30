@@ -63,11 +63,15 @@ describe('manifest', () => {
     // 目标与方法必须与 lib/websearch.js 里的常量逐字一致，否则真机上是一句
     // 「没有声明要调用 …」的拒绝，而这里就能抓住。
     const body = source;
-    const target = (body.match(/const SEARCH_TARGET = '([^']+)';/) || [])[1];
-    const method = (body.match(/const SEARCH_METHOD = '([^']+)';/) || [])[1];
-    expect(target, 'lib/websearch.js 没有声明 SEARCH_TARGET').toBeTruthy();
-    expect(method, 'lib/websearch.js 没有声明 SEARCH_METHOD').toBeTruthy();
-    expect(manifest.callTargets).toEqual([`${target}/${method}`]);
+    // 搜索是一条**后备链**（先全网、搜不到再问 B 站），所以源码里是一张表而不是一个常量。
+    const declared = [...body.matchAll(/\{\s*id:\s*'([^']+)',\s*method:\s*'([^']+)'\s*\}/g)]
+      .map((m) => `${m[1]}/${m[2]}`);
+    expect(declared.length, 'lib/websearch.js 里没有 SEARCH_TARGETS 表').toBeGreaterThan(0);
+    expect(declared[0], '第一顺位应当是整网搜索引擎').toBe('com.shixiansi.plugin-websearch/search');
+    // 每一家都必须在 callTargets 里点名——少一家，宿主会拒（"没有声明要调用 …"）
+    for (const key of declared) {
+      expect(manifest.callTargets, `callTargets 里少了 ${key}`).toContain(key);
+    }
   });
 
   test('exactly one secret, and it is the model credential', () => {

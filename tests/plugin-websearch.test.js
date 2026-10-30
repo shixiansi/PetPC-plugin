@@ -56,8 +56,10 @@ describe('manifest', () => {
     const coreSource = ['core.js', 'memory.js', 'prompt.js', 'websearch.js', 'chat.js', 'workshop.js']
       .map((f) => readFileSync(path.join(here, '..', 'plugins', 'com.shixiansi.plugin-memcore', 'lib', f), 'utf8'))
       .join('\n');
-    const target = (coreSource.match(/const SEARCH_TARGET = '([^']+)';/) || [])[1];
-    const method = (coreSource.match(/const SEARCH_METHOD = '([^']+)';/) || [])[1];
+    // 后备链的**第一顺位**必须是本插件（整网搜索优先），method 统一叫 search。
+    const first = coreSource.match(/\{\s*id:\s*'([^']+)',\s*method:\s*'([^']+)'\s*\}/) || [];
+    const target = first[1];
+    const method = first[2];
     expect(target).toBe(PLUGIN_ID);
     expect(method).toBe('search');
     expect(manifest.serves).toContain(method);
