@@ -137,10 +137,39 @@ async function lookUpEntry(query) {
 
   // ② 再取序言正文
   const maxChars = cfgNum('maxChars', 120, 4000, 600);
-  const page = parseExtract(await fetchText(extractURL(title, maxChars)));
+  let page = parseExtract(await fetchText(extractURL(title, maxChars)));
   if (!page) return null;
 
-  const entry = { query: asked, title: page.title || title, extract: page.extract, url, at: Date.now() };
+  // ③ 命中**消歧义页**就降一级到最像用户想问的那个子条目。
+  //
+  // 「区」的序言只有"区可以指：区(月亮计划)……、区(网络用语)——一种网络用语"，等于没答；
+  // 而子条目 `区(网络用语)` 的正文是"区，本字为蛆，是ACG亚文化中的一种称谓，呈贬义"——那才是
+  // 用户要的。只降**一级**（子条目自己再是消歧义页就到此为止），多一次请求，不做递归。
+  let from = '';
+  let alsoTitles = [];
+  if (isDisambiguation(page.extract)) {
+    const candidates = parseDisambiguationTitles(page.extract);
+    const picked = pickSubEntry(asked, candidates);
+    if (picked) {
+      const sub = parseExtract(await fetchText(extractURL(picked.title, maxChars)));
+      if (sub) {
+        from = page.title || title;
+        alsoTitles = candidates.map((row) => row.title).filter((name) => name !== picked.title).slice(0, 4);
+        page = { title: sub.title, extract: sub.extract, pageId: sub.pageId };
+      }
+    }
+  }
+
+  const entry = {
+    query: asked,
+    title: page.title || title,
+    extract: page.extract,
+    url,
+    // 降级过就记下从哪个消歧义页来的：给模型看的那段文本会写明"取自 X 的「Y」分条"。
+    from,
+    alsoTitles,
+    at: Date.now(),
+  };
   await writeJSON(cacheKey, entry);
   return { ...entry, cached: false };
 }

@@ -92,6 +92,8 @@ function renderEntry(entry, maxChars) {
     // 所以这一段要自己说清楚：这是**查到的资料**，不是记忆，下面就是要用的内容。
     `【萌娘百科·已查到】用户这句话里的「${entry.title}」有词条，下面是原文；直接按它回答，`
       + '不要说"不知道"，也不要猜是不是打错了：',
+    // 从消歧义页降级下来的要说明一句：否则模型看到「区」的答案讲的是「区(网络用语)」会犯疑。
+    ...(entry.from ? [`（这一条取自「${entry.from}」的分条「${entry.title}」${entry.alsoTitles && entry.alsoTitles.length ? `，同名的还有：${entry.alsoTitles.join('、')}` : ''}）`] : []),
     body,
     `（来源：萌娘百科 ${entry.url || `https://zh.moegirl.org.cn/${encodeURIComponent(entry.title)}`}，CC BY-NC-SA 3.0 CN）`,
   ].join('\n');
@@ -114,5 +116,71 @@ function cacheKeyOf(query) {
   return `${(h >>> 0).toString(36)}-${body.length.toString(36)}`;
 }
 
+/**
+ * 消歧义条目？——「区」这种：「区可以指：区(月亮计划)……、区(网络用语)……」
+ *
+ * 这类条目的**序言本身没有内容**，只有一串链接。2026-10-30 实测：用户问「区」，拿到的是
+ * "区可以指：…区(网络用语)——一种网络用语"，等于什么都没说。而子条目 `区(网络用语)` 是有正文的，
+ * 所以查词时要能认出这种页面、往下降一级。
+ */
+function isDisambiguation(extract) {
+  const body = String(extract || '').trim();
+  if (!body) return false;
+  // 只认开头那一段：正文里偶尔也会出现"可以指"这样的词，不能凭它判定整篇是消歧义页。
+  const head = body.slice(0, 200);
+  return /(可以指|可能指|也可指|是指以下几|可指)/.test(head) && /——|--/.test(body);
+}
+
+/**
+ * 从消歧义页里取出候选子条目：`区(月亮计划)————游戏《脑叶公司》…` 这种行。
+ *
+ * 返回 `[{title, note}]`，`note` 是破折号后面那半句（给人看的提示，也用来挑最相关的那一个）。
+ */
+function parseDisambiguationTitles(extract) {
+  const out = [];
+  for (const raw of String(extract || '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    // 破折号两侧：左边是条目名，右边是说明。分隔符是 2 个以上 `-` 或 `—`。
+    const matched = /^(?<title>[^—\-]{1,60}?)\s*[—-]{2,}\s*(?<note>.*)$/.exec(line);
+    if (!matched || !matched.groups) continue;
+    const title = String(matched.groups.title || '').trim();
+    if (!title) continue;
+    out.push({ title, note: String(matched.groups.note || '').trim() });
+  }
+  return out;
+}
+
+/**
+ * 挑最像"用户想问的那个意思"的子条目。
+ *
+ * 排序依据（都是明写的偏好，不是猜测）：
+ *   1. 名字以查询词开头（`区(网络用语)` 之于 `区`）；
+ *   2. 名字或说明里带**网络/用语/梗/俚语/黑话/弹幕**这类词——这个插件的立身之本就是网络词；
+ *   3. 其余按页面顺序。
+ *
+ * 名字里带括号的（`区(月亮计划)`）说明它是从同名主条目分出来的，比不带括号的更可能是"那个意思"。
+ */
+function pickSubEntry(query, candidates) {
+  const term = String(query || '').trim();
+  const list = Array.isArray(candidates) ? candidates.filter((c) => c && c.title) : [];
+  if (!list.length) return null;
+  const webish = /网络|用语|梗|俚语|黑话|弹幕|流行/;
+  const score = (row) => {
+    let value = 0;
+    if (term && row.title.startsWith(term)) value += 4;
+    if (row.title.includes('(') || row.title.includes('（')) value += 1;
+    if (webish.test(row.title)) value += 3;
+    if (webish.test(row.note || '')) value += 2;
+    return value;
+  };
+  return list
+    .map((row, index) => ({ row, index, value: score(row) }))
+    .sort((a, b) => (b.value - a.value) || (a.index - b.index))[0].row;
+}
+
 const MOEGIRL_PURE = {
+  isDisambiguation,
+  parseDisambiguationTitles,
+  pickSubEntry,
   cacheKeyOf, openSearchURL, extractURL, parseOpenSearch, parseExtract, tidyExtract, renderEntry, API, UA };
