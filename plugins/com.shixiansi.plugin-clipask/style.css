@@ -27,6 +27,8 @@
   --accent: #7c3aed;
   --accent-strong: #8b5cf6;
   --danger: #e5646c;
+  /* 主色按钮上的文字色。收进调色板：§8.6 只允许色值出现在这里。 */
+  --on-accent: #ffffff;
   --radius: 16px;
   color-scheme: only light;
   background: transparent;
@@ -43,6 +45,7 @@ html[data-theme='light'] {
   --accent: #6d4de0;
   --accent-strong: #5f3fd6;
   --danger: #c0392b;
+  --on-accent: #ffffff;
 }
 
 * { box-sizing: border-box; }
@@ -248,7 +251,7 @@ html:not([data-theme]) .page { background: var(--bg); }
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .btn.primary:hover { background: var(--accent-strong); }
