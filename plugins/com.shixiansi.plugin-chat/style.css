@@ -587,6 +587,23 @@ body.view-input #send {
   color: var(--p-muted);
 }
 
+/*
+ * 这一行只属于**有输入框的身份**：输入条（view-input）与面板（view-panel）。
+ *
+ * 其余三种身份里必须消失，否则它会露出来抢地方——问句卡只有 40px，`.bar` 与 `.compose` 都
+ * 是 `display:none`，于是 `<summary>`「图片（可选）」成了唯一有高度的东西，把问句挤成 0 高：
+ * 真机上看到的就是一张只写着「图片（可选）」的空卡（2026-10-30 从预览器截图上发现的）。
+ * boot 那一帧同理——它是首帧的空壳，闪一下这一行比什么都不画更怪。
+ *
+ * 结果卡（view-answer）虽然也被挤得看不见，但那是"被下边缘裁掉"，不是"不参与布局"：
+ * 少一层隐藏就少一次靠运气。
+ */
+body.view-boot .imgtools,
+body.view-question .imgtools,
+body.view-answer .imgtools {
+  display: none;
+}
+
 .imgtools > summary {
   cursor: pointer;
   padding: 4px 0;

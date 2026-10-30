@@ -54,7 +54,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.8.2';
+const BUILD = '1.8.3';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';

@@ -68,6 +68,25 @@ describe('style.css: the hidden attribute is authoritative', () => {
   });
 });
 
+// 图片行（`#imgtools`）只属于"有输入框的身份"。这一条 jsdom 测不出来、`plugin-check` 也看不见，
+// 只有浏览器排版时才现形：输入框被隐藏的那三种身份里，`<summary>`「图片（可选）」成了唯一有高度的
+// 元素，于是 40px 的问句卡只剩它一行，问句被挤成 0 高——2026-10-30 从预览器截图上发现的。
+describe('style.css: 图片行只属于有输入框的身份', () => {
+  test('boot / question / answer 里它必须被藏起来', () => {
+    for (const view of ['view-boot', 'view-question', 'view-answer']) {
+      const rule = css.match(new RegExp(`body\\.${view} \\.imgtools[^{]*\\{([^}]*)\\}`));
+      expect(rule, `style.css 里没有 body.${view} .imgtools 的规则：图片行会漏进这一屏`).toBeTruthy();
+      expect(rule[1], `${view} 里图片行没被藏起来`).toMatch(/display\s*:\s*none/);
+    }
+  });
+
+  test('输入条与面板里它仍然可见，否则用户没地方填图片地址', () => {
+    for (const view of ['view-input', 'view-panel']) {
+      expect(css.includes(`body.${view} .imgtools`), `${view} 里图片行被误藏`).toBe(false);
+    }
+  });
+});
+
 let windowListeners = [];
 
 function installPanel() {
