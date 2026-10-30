@@ -38,7 +38,24 @@ function makeEntry(raw) {
 function parseChunksJSONL(text) {
   const entries = [];
   let skipped = 0;
-  for (const line of String(text || '').split(/\r?\n/)) {
+
+  // 有的导出工具给的是**整份 JSON**（`[…]` 或 `{"chunks":[…]}`），不是一行一条。
+  // 先按整份试一次：成功了就不必再逐行猜。
+  const whole = String(text || '').trim();
+  if (whole.startsWith('[') || whole.startsWith('{')) {
+    const rows = rowsOfWholeJSON(whole);
+    if (rows) {
+      for (const row of rows) {
+        const body = typeof (row && row.text) === 'string' ? row.text : '';
+        const entry = body ? parseChunkText(body) : null;
+        if (entry) entries.push(entry);
+        else skipped += 1;
+      }
+      return { entries, skipped };
+    }
+  }
+
+  for (const line of whole.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     let row;
@@ -58,6 +75,35 @@ function parseChunksJSONL(text) {
     else skipped += 1;
   }
   return { entries, skipped };
+}
+
+/** 整份 JSON → 行数组；不是那种形状就返回 null。 */
+function rowsOfWholeJSON(whole) {
+  let parsed;
+  try {
+    parsed = JSON.parse(whole);
+  } catch {
+    return null;
+  }
+  if (Array.isArray(parsed)) return parsed;
+  for (const key of ['chunks', 'data', 'items', 'entries']) {
+    if (Array.isArray(parsed && parsed[key])) return parsed[key];
+  }
+  return null;
+}
+
+/**
+ * 0 条词条时，**说清楚是什么文件**——这是"导入失败"最常见的原因，而且用户看不出来：
+ * 文件夹里有两个 `.json`（`manifest.json`）和一个 `chunks.jsonl`，文件选择框默认只显示 json。
+ */
+function importReason(text) {
+  const body = String(text || '').trim();
+  if (!body) return 'empty';
+  if (/"kb_name"\s*:/.test(body) && !/"text"\s*:/.test(body)) return 'manifest';
+  if (!body.includes('【词条】')) {
+    return body.startsWith('[') || body.startsWith('{') ? 'noMarkers' : 'notJSONL';
+  }
+  return 'noMarkers';
 }
 
 /** 把一段 `【词条】…【释义】…` 切成词条；没有【词条】或【释义】就返回 null。 */
@@ -170,4 +216,4 @@ function renderHits(result) {
 }
 
 /** 测试接缝用：这些是纯函数，不碰 DOM、不碰宿主。 */
-const SLANG_PURE = { parseChunksJSONL, parseChunkText, buildIndex, lookup, renderHits, normalizeTerm, makeEntry };
+const SLANG_PURE = { parseChunksJSONL, rowsOfWholeJSON, importReason, parseChunkText, buildIndex, lookup, renderHits, normalizeTerm, makeEntry };

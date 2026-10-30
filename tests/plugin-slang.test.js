@@ -112,3 +112,36 @@ describe('给模型读的那段话', () => {
     expect(P.renderHits({ entries: [] })).toBe('');
   });
 });
+
+// 导入失败的**诊断**：用户最容易踩的不是"数据坏了"，而是**选错了文件**。
+//
+// 真机（2026-10-30）：目录里每个子文件夹都有 manifest.json（元数据）和 chunks.jsonl（词条），而
+// `.jsonl` 没有注册 MIME，文件选择框默认只显示 .json —— 用户选到 manifest，收到一句"认不出词条"，
+// 完全不知道该换哪个文件。所以解析器现在会**说出这是什么文件**。
+describe('导入诊断与整份 JSON', () => {
+  test('选到 manifest.json：明确告诉用户去选 chunks.jsonl', () => {
+    const manifest = JSON.stringify({ kb_name: '网络流行语释义库', num_chunks: 1219, source_url: '…' });
+    expect(P.importReason(manifest)).toBe('manifest');
+    expect(P.parseChunksJSONL(manifest).entries).toHaveLength(0);
+  });
+
+  test('选了对话/笑话语料（没有词条结构）：说清"这份不是词条"', () => {
+    const meme = [
+      JSON.stringify({ id: 1, text: '用户：这也太离谱了\n回复：习惯了' }),
+      JSON.stringify({ id: 2, text: '用户：笑死\n回复：+1' }),
+    ].join('\n');
+    expect(P.importReason(meme)).toBe('noMarkers');
+  });
+
+  test('既不是 JSONL 也不是 JSON：说清格式要求', () => {
+    expect(P.importReason('普通文本，一行一个词')).toBe('notJSONL');
+    expect(P.importReason('')).toBe('empty');
+  });
+
+  test('整份 JSON 数组 / {chunks:[…]} 也吃得下（有的导出工具不写 jsonl）', () => {
+    const asArray = JSON.stringify([{ id: 1, text: '【词条】甲\n【释义】A' }, { id: 2, text: '【词条】乙\n【释义】B' }]);
+    expect(P.parseChunksJSONL(asArray).entries).toHaveLength(2);
+    const asObject = JSON.stringify({ chunks: [{ id: 1, text: '【词条】丙\n【释义】C' }] });
+    expect(P.parseChunksJSONL(asObject).entries).toHaveLength(1);
+  });
+});

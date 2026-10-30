@@ -43,13 +43,22 @@
         <button id="ws-pick" class="btn primary" type="button">导入词库…</button>
       </div>
       <p class="hint" id="ws-status">…</p>
-      <input id="ws-file" type="file" accept=".jsonl,.json,.txt" hidden />
+      <!-- 故意**不写** accept：`.jsonl` 没有注册的 MIME 类型，写了 `accept=".jsonl"` 之后文件选择框
+       仍然只显示 .json/.txt，用户能选到的只有同目录的 manifest.json，然后收到"认不出词条"。
+       留空 = 显示所有文件，由内容判断（选错时 describeImportFailure 会说清是哪一步错了）。
+       多选是因为 01_cheer_terms 与 04_vbar 都是释义型，一起导更全。 -->
+      <input id="ws-file" type="file" multiple hidden />
       <p class="hint" id="ws-note"></p>
       <p class="hint tiny">
-        导入什么：任何每行一个 <code>{"id":…,"text":"【词条】…【释义】…"}</code> 的 <code>.jsonl</code>，
-        例如 <code>astrbot-rag-kb</code> 的 <code>corpora/01_cheer_terms/chunks.jsonl</code>
-        （1200 条左右，≈1.2&nbsp;MB）。语料由你自己准备并导入本机——插件不附带第三方语料，因为那份
-        上游没有开放再分发许可。
+        <b>选哪个文件：</b><code>chunks.jsonl</code>（在 <code>corpora/01_cheer_terms/</code> 等目录里），
+        不是同目录的 <code>manifest.json</code>——那个只是元数据。文件选择框里如果只看到 json，
+        把右下角的筛选切到「所有文件」。
+        <br />
+        <b>哪几份能用：</b><code>01_cheer_terms</code>（1183 条释义）与 <code>04_vbar</code>（V 吧黑话）
+        是**释义型**，直接导；<code>02/03/05</code> 是对话/笑话语料，没有「词条+释义」结构，不收。
+        可以一次多选，先导的会被后导的同名词条覆盖。
+        <br />
+        语料由你自己准备并导入本机——插件不附带第三方语料，因为那份上游没有开放再分发许可。
       </p>
     </section>
 

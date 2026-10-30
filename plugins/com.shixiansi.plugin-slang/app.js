@@ -113,23 +113,66 @@ async function loadLexicon() {
  * 只保留查词要用的三个字段，并把【详解】截断：1200 条 × 全文约 1.2 MB，而 prompt 里真正有用的
  * 是「释义」那一句。截断后整体约 200 KB，`storage.set` 一次就写完。
  */
-async function importChunks(text) {
-  const { entries, skipped } = parseChunksJSONL(text);
-  if (!entries.length) {
-    throw new Error('这份文件里没有认出任何词条：需要每行一个 {"id":…,"text":"【词条】…【释义】…"}');
+async function importChunks(input) {
+  const blocks = Array.isArray(input) ? input : [input];
+  const fresh = [];
+  let skipped = 0;
+  let reason = '';
+  for (const block of blocks) {
+    const out = parseChunksJSONL(block);
+    if (out.entries.length) {
+      fresh.push(...out.entries);
+      skipped += out.skipped;
+    } else if (!reason) {
+      // 记住**第一个**失败原因：同时选了 chunks.jsonl 和 manifest.json 时，前者成功、后者本来
+      // 就该被忽略，不该把整次导入判成失败。
+      reason = importReason(block);
+    }
   }
-  const compact = entries.map((entry) => ({
-    term: entry.term,
-    meaning: entry.meaning,
-    example: entry.example,
-    detail: entry.detail.slice(0, DETAIL_CAP),
-    source: 'imported',
-  }));
+  if (!fresh.length) throw new Error(describeImportFailure(reason));
+
+  // 和已有的合并（后导入的覆盖同名词条）：先导 01 释义库、再导 04 V吧黑话，两份都在。
+  const existing = await readJSON(STORE_IMPORTED, []);
+  const merged = new Map();
+  for (const row of Array.isArray(existing) ? existing : []) {
+    const entry = makeEntry(row);
+    if (entry) merged.set(normalizeTerm(entry.term), entry);
+  }
+  for (const entry of fresh) {
+    merged.set(normalizeTerm(entry.term), {
+      term: entry.term,
+      meaning: entry.meaning,
+      example: entry.example,
+      detail: entry.detail.slice(0, DETAIL_CAP),
+      source: 'imported',
+    });
+  }
+  const compact = [...merged.values()];
   await writeJSON(STORE_IMPORTED, compact);
   importedCount = compact.length;
   importedAt = Date.now();
   index = buildIndex([SEED_ENTRIES, compact]);
-  return { kept: compact.length, skipped };
+  return { kept: compact.length, added: fresh.length, skipped };
+}
+
+/**
+ * 导入失败时说清楚**选错了哪个文件**。
+ *
+ * 这不是客套：那个目录里每个子文件夹都有 `manifest.json`（元数据）和 `chunks.jsonl`（词条），
+ * 而 `.jsonl` 没有注册 MIME 类型，文件选择框默认只肯显示 `.json`——用户很可能选到 manifest，
+ * 然后收到一句"认不出任何词条"，完全不知道下一步该做什么。
+ */
+function describeImportFailure(reason) {
+  if (reason === 'manifest') {
+    return '你选的是 manifest.json（那是元数据，没有词条）。同一个文件夹里的 chunks.jsonl 才是词条文件，选它。';
+  }
+  if (reason === 'noMarkers') {
+    return '文件里的条目没有【词条】/【释义】结构。这个插件只收**释义型**语料（01_cheer_terms、04_vbar），风格/对话/笑话那几份（02/03/05）不是词条。';
+  }
+  if (reason === 'notJSONL') {
+    return '认不出 JSON：需要每行一个 {"id":…,"text":"…"}，或者整份 JSON 数组。';
+  }
+  return '文件是空的。';
 }
 
 /** 查一次词，并把结果记进最近记录（工坊页要显示"最近查过什么"）。 */
@@ -321,29 +364,35 @@ function renderTryResult(result) {
   }
 }
 
+/** 读一个用户主动选的文件（沙箱里唯一能读到的路径）。 */
+function readTextFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('读不了这个文件（沙箱只能读你主动选的那一个）'));
+    reader.readAsText(file);
+  });
+}
+
 function bindWorkshop() {
   if (!els.pick || !els.file) return;
   els.pick.addEventListener('click', () => els.file.click());
   els.file.addEventListener('change', () => {
-    const file = els.file.files && els.file.files[0];
-    if (!file) return;
-    setNote('正在读取…');
-    const reader = new FileReader();
-    reader.onload = () => {
-      void (async () => {
-        try {
-          const { kept, skipped } = await importChunks(String(reader.result || ''));
-          setNote(`导入完成：${kept} 条${skipped ? `（跳过 ${skipped} 行认不出的）` : ''}`, 'ok');
-          await renderWorkshop();
-        } catch (err) {
-          setNote(`导入失败：${err.message}`, 'bad');
-        } finally {
-          els.file.value = '';
-        }
-      })();
-    };
-    reader.onerror = () => setNote('读不了这个文件（沙箱只能读你主动选的那一个）', 'bad');
-    reader.readAsText(file);
+    const files = [...(els.file.files || [])];
+    if (!files.length) return;
+    setNote(`正在读取 ${files.length} 个文件…`);
+    // 一次选多个：01_cheer_terms 与 04_vbar 都是**释义型**，一起导进来更全（02/03/05 不是词条，
+    // 选了也会被逐条跳过，不会污染词库）。
+    Promise.all(files.map(readTextFile))
+      .then((texts) => importChunks(texts))
+      .then(({ kept, added, skipped }) => {
+        setNote(`导入完成：新增 ${added} 条，词库共 ${kept} 条${skipped ? `（跳过 ${skipped} 行认不出的）` : ''}`, 'ok');
+        return renderWorkshop();
+      })
+      .catch((err) => setNote(`导入失败：${err.message}`, 'bad'))
+      .finally(() => {
+        els.file.value = '';
+      });
   });
 
   const run = () => {
