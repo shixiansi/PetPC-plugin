@@ -310,11 +310,9 @@ function autoFit(blockIndex, measure) {
   if (!can(PERM.surface)) return () => {};
   let last = 0;
   let timer = 0;
-  let pending = false;
 
   const send = async () => {
     timer = 0;
-    pending = false;
     let want = 0;
     try {
       want = Math.ceil(measure());
@@ -322,7 +320,7 @@ function autoFit(blockIndex, measure) {
       return;
     }
     // 量不到（元素隐藏、或测试环境里没有排版引擎）就别发荒唐的小数字：等下一次回调。
-    // 宿主会把它夹进 [声明高度, maxH]，所以发错也不会画坏，但没必要污染日志与隐藏集合。
+    // 宿主会把它夹进 [声明高度, maxH]，所以发错也不会画坏，但没必要污染日志。
     if (!Number.isFinite(want) || want < 16) return;
     if (want === last) return; // 没变就不打扰宿主
     last = want;
@@ -331,21 +329,39 @@ function autoFit(blockIndex, measure) {
 
   const schedule = () => {
     if (timer) return;
-    pending = true;
     timer = setTimeout(() => void send(), 120);
   };
 
-  // 第一次立刻报，不等防抖：块刚挂载时宿主给的是声明高度，可能一屏都装不下。
-  void send();
-  if (typeof ResizeObserver === 'function') {
-    const observer = new ResizeObserver(schedule);
-    const node = measure.node;
-    if (node) observer.observe(node);
-    return () => observer.disconnect();
+  void send(); // 开局立刻报一次：块刚挂载时宿主给的是声明高度，可能一屏都装不下
+
+  const stops = [];
+
+  // ① 内容**尺寸**变化：字体加载完、换行变化。（注意：被观察的节点如果高度由帧决定，这条永远不会
+  //    触发——所以下面必须有 ②。）
+  if (typeof ResizeObserver === 'function' && measure.node) {
+    const ro = new ResizeObserver(schedule);
+    ro.observe(measure.node);
+    stops.push(() => ro.disconnect());
   }
-  // 老引擎（或测试环境）退回轮询式：每 400ms 量一次，只在变化时发。
-  const timerId = setInterval(schedule, 400);
-  return () => clearInterval(timerId);
+
+  // ② 内容**本身**变化：`textContent` 被改写（占位 → 真句子）、行数变了但容器高度没变。
+  //    `ResizeObserver` 对这类变化完全无感——2026-10-30 就栽在这里：观察的 `#ask` 是
+  //    `height: 100%`，尺寸由帧决定，于是它只在开局发了一次（量到的是占位），真内容到了没人再量，
+  //    块停在 56px，按钮被切掉一半。
+  const root = measure.watch || measure.node;
+  if (typeof MutationObserver === 'function' && root) {
+    const mo = new MutationObserver(schedule);
+    mo.observe(root, { childList: true, characterData: true, subtree: true, attributes: true });
+    stops.push(() => mo.disconnect());
+  }
+
+  // ③ 兜底：每秒量一次，只在"算出来和上次不同"时才发。上面两个观察者任何一个漏了（引擎差异、
+  //    节点被替换、字体异步落定），这一条在 1 秒内补上。一次测量是一对 scrollHeight 读取，代价
+  //    可以忽略；而"用户看到被切掉一半的按钮"的代价很大。
+  const poll = setInterval(schedule, 1000);
+  stops.push(() => clearInterval(poll));
+
+  return () => stops.forEach((fn) => fn());
 }
 
 async function showSurface() {
@@ -775,7 +791,12 @@ function initResultFrame() {
     if (!body) return 0;
     const chrome = Math.max(0, card.clientHeight - body.clientHeight);
     return Math.ceil(body.scrollHeight + chrome + 2);
-  }, { node: document.querySelector('.result-body') }));
+  }, {
+    node: document.querySelector('.result-body'),
+    // 观察整张卡：正文一变（占位 → 真回答）就重新量。`.result-body` 自己是 `flex: 1`，
+    // 高度由帧决定，只盯它的话 ResizeObserver 永远不会触发。
+    watch: document.querySelector('.result-card'),
+  }));
 
   void pollAnswer();
   setInterval(() => void pollAnswer(), 700);

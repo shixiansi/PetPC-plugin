@@ -625,3 +625,21 @@ test('两块的高度都交给 autoFit（监听内容尺寸），旧的节流式
   const calls = (src.match(/autoFit\(/g) || []).length;
   expect(calls, 'autoFit 至少要在询问卡与结果卡两处调用').toBeGreaterThanOrEqual(2);
 });
+
+// ResizeObserver 对"高度由帧决定"的容器完全无感（`height: 100%` / `flex: 1` 的盒子尺寸永远不变），
+// 所以只靠它 = 只在开局报一次（那时量到的是占位）。这条测试把 scrollHeight 钉成 68，改一次文本，
+// 断言"内容变了会重新报高度"——2026-10-30 真机上按钮被切一半，就是因为缺这一下。
+test('内容变了就重新报高度（不能只靠 ResizeObserver）', async () => {
+  harness = makeHarness({ surface: { kind: 'surface', rectIndex: 0, rectCount: 2 } });
+  await harness.settle();
+  const doc = harness.window.document;
+  const ask = doc.getElementById('ask');
+  Object.defineProperty(ask, 'scrollHeight', { get: () => 68, configurable: true });
+  const before = harness.requests('surface.blocks').length;
+  doc.getElementById('ask-text').textContent = '需要我帮你翻译吗？';
+  await new Promise((resolve) => setTimeout(resolve, 260));
+  const calls = harness.requests('surface.blocks');
+  expect(calls.length, '内容变了却没有重新报高度').toBeGreaterThan(before);
+  const sizes = calls[calls.length - 1].payload.sizes;
+  expect(Number(sizes['0']), '报上去的高度没跟上内容').toBeGreaterThanOrEqual(68);
+});
