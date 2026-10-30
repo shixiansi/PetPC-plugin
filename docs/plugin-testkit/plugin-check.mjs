@@ -597,6 +597,35 @@ function checkSource(report, dir, info) {
     }
   }
 
+  // 用了 `var(--x)` 却没有任何地方定义 `--x`。
+  //
+  // 这条不报错、不警告，浏览器只是让**整条声明**在计算时失效、回落到初始值：
+  // `gap: var(--space-2)` → `gap: normal`（0），`padding: var(--space-2) var(--space-3)` → `padding: 0`，
+  // `font: var(--font)` → 浏览器默认字体。于是一整页的间距与内边距全部变成 0——文字贴边、按钮挤成
+  // 一排，"界面完全不行"，而任何静态检查都不会响。
+  //
+  // 2026-10-30 实测：clipask 从第一行起就用 `--space-2..5` 与 `--font` 写 gap/padding，而它的
+  // `:root` 里一个都没定义。这就是"翻译出来了但界面完全不行"的原因。
+  //
+  // `var(--x, 4px)` 带兜底值是**合法**用法（那是"可能被外部覆盖"的正常写法），不算漏定义。
+  {
+    const used = new Set();
+    for (const [, text] of cssTexts) {
+      for (const m of text.matchAll(/var\(\s*(--[a-z0-9-]+)\s*(,)?/gi)) {
+        if (!m[2]) used.add(m[1]);
+      }
+    }
+    const defined = new Set();
+    for (const m of allCss.matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(m[1]);
+    const missing = [...used].filter((name) => !defined.has(name)).sort();
+    if (missing.length > 0) {
+      add('undefined-token', 'FAIL', `用了没定义的自定义属性：${missing.join('、')}`,
+        '未定义的 var() 会让整条声明失效并回落到初始值（gap/padding 变 0、font 变默认），页面看起来"排版全塌了"却没有任何报错。在 :root 里定义它们；确实要可选就写成 var(--x, 兜底值)');
+    } else if (used.size > 0) {
+      add('style-tokens', 'PASS', `用到的 ${used.size} 个自定义属性都有定义`);
+    }
+  }
+
   // A surface block is sized by the MANIFEST, not by its content, so content that grows is cut off
   // silently - the card loses its last row and nothing reports it. Only a plugin that measures itself
   // can ask for more room, and the host honours that only for a rect that declares `maxH`. Both

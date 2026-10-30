@@ -30,6 +30,22 @@
   /* 主色按钮上的文字色。收进调色板：§8.6 只允许色值出现在这里。 */
   --on-accent: #ffffff;
   --radius: 16px;
+
+  /* 间距与字体刻度：与 docs/ui/petpc-ui.css 同一套值。
+   *
+   * 这一块以前**不存在**，而这个文件从第一行起就在用 `var(--space-2)` / `var(--space-3)` 写
+   * gap 与 padding。未定义的自定义属性不会报错，它让**整条声明**在计算时失效、回落到初始值：
+   * `gap: var(--space-2)` → `gap: normal`（0），`padding: var(--space-2) var(--space-3)` → `padding: 0`。
+   * 于是所有间距、内边距、标题与正文之间的缝全都是 0——文字贴边、按钮挤成一排，界面上就是
+   * "完全不行"（2026-10-30 用户报的）。`font: var(--font)` 同样整条失效，连字体都是浏览器的默认值。
+   *
+   * 教训：**用 token 就必须定义 token**。自检工具现在有一条 `undefined-token` 专门查这个。 */
+  --font: 14px/1.6 "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
   color-scheme: only light;
   background: transparent;
 }
