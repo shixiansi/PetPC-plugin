@@ -1138,6 +1138,29 @@ describe('hosted by the control center (the workshop slot)', () => {
     expect(document.getElementById('prompt').disabled).toBe(false);
     expect(document.getElementById('status').textContent).not.toContain('这里只显示记录');
   });
+
+  // `llm.providers` is the OTHER half of the same difference, and it is a request rather than a
+  // disabled control: this page used to ask it on every handshake, get "本程序不支持该方法" and
+  // catch it. The interface was fine; the host log was not - one WARN per handshake, four lines on
+  // 2026-10-30, and the same shape as the 445 lines another plugin spent on `llm.profile`. So the
+  // assertion is about what is NOT sent: in the workshop this document must not ask at all.
+  test('does not ask llm.providers in the workshop, where no host serves it', async () => {
+    await loadApp();
+    hostSends({
+      ...initFrame(['llm.chat', 'llm.borrow', 'pet.surface', 'storage']),
+      surface: { kind: 'panel', slot: 'workshop' },
+    });
+    await Promise.resolve();
+
+    expect(byType('request').filter((r) => r.method === 'llm.providers')).toHaveLength(0);
+  });
+
+  test('still asks llm.providers beside the pet, where the answer exists', async () => {
+    await loadApp();
+    await handshake(['llm.chat', 'llm.borrow', 'pet.surface']);
+
+    expect(byType('request').filter((r) => r.method === 'llm.providers')).toHaveLength(1);
+  });
 });
 
 describe('llm.chat', () => {

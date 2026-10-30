@@ -54,7 +54,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.8.0';
+const BUILD = '1.8.1';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -602,6 +602,11 @@ let pendingProviders = null;
 let lastPrompt = '';
 
 function refreshBorrowed() {
+  // 控制中心不服务 `llm.providers`（手册 §9：它没有宠物窗口、没有模型预算）。这一页也不能
+  // 发消息，所以「借用谁的模型」在这一面根本没有用处——而发出去必被拒，那次拒绝会在宿主日志里
+  // 留一行 WARN。这个插件在真机上就是这么把市场日志刷出 4 行的。按 `workshop` 判断而不是
+  // 「问一次被拒再兜底」：后者让界面好看，日志照旧。
+  if (workshop) return;
   if (!granted.has('llm.borrow')) return;
   const id = request('llm.providers', {});
   if (id) pendingProviders = id;

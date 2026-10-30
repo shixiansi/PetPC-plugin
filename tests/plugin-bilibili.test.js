@@ -750,6 +750,29 @@ describe('handshake', () => {
     expect(cmd.bvid).toBe('BV1xx411c7mD');
     expect(requestsFor('net.fetch')).toHaveLength(0);
   });
+
+  // `llm.profile` is the pet's answer to "which model would I use", and the control center
+  // serves no `llm.*` at all (manual §9). This page used to ask anyway and catch the refusal:
+  // the label was right and the host log was not - one WARN per session, 37 lines on
+  // 2026-10-30. So what is pinned here is the ABSENCE of the request, and that the label still
+  // tells the truth.
+  test('the workshop does not ask llm.profile, and says where the answer lives', async () => {
+    await loadApp();
+    hostSends(initFrame({ slot: 'workshop' }));
+    await pump();
+    expect(requestsFor('llm.profile')).toHaveLength(0);
+    expect(document.getElementById('st-model').textContent).toContain('看桌宠那边');
+  });
+
+  // The headless frame draws nothing (`renderStatus` is the workshop's renderer), so it must not
+  // spend a request on a label nobody can see either. This is the other half of "ask once, in the
+  // window that can show the answer" - and here that window cannot ask at all.
+  test('the headless frame does not probe the model either', async () => {
+    await loadApp();
+    hostSends(initFrame({ slot: 'background' }));
+    await pump();
+    expect(requestsFor('llm.profile')).toHaveLength(0);
+  });
 });
 
 function requestsFor(method) {

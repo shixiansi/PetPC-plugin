@@ -3191,21 +3191,29 @@ async function refreshFromStorage() {
   // The model source is a HOST answer, and only the pet implements llm.profile. Probed
   // once per session: a request every five seconds to answer a question whose answer
   // only changes when the user edits two different programs is pure noise.
+  //
+  // In the control center it is not asked AT ALL. That program serves no llm.* (manual §9),
+  // so the request could only ever be refused - and "ask once, then fall back" fixes the
+  // label while leaving a WARN line in the host log every five seconds, which is exactly how
+  // this plugin spent a real machine's log budget (37 lines on 2026-10-30, all from the
+  // workshop). `surface.slot` is the only supported way to tell the two windows apart:
+  // `kind` is 'panel' in both.
   if (!state.modelProbeDone) {
-    try {
-      const profile = await request('llm.profile', {});
-      state.modelProbeDone = true;
-      const label = el('st-model');
-      if (label) {
-        label.textContent = profile && profile.source === 'borrowed' && profile.lender
-          ? `模型：借用「${profile.lender.name || profile.lender.id}」`
-          : profile && profile.model ? `模型：${profile.model}` : '模型：未配置';
-      }
-    } catch {
-      // The market program implements no llm.* at all; "看桌宠那边" is the truth.
-      state.modelProbeDone = true;
-      const label = el('st-model');
+    state.modelProbeDone = true;
+    const label = el('st-model');
+    if (self.surface && self.surface.slot === 'workshop') {
       if (label) label.textContent = '模型：看桌宠那边';
+    } else {
+      try {
+        const profile = await request('llm.profile', {});
+        if (label) {
+          label.textContent = profile && profile.source === 'borrowed' && profile.lender
+            ? `模型：借用「${profile.lender.name || profile.lender.id}」`
+            : profile && profile.model ? `模型：${profile.model}` : '模型：未配置';
+        }
+      } catch {
+        if (label) label.textContent = '模型：看桌宠那边';
+      }
     }
   }
 }
