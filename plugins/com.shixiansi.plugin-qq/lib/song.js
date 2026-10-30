@@ -145,35 +145,34 @@ async function askSongLink(title, singer) {
  * @returns {Promise<{url:string,title:string}|null>} 发出去了才返回歌的信息（调用方据此去掉正文里的裸链接）
  */
 /**
- * 桥接端能不能真的把卡片送进群？
+ * 卡片到底有没有落进群？——**发完读回来核对**，不猜、也不按实现名写死。
  *
- * 2026-10-30 实测（群 1061170515，Yogurt 0.1.0-dev.248 / milky 1.3）：
+ * 为什么必须核对：2026-10-30 实测（Yogurt 0.1.0-dev.248 / milky 1.3），`send_group_message` 对
+ * 卡片段会回 `status: ok` + 一个 `message_seq`，而群里**什么都没有**；`light_app{json_payload}`
+ * 更直接回 `seq 0`。也就是说"接口成功"完全不等于"用户看得见"。
  *
- *   light_app{json_payload} → 返回 seq 0          → 群里没有
- *   light_app{json}         → 返回 seq 50023      → **读历史里根本没有这条**
- *   json{data}              → 返回 seq 50024      → 没有
- *   xml{service_id+…}       → 返回 seq 50025      → 没有
- *   music{custom}           → 返回 seq 50028      → 没有（更早那版还把它转成一条文本 JSON）
- *   record{uri}（语音）      → 返回 seq 50027      → **在，能播**
+ * 判据：拿刚拿到的 seq 去 `get_history_messages` 里找。找得到 = 真发出去了；找不到 = 被静默丢弃。
  *
- * 也就是说：**回 ok 完全不代表发出去了**。而 Yogurt 已停更（用户："yogurt都停更了"），
- * 补上 lightApp 元素的那个补丁（LagrangeDev/acidify#12）等不到。所以对这类桥接端直接走语音条：
- * 一首歌以"能直接点开听"的形态进群，比一张永远不出现的卡片有用。
+ * 上一版按实现名写死（`impl_name === 'Yogurt'` 就跳过卡片），错两次：既会误伤修好了的新构建
+ * （名字还叫 Yogurt），也会在别的实现上漏判。核对历史是唯一诚实的判据。
  *
- * 判据用 `get_impl_info` 的 `impl_name`，并且**只排除已知发不出的实现**——将来换成 NapCat /
- * Lagrange.OneBot 之类，卡片路径会自动生效，不需要再改这里。
+ * 查不了历史（老桥接端没这个方法）时**当作成功**：宁可少发一条语音，也不要把能出卡片的桥接端
+ * 降级成语音。
  */
-let bridgeImpl = null;
-async function bridgeSupportsCards() {
-  if (bridgeImpl === null) {
-    try {
-      const res = await api('get_impl_info', {});
-      bridgeImpl = String((res && res.data && res.data.impl_name) || '');
-    } catch {
-      bridgeImpl = '';
-    }
+async function cardLanded(groupID, seq) {
+  if (!seq) return false;
+  try {
+    const res = await api('get_history_messages', {
+      message_scene: 'group',
+      peer_id: Number(groupID),
+      limit: 8,
+    });
+    const rows = (res && res.data && Array.isArray(res.data.messages)) ? res.data.messages : null;
+    if (!rows) return true;
+    return rows.some((row) => Number(row && row.message_seq) === Number(seq));
+  } catch {
+    return true;
   }
-  return bridgeImpl !== 'Yogurt';
 }
 
 /**
@@ -189,17 +188,19 @@ async function maybeSendSongCard(groupID, meta) {
   if (!song) return null;
   const title = String(song.title || music.title);
 
-  if (await bridgeSupportsCards()) {
-    const card = buildSongCards(song).find((row) => row.label === 'light_app');
-    if (card && card.segments.length) {
-      try {
-        const res = await sendSegments(groupID, card.segments);
-        const seq = res && res.message_seq ? `，seq ${res.message_seq}` : '，无 message_seq';
-        note(`群 ${groupID}：音乐卡片已发（${title}${seq}）`);
+  const card = buildSongCards(song).find((row) => row.label === 'light_app');
+  if (card && card.segments.length) {
+    try {
+      const res = await sendSegments(groupID, card.segments);
+      const seq = Number((res && res.message_seq) || 0);
+      // 发完立刻核对：桥接端可能回 ok 却什么都没发（见 cardLanded 的注释）。
+      if (await cardLanded(groupID, seq)) {
+        note(`群 ${groupID}：音乐卡片已发（${title}，seq ${seq}）`);
         return { url: String(song.url || ''), title, kind: 'card' };
-      } catch (err) {
-        note(`群 ${groupID}：音乐卡片发不出去（${(err && err.message) || err}），改用语音条`);
       }
+      note(`群 ${groupID}：卡片被桥接端静默丢弃（seq ${seq} 在历史里找不到），改用语音条`);
+    } catch (err) {
+      note(`群 ${groupID}：音乐卡片发不出去（${(err && err.message) || err}），改用语音条`);
     }
   }
 

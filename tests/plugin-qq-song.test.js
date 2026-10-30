@@ -243,23 +243,65 @@ describe('核心带歌 → 发卡片', () => {
 });
 
 
-// Yogurt 发不出卡片（实测 seq 有、群里没有），而它已停更 —— 那就发语音条。
-describe('桥接端发不出卡片时用语音条', () => {
-  test('Yogurt → 不发卡片，直接发 record（能点开听）', async () => {
+// 卡片到底落没落地，靠**读历史核对**，不靠实现名或返回码。
+//
+// 真机：Yogurt 0.1.0-dev.248 对卡片段回 ok + seq，群里却什么都没有；`light_app{json_payload}`
+// 更直接回 seq 0。所以发完必须去 `get_history_messages` 里找那个 seq。
+describe('卡片落地核对', () => {
+  test('历史里有这个 seq → 认定卡片发出去了，不再发语音', async () => {
     const s = loadSong({
-      request: async () => ({ url: 'https://example.com/faxue.mp3', title: '发如雪' }),
+      request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
       api: async (action, payload) => {
         s.calls.push({ action, payload });
-        if (action === 'get_impl_info') return { data: { impl_name: 'Yogurt', impl_version: '0.1.0-dev.248' } };
-        return { ok: true, message_seq: 50027 };
+        if (action === 'get_history_messages') return { data: { messages: [{ message_seq: 50033 }] } };
+        return { ok: true, message_seq: 50033 };
       },
     });
     const out = await s.maybeSendSongCard('1', { music: { title: '发如雪', singer: '周杰伦' } });
     const sends = s.calls.filter((c) => c.action === 'send_group_message');
-    expect(sends).toHaveLength(1);
-    expect(sends[0].payload.message[0].type).toBe('record');
-    expect(sends[0].payload.message[0].data.uri).toBe('https://example.com/faxue.mp3');
+    expect(sends.map((c) => c.payload.message[0].type)).toEqual(['light_app']);
+    expect(out.kind).toBe('card');
+  });
+
+  test('历史里找不到这个 seq（被静默丢弃）→ 改发语音条', async () => {
+    const s = loadSong({
+      request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
+      api: async (action, payload) => {
+        s.calls.push({ action, payload });
+        if (action === 'get_history_messages') return { data: { messages: [{ message_seq: 1 }] } };
+        return { ok: true, message_seq: 50023 };
+      },
+    });
+    const out = await s.maybeSendSongCard('1', { music: { title: '发如雪', singer: '周杰伦' } });
+    const sends = s.calls.filter((c) => c.action === 'send_group_message');
+    expect(sends.map((c) => c.payload.message[0].type)).toEqual(['light_app', 'record']);
     expect(out.kind).toBe('voice');
-    expect(s.notes.join('\n'), '为什么要退语音，日志里要写清').toContain('发不出卡片');
+    expect(s.notes.join('\n')).toContain('静默丢弃');
+  });
+
+  test('seq 是 0 → 直接当没发出去（不必再查历史）', async () => {
+    const s = loadSong({
+      request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
+      api: async (action, payload) => {
+        s.calls.push({ action, payload });
+        return { ok: true, message_seq: 0 };
+      },
+    });
+    const out = await s.maybeSendSongCard('1', { music: { title: '发如雪' } });
+    expect(s.calls.filter((c) => c.action === 'get_history_messages')).toHaveLength(0);
+    expect(out.kind).toBe('voice');
+  });
+
+  test('桥接端没有 get_history_messages → 当作成功（别误伤能出卡片的实现）', async () => {
+    const s = loadSong({
+      request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
+      api: async (action, payload) => {
+        s.calls.push({ action, payload });
+        if (action === 'get_history_messages') throw new Error('404');
+        return { ok: true, message_seq: 9 };
+      },
+    });
+    const out = await s.maybeSendSongCard('1', { music: { title: '发如雪' } });
+    expect(out.kind).toBe('card');
   });
 });
