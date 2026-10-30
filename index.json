@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T10:42:38Z",
+  "updatedAt": "2026-10-30T11:00:03Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
       "name": "B 站刷视频插件",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "author": "shixiansi",
       "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
-      "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share"],
+      "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share", "plugin.call"],
       "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
-      "download": "dist/com.shixiansi.plugin-bilibili-1.0.2.zip",
-      "sha256": "8166d1ddc4aa58c7b67bd96b647aee9da49e441ac79da88cbd3527d990453a5d"
+      "download": "dist/com.shixiansi.plugin-bilibili-1.1.0.zip",
+      "sha256": "52644992953597823558ba76b213a3dedcde908c58b7e6b9aeda20af3c2f3456"
     },
     {
       "id": "com.shixiansi.plugin-chat",
@@ -57,12 +57,12 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.3.1",
+      "version": "0.4.0",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.3.1.zip",
-      "sha256": "b7d6a29e53d67667da38b9499800da96f14cf269be95606962497804926ed173"
+      "download": "dist/com.shixiansi.plugin-memcore-0.4.0.zip",
+      "sha256": "07b359f89bdf38278f5adcc9bd9a38c1f325d0c1b9b984bfa42f37cac0cc57cc"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
