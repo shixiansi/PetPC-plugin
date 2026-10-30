@@ -207,11 +207,14 @@ function lookup(index, query, opts) {
 function renderHits(result) {
   const entries = (result && result.entries) || [];
   if (!entries.length) return '';
-  const lines = ['【网络词·已查到】用户提到的词在本地词库里查到了，可以直接用它的意思，不要再说「不知道」：'];
+  // 这段同样是资料，不是要发出去的话：用户要的是「你懂了以后用自己的人设讲一遍」，
+  // 不是把释义原样贴出来（2026-10-30 真机反馈）。
+  const lines = ['【资料·网络词】查到了用户这句话里的词；下面不是要发给用户的话，是给你参考的资料：'];
   for (const entry of entries) {
     lines.push(`- ${entry.term}：${entry.meaning}`);
     if (entry.example) lines.push(`  例：${entry.example}`);
   }
+  lines.push('用你自己的话、按你的人设讲给用户听：一两句说清它是什么、什么场合用。不要照抄上面的释义。');
   return lines.join('\n');
 }
 

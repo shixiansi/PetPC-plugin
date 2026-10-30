@@ -64,10 +64,11 @@ describe('消歧义页：认得出、挑得准', () => {
 describe('给模型读的那段话', () => {
   test('自报身份：说清是"查到的资料"、直接用它回答', () => {
     const text = A.renderEntry({ title: '破防', extract: PLAIN, url: 'https://zh.moegirl.org.cn/破防' }, 300);
-    expect(text).toContain('【萌娘百科·已查到】');
-    expect(text).toContain('直接按它回答');
+    expect(text).toContain('【资料·萌娘百科】');
+    expect(text, '要说明这段不是发给用户的话').toContain('不是要发给用户的话');
+    expect(text, '要要求用自己的人设重说').toContain('用你自己的话');
     expect(text).toContain('破防是个游戏术语');
-    expect(text).toContain('CC BY-NC-SA');
+    expect(text, '不许把出处贴给用户').not.toContain('CC BY-NC-SA');
   });
 
   test('从消歧义页降级下来的，要交代取自哪个分条', () => {
@@ -78,7 +79,7 @@ describe('给模型读的那段话', () => {
       from: '区',
       alsoTitles: ['区(月亮计划)'],
     }, 300);
-    expect(text).toContain('取自「区」的分条「区(网络用语)」');
+    expect(text).toContain('取自「区」的分条');
     // 不列同名分条：列了模型就会复述「脑叶公司…你说哪个？」（真机 2026-10-30）
     expect(text).not.toContain('月亮计划');
   });

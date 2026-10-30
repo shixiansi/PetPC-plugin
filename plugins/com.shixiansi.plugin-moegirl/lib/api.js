@@ -81,51 +81,35 @@ function tidyExtract(text, maxChars) {
   return stop > cap * 0.5 ? head.slice(0, stop + 1) : `${head}…`;
 }
 
-/** 给模型读的一段话：条目 + 摘要 + 出处。空摘要返回空串（调用方据此"什么都没查到"）。 */
+/**
+ * 给模型读的一段话。空摘要返回空串（调用方据此"什么都没查到"）。
+ *
+ * **这段是资料，不是要发出去的话。** 2026-10-30 真机：我原来写的是"下面是原文；直接按它回答"，
+ * 模型就真的把百科那行原样贴进群里——「区，本字为蛆（英语：maggot），是ACG亚文化中的一种称谓，
+ * 呈贬义。」用户当场指出：*不应该直接回复词条，应该理解词条再按人设组织语言*。
+ *
+ * 所以措辞反过来：先说清"这不是给用户看的原文"，再要求"用你自己的话讲"。三条禁令只留最必要的
+ * （照抄、贴出处、罗列同名条目），因为每多一条否定句，模型就多一分机械。
+ */
 function renderEntry(entry, maxChars) {
   if (!entry || !entry.extract) return '';
   const body = tidyExtract(entry.extract, maxChars);
   if (!body) return '';
-  return [
-    // **自报身份**：核心的人设里常写着"只用给你的记忆回答"，于是它会把这坨查到的资料当成
-    // "不属于我的记忆"而忽略（2026-10-30 实测：注入成功了，模型仍回"是不是打错了"）。
-    // 所以这一段要自己说清楚：这是**查到的资料**，不是记忆，下面就是要用的内容。
-    `【萌娘百科·已查到】用户这句话里的「${entry.title}」有词条，下面是原文；直接按它回答，`
-      + '不要说"不知道"，也不要猜是不是打错了；也不要罗列同名词条的其它含义，用户问的就是这一句里的它：',
-    // 从消歧义页降级下来的，只说"取自哪个分条"——**不列同名分条**。
-    //
-    // 2026-10-30 真机：0.1.3 把消歧义页原样交给模型，它答「能指《脑叶公司》那类游戏里的区，也是种
-    // 网络用语。你说哪个？」——用户要的是"区"这个网络词，被硬塞了一个并列选项。写完 0.1.4 我还在
-    // 来源里写了"同名的还有：区(月亮计划)"，那等于把同一个诱惑再递一次。名字够用，列表有害。
-    ...(entry.from ? [`（这一条取自「${entry.from}」的分条「${entry.title}」）`] : []),
+  const lines = [
+    `【资料·萌娘百科】查到了「${entry.title}」${entry.from ? `（取自「${entry.from}」的分条）` : ''}。`,
+    '下面这条不是要发给用户的话，是给你参考的资料：',
     body,
-    `（来源：萌娘百科 ${entry.url || `https://zh.moegirl.org.cn/${encodeURIComponent(entry.title)}`}，CC BY-NC-SA 3.0 CN）`,
-  ].join('\n');
-}
-
-/**
- * 存储键的一段：djb2 的 36 进制写法（只有字母数字）。
- *
- * 为什么不能直接用 `encodeURIComponent`：宿主的存储键每段只允许 `[A-Za-z0-9_-]`（手册 §6.3），
- * 而中文编码出来是 `%E6%97%B6…`——`%` 直接让整次 `storage.get` 不执行。2026-10-30 的日志里就是
- * 一条这样的 WARN，缓存等于从来没命中过。
- *
- * 哈希会有碰撞，所以**读缓存时还要比对 `query`**（见 app.js）：撞了就当没命中，绝不能把另一个
- * 词条的释义当成这个词的。
- */
-function cacheKeyOf(query) {
-  const body = String(query || '');
-  let h = 5381;
-  for (let i = 0; i < body.length; i += 1) h = ((h << 5) + h + body.charCodeAt(i)) | 0;
-  return `${(h >>> 0).toString(36)}-${body.length.toString(36)}`;
+    '用你自己的话、按你的人设讲给用户听：一两句说清它是什么、什么场合用。'
+      + '不要照抄上面这段原文，不要贴出处或链接，也不要罗列同名的其它词条。',
+  ];
+  return lines.join('\n');
 }
 
 /**
  * 消歧义条目？——「区」这种：「区可以指：区(月亮计划)……、区(网络用语)……」
  *
- * 这类条目的**序言本身没有内容**，只有一串链接。2026-10-30 实测：用户问「区」，拿到的是
- * "区可以指：…区(网络用语)——一种网络用语"，等于什么都没说。而子条目 `区(网络用语)` 是有正文的，
- * 所以查词时要能认出这种页面、往下降一级。
+ * 这类条目的**序言本身没有内容**，只有一串链接；而子条目 `区(网络用语)` 是有正文的。
+ * 所以查词时要能认出这种页面、往下降一级（见 app.js 的 lookUpEntry 第 ③ 步）。
  */
 function isDisambiguation(extract) {
   const body = String(extract || '').trim();
@@ -135,17 +119,12 @@ function isDisambiguation(extract) {
   return /(可以指|可能指|也可指|是指以下几|可指)/.test(head) && /——|--/.test(body);
 }
 
-/**
- * 从消歧义页里取出候选子条目：`区(月亮计划)————游戏《脑叶公司》…` 这种行。
- *
- * 返回 `[{title, note}]`，`note` 是破折号后面那半句（给人看的提示，也用来挑最相关的那一个）。
- */
+/** 从消歧义页里取出候选子条目：`区(月亮计划)————游戏《脑叶公司》…` 这种行。 */
 function parseDisambiguationTitles(extract) {
   const out = [];
   for (const raw of String(extract || '').split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    // 破折号两侧：左边是条目名，右边是说明。分隔符是 2 个以上 `-` 或 `—`。
     const matched = /^(?<title>[^—\-]{1,60}?)\s*[—-]{2,}\s*(?<note>.*)$/.exec(line);
     if (!matched || !matched.groups) continue;
     const title = String(matched.groups.title || '').trim();
@@ -158,12 +137,8 @@ function parseDisambiguationTitles(extract) {
 /**
  * 挑最像"用户想问的那个意思"的子条目。
  *
- * 排序依据（都是明写的偏好，不是猜测）：
- *   1. 名字以查询词开头（`区(网络用语)` 之于 `区`）；
- *   2. 名字或说明里带**网络/用语/梗/俚语/黑话/弹幕**这类词——这个插件的立身之本就是网络词；
- *   3. 其余按页面顺序。
- *
- * 名字里带括号的（`区(月亮计划)`）说明它是从同名主条目分出来的，比不带括号的更可能是"那个意思"。
+ * 偏好都是明写的，不是猜：名字以查询词开头 → +4；带括号（从同名主条目分出来的）→ +1；
+ * 名字或说明里带网络/用语/梗/俚语/黑话/弹幕/流行 → +3 / +2；其余按页面顺序。
  */
 function pickSubEntry(query, candidates) {
   const term = String(query || '').trim();
@@ -181,6 +156,22 @@ function pickSubEntry(query, candidates) {
   return list
     .map((row, index) => ({ row, index, value: score(row) }))
     .sort((a, b) => (b.value - a.value) || (a.index - b.index))[0].row;
+}
+
+/**
+ * 存储键的一段：djb2 的 36 进制写法（只有字母数字）。
+ *
+ * 为什么不能直接用 `encodeURIComponent`：宿主的存储键每段只允许 `[A-Za-z0-9_-]`（手册 §6.3），
+ * 而中文编码出来是 `%E6%97%B6…`——`%` 直接让整次 `storage.get` 不执行。
+ *
+ * 哈希会有碰撞，所以**读缓存时还要比对 `query`**（见 app.js）：撞了就当没命中，绝不能把另一个
+ * 词条的释义当成这个词的。
+ */
+function cacheKeyOf(query) {
+  const body = String(query || '');
+  let h = 5381;
+  for (let i = 0; i < body.length; i += 1) h = ((h << 5) + h + body.charCodeAt(i)) | 0;
+  return `${(h >>> 0).toString(36)}-${body.length.toString(36)}`;
 }
 
 const MOEGIRL_PURE = {
