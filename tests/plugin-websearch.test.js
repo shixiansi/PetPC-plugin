@@ -394,3 +394,19 @@ test('workshop + 宿主不服务 net.fetch：按钮禁用，并说清去哪里�
   expect(note, '没有那句"在哪搜"的提示').toBeTruthy();
   expect(note.classList.contains('hidden'), '提示被藏起来了').toBe(false);
 });
+
+// 超时预算：三家引擎的"正常"不是一个量级。
+//
+// SearXNG 是自建实例，一次查询会在它那边并发打十几个引擎，冷缓存十几秒很常见（用户实测 10 秒以上）；
+// 而宿主给的硬上限是 `net.fetch` 的 http.Client 30 秒与 `plugin.call` 30 秒。所以它必须宽于商业
+// API（那些几百毫秒就回来了），又必须窄于 30 秒——否则宿主先掐断，插件的错误文案就永远说不清原因。
+test('超时预算：SearXNG 宽于商业 API，且都在宿主 30 秒之内', () => {
+  const src = readFileSync(path.join(pluginDir, 'lib', 'engines.js'), 'utf8');
+  const searx = Number((src.match(/SEARXNG_TIMEOUT_MS = (\d+)/) || [])[1]);
+  const api = Number((src.match(/API_TIMEOUT_MS = (\d+)/) || [])[1]);
+  expect(Number.isFinite(searx) && searx > 0, '没有 SEARXNG_TIMEOUT_MS').toBe(true);
+  expect(Number.isFinite(api) && api > 0, '没有 API_TIMEOUT_MS').toBe(true);
+  expect(searx, 'SearXNG 超时太短：自建实例冷缓存十几秒很常见，12 秒会误报"实例坏了"').toBeGreaterThanOrEqual(20000);
+  expect(searx, '超过宿主 30 秒上限，会先被宿主掐断，插件永远拿不到响应').toBeLessThan(30000);
+  expect(api, '商业 API 的超时不该比自建实例更宽').toBeLessThanOrEqual(searx);
+});

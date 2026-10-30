@@ -16,7 +16,18 @@
 
 'use strict';
 
-const SEARXNG_TIMEOUT_MS = 12000;
+// 超时预算：三家的"正常"不是一个量级，所以不能共用一个数字。
+//
+//   · SearXNG 是**自建实例**，一次查询会在它那边并发打十几个引擎，冷缓存时十几秒很常见
+//     （用户实测 10 秒以上）。所以给它 25 秒——上面的天花板是宿主的 `plugin.call` 30 秒与
+//     `net.fetch` 的 http.Client 30 秒，25 留出余量。原来是 12 秒，正好卡在实测值上，
+//     稍慢一点就报"超过 12 秒没有响应"，看起来像实例坏了。
+//   · Tavily / Bing 是商业 API，正常几百毫秒；12 秒还没回来基本是网络问题，早点报错更好。
+//     所以它们保持 12 秒。
+//
+// 结果有缓存（`cacheTtlMin`，默认 30 分钟），所以"慢"只在第一次查询上付一次。
+const SEARXNG_TIMEOUT_MS = 25000;
+const API_TIMEOUT_MS = 12000;
 const TAVILY_URL = 'https://api.tavily.com/search';
 const BING_URL = 'https://api.bing.microsoft.com/v7.0/search';
 
@@ -109,7 +120,7 @@ async function searchTavily(query, count) {
     url: TAVILY_URL,
     body: JSON.stringify({ api_key: key, query, max_results: count, search_depth: 'basic' }),
     headers: { 'content-type': 'application/json', accept: 'application/json' },
-  }, SEARXNG_TIMEOUT_MS, 'Tavily');
+  }, API_TIMEOUT_MS, 'Tavily');
   if (out.status === 401 || out.status === 403) {
     throw new Error('Tavily 拒绝了这个 Key（HTTP ' + out.status + '）：检查 API Key 是否抄全');
   }
@@ -142,7 +153,7 @@ async function searchBing(query, count) {
     method: 'GET',
     url,
     headers: { accept: 'application/json' },
-  }, SEARXNG_TIMEOUT_MS, 'Bing');
+  }, API_TIMEOUT_MS, 'Bing');
   if (out.status === 401) {
     throw new Error('Bing 拒绝了这个订阅密钥（HTTP 401）：检查 Key 与资源区域');
   }
