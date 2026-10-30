@@ -152,26 +152,43 @@ async function maybeSendSongCard(groupID, meta) {
   const card = buildSongCards(song).find((row) => row.label === 'light_app');
   if (!card || !card.segments.length) return null;
   try {
-    await sendSegments(groupID, card.segments);
-  } catch {
+    // 把桥接端的应答记下来：它接受 light_app 时会回 `message_seq`。用户那边"看不到卡片"时，
+    // 这一行就是唯一的证据——是桥接端没接（没有 seq），还是接了但客户端不认（有 seq）。
+    const res = await sendSegments(groupID, card.segments);
+    const seq = res && res.message_seq ? `，seq ${res.message_seq}` : '，无 message_seq（桥接端可能没接）';
+    note(`群 ${groupID}：音乐卡片已发（${song.title || music.title}${seq}）`);
+  } catch (err) {
+    note(`群 ${groupID}：音乐卡片发不出去（${(err && err.message) || err}），正文照发`);
     return null;
   }
   return { url: String(song.url || ''), title: String(song.title || music.title) };
 }
 
-/** 卡片已经带上了链接 → 正文里那条裸链接就该去掉（同一句里贴两次很吵）。 */
+/**
+ * 卡片已经带上链接 → 正文里的裸链接一律去掉（同一句里贴两次很吵）。
+ *
+ * **不能用"和 song.url 精确比对"**：2026-10-30 真机，模型转述时把 URL 改了样——
+ *
+ *     原文  …&source$kwplayer_ar_5.1.0.0_B_jiakong_vh.apk&type$convert_url_with_sign…
+ *     实际  …&source$kwplayerar5.1.0.0Bjiakongvh.apk&type$converturlwithsign…      ← 下划线全掉了
+ *
+ * 于是 `split(target)` 一个都匹配不上，链接照样发进群。所以这里按**形态**删（`https?://\S+`），
+ * 而不是按那一串字节。
+ *
+ * `url` 参数留着是为了日志与将来的"只删这一条"——现在不用它做匹配，别以为它是必需的。
+ */
 function stripSongURL(text, url) {
   const body = String(text || '');
-  const target = String(url || '').trim();
-  if (!target) return body;
-  return body.split(target).join('')
+  if (!body) return body;
+  return body
+    .replace(/https?:\/\/\S+/gi, '')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
 async function sendSegments(groupID, segments) {
-  await api('send_group_message', { group_id: Number(groupID), message: segments });
+  return api('send_group_message', { group_id: Number(groupID), message: segments });
 }
 
 /**

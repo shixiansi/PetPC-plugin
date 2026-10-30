@@ -207,4 +207,14 @@ describe('核心带歌 → 发卡片', () => {
     expect(s.stripSongURL('就这句，没链接。', url)).toBe('就这句，没链接。');
     expect(s.stripSongURL(`${url}`, url)).toBe('');
   });
+
+  test('模型把链接改写过了也要删掉（真机：下划线被吃掉了）', () => {
+    const s = loadSong();
+    const url = 'http://kw-er.kuwo.cn/562e/6ae4b2e3/resource/30106/trackmedia/M5000027oMO61wWi55.mp3'
+      + '?bitrate$128&source$kwplayer_ar_5.1.0.0_B_jiakong_vh.apk&type$convert_url_with_sign';
+    // 真机发出去的样子：`_` 全没了，所以精确比对一定匹配不上
+    const mangled = 'http://kw-er.kuwo.cn/562e/6ae4b2e3/resource/30106/trackmedia/M5000027oMO61wWi55.mp3'
+      + '?bitrate$128&source$kwplayerar5.1.0.0Bjiakongvh.apk&type$converturlwithsign';
+    expect(s.stripSongURL(`给你 ${mangled} 周杰伦的。`, url)).toBe('给你 周杰伦的。');
+  });
 });
