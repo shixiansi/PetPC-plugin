@@ -1,27 +1,27 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T05:40:13Z",
+  "updatedAt": "2026-10-30T05:44:27Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
       "name": "B 站刷视频插件",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
       "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share"],
       "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
-      "download": "dist/com.shixiansi.plugin-bilibili-1.0.1.zip",
-      "sha256": "3bdd9d4ef86ce9cc31a0e927e82ff072c13b52f74b473d36069c59bf99a97037"
+      "download": "dist/com.shixiansi.plugin-bilibili-1.0.2.zip",
+      "sha256": "8166d1ddc4aa58c7b67bd96b647aee9da49e441ac79da88cbd3527d990453a5d"
     },
     {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
-      "version": "1.8.1",
+      "version": "1.8.2",
       "author": "shixiansi",
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
       "permissions": ["llm.chat", "llm.borrow", "pet.surface", "plugin.config", "storage"],
-      "download": "dist/com.shixiansi.plugin-chat-1.8.1.zip",
-      "sha256": "36abe63446761a8352b010c8b96d61a818d94911fadeb7795dc156aef8ce8866"
+      "download": "dist/com.shixiansi.plugin-chat-1.8.2.zip",
+      "sha256": "e55e9500fd46ad3813726ad69c35ca70eb81292d58f1e26bf167c076836abb67"
     },
     {
       "id": "com.shixiansi.plugin-clipask",
@@ -88,12 +88,12 @@
     {
       "id": "com.shixiansi.plugin-pomodoro",
       "name": "番茄钟插件",
-      "version": "2.3.11",
+      "version": "2.3.12",
       "author": "shixiansi",
       "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
       "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pomodoro-2.3.11.zip",
-      "sha256": "79b135eed82af3cc106d7b55f135d7c63dd71d636e247bc2ac2f1723bf8a69b5"
+      "download": "dist/com.shixiansi.plugin-pomodoro-2.3.12.zip",
+      "sha256": "bb0fc8bfea7e7efb0415029c031377a777d496fe0515a152147e827e6ecc69b0"
     },
     {
       "id": "com.shixiansi.plugin-qq",
@@ -120,12 +120,12 @@
     {
       "id": "com.shixiansi.plugin-todo",
       "name": "待办插件",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "author": "shixiansi",
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
       "permissions": ["storage", "plugin.config", "plugin.share", "pet.surface", "pet.bubble", "events"],
-      "download": "dist/com.shixiansi.plugin-todo-1.2.0.zip",
-      "sha256": "5e976d8f7ddbf45e52d03566c785b39a99fa130e8eb1ba1f9317f651f548ca71"
+      "download": "dist/com.shixiansi.plugin-todo-1.2.1.zip",
+      "sha256": "1390d36f9c65f0bef13782ab52cb4cc01df619301acc31df7dca39aa38d7f2c3"
     },
     {
       "id": "com.shixiansi.plugin-voice",
