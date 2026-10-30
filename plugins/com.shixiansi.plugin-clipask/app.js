@@ -23,7 +23,7 @@
 // 为什么监听剪贴板要 process.launch：宿主的能力表里没有剪贴板（手册 §4.1 是穷尽的），
 // 所以"系统剪贴板"只能委托给一个插件启动的本机程序——这是语音插件连本机 TTS 的
 // 同一条路。双向通信用插件私有目录里的文件：常驻帧把 clip-watch.ps1 写进
-// storage.dir 给的目录，process.launch 启动用户配置的 powershell.exe 去跑它；
+// storage.dir 给的目录，process.launch 启动 PowerShell（默认用系统自带的那个）去跑它；
 // 脚本把新样本写进 inbox/，常驻帧轮询读取。脚本随包（assets），路径每次启动重写。
 
 'use strict';
@@ -291,23 +291,40 @@ async function pushHistory(entry) {
 }
 
 /**
+ * 从哪个 PowerShell 起：用户填的优先，然后系统自带的那几个标准位置。
+ *
+ * `process.launch` **只接受绝对路径的 .exe**，而插件看不见文件系统（沙盒里没有 fs，也没有环境
+ * 变量），所以这里给一串"Windows 上大概率存在"的绝对路径逐个试——宿主会替我们验证每个路径
+ * 是不是真的存在（`process.launch` 的路径检查），失败的候选换下一个就行。
+ *
+ * 第 1 个是 Windows 10/11 一定有的 Windows PowerShell 5.1；后面两个是 PowerShell 7 的常规安装
+ * 位置。用户显式配置了就只试他那个（外加这些默认值——填错时才有机会仍然跑起来，而错误信息里会
+ * 带上他自己填的那个路径）。
+ */
+function helperCandidates() {
+  const configured = String(cfg.helperPath || '').trim();
+  const seen = new Set();
+  return [
+    configured,
+    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+    'C:\\Program Files\\PowerShell\\7\\pwsh.exe',
+    'C:\\Program Files (x86)\\PowerShell\\7\\pwsh.exe',
+  ].filter((p) => p && !seen.has(p) && seen.add(p));
+}
+
+/**
  * 把辅助脚本放进自己的私有目录并启动。
  *
  * 为什么每次启动都重写脚本：私有目录可能被用户"卸载并删除数据"过，包里的 assets 宿主
  * 只保证在包里、不保证已在目录里。重写一份小文本的代价可以忽略，换来的是"脚本一定在"。
  *
- * 为什么入口路径必须来自配置：process.launch 只接受**用户填的**绝对路径 .exe（手册 §6.12）。
- * 插件不猜 powershell 在哪——用户填一次，之后一直用。
+ * 入口路径见 `helperCandidates`：**留空就用系统自带的 PowerShell**。以前是"留空=不启动"，
+ * 于是这个插件在真机上从来没工作过（默认值就是空，没人会去手敲那个路径）。
  */
 async function ensureHelper() {
   if (helperLaunched) return;
   if (!can(PERM.storage) || !can(PERM.process)) {
     await pushState('缺权限：安装时需要授予 storage 与 process，监听才可用');
-    return;
-  }
-  const exe = String(cfg.helperPath || '').trim();
-  if (!exe) {
-    await pushState('等待配置辅助脚本启动器（powershell.exe 的绝对路径）');
     return;
   }
   try {
@@ -337,9 +354,33 @@ async function ensureHelper() {
       `& $sb -OutDir '${outDir}' }`;
     const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', runner];
 
-    await request('process.launch', { path: exe, args });
+    // 从哪个 PowerShell 起？用户填的优先，**留空就用系统自带的那个**。
+    //
+    // 以前这里"留空 = 不启动"，于是这个插件在真机上从来没工作过：`helperPath` 的默认值就是空，
+    // 而没人会为了一个剪贴板助手去手敲 `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`。
+    // 症状是"装了、启用了、什么都没发生"——日志里一次 `process.launch` 都没有，只有每个挂载周期
+    // 的 `config.get` 与 `share.get`（2026-10-30 用户报的）。
+    //
+    // 逐个试是因为插件看不见文件系统（沙盒、没有 fs）：`process.launch` 会替我们验证"这个绝对
+    // 路径是不是一个存在的 .exe"，失败的候选直接试下一个。用户显式填了却不存在时，报错里会带
+    // 上他填的那个路径——那才是他要改的东西。
+    const tried = [];
+    let launched = '';
+    for (const exe of helperCandidates()) {
+      try {
+        await request('process.launch', { path: exe, args });
+        launched = exe;
+        break;
+      } catch (err) {
+        tried.push(`${exe}（${err && err.message ? err.message : err}）`);
+      }
+    }
+    if (!launched) {
+      await pushState(`启动剪贴板监听失败：没有可用的 PowerShell。试过 ${tried.join('；')}`);
+      return;
+    }
     helperLaunched = true;
-    await pushState(`已启动剪贴板监听（每 0.6s 检查一次）`);
+    await pushState(`已启动剪贴板监听（${launched}）`);
   } catch (err) {
     await pushState(`辅助脚本没启动：${String(err && err.message ? err.message : err)}`);
   }
@@ -540,8 +581,8 @@ async function tick() {
  * 把辅助脚本落下的新样本收进来。
  *
  * 脚本往 clip/inbox/ 里写 <时间戳>-<随机>.txt（正文就是剪贴板原文）；常驻帧读不到
- * 私有目录的文件列表——所以脚本同时维护一个 inbox/latest.txt（每次落盘覆盖写），
- * 这里只轮询这一个键。两个写者（脚本写 latest、插件处理完记 seenAt）之间用
+ * 私有目录的文件列表——所以脚本同时维护一个 inbox/latest（无扩展名，每次落盘覆盖写），
+ * 这里只轮询这一个键——**名字必须逐字相同**，见 Publish-Latest 上方的注释。两个写者（脚本写 latest、插件处理完记 seenAt）之间用
  * "文件 mtime 语义"的替代品：latest 里带脚本自己盖的时间戳，插件按时间戳去重。
  */
 async function harvestInbox() {
@@ -829,7 +870,14 @@ function Publish-Latest {
     } | ConvertTo-Json -Compress
     $tmp = Join-Path $OutDir 'latest.tmp'
     Write-Utf8NoBom -Path $tmp -Text $payload
-    Move-Item -LiteralPath $tmp -Destination (Join-Path $OutDir 'latest.txt') -Force
+    # The file name must match the storage key the plugin polls, character for character:
+  # clip/inbox/latest, with NO extension. A key segment only allows [A-Za-z0-9_-], so a
+  # .txt name can never be read back - and the script writes by absolute path, so nothing
+  # complains: the plugin just never sees a sample. (2026-10-30: latest.txt vs latest.)
+  # Keep this whole script ASCII: it is launched with Get-Content -Raw under Windows
+  # PowerShell 5.1, which decodes a BOM-less file as the ANSI code page and can eat a
+  # quote or a newline in the middle of a multi-byte comment. (AGENTS.md section 7.)
+  Move-Item -LiteralPath $tmp -Destination (Join-Path $OutDir 'latest') -Force
 }
 
 while ($true) {
@@ -850,7 +898,8 @@ while ($true) {
     $last = $text
 
     if ($text.Length -gt $MaxChars) {
-        # 超长样本不进询问流程；推一条空文本的时间戳让插件侧知道有东西被跳过了。
+        # Too long for the ask flow: publish an empty sample so the plugin sees that
+        # something was skipped (throttled by $lastSkip).
         if (([System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $lastSkip) -gt 30000) {
             $lastSkip = [System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
             try { Publish-Latest -Text '' } catch { }

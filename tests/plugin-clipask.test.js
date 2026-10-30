@@ -369,8 +369,11 @@ describe('常驻帧：流水线', () => {
     expect(command.length).toBeLessThan(512);
   });
 
-  test('没配 helperPath 时不启动任何进程', async () => {
-    harness = makeHarness({ config: { helperPath: '' } });
+  // 这条原来断言的是"留空 = 不启动任何进程"——那正是用户报"完全没反应"的根因：`helperPath`
+  // 的默认值就是空，于是装好、启用、授权之后什么都没发生。现在留空走系统自带的 PowerShell，
+  // 所以改成钉**缺权限时才不启动**：那才是真正该拦住的事实，而且它发生在碰配置之前。
+  test('缺 process 权限时一个进程都不启动', async () => {
+    harness = makeHarness({ granted: ['storage', 'plugin.config', 'plugin.share'] });
     await harness.settle();
     expect(harness.requests('process.launch')).toHaveLength(0);
   });
@@ -541,4 +544,35 @@ describe('WATCH_SCRIPT 与包内脚本的同源守卫', () => {
     expect(script).toContain('latest.txt');
     expect(script).not.toMatch(/Invoke-WebRequest|Invoke-RestMethod|Start-Process/);
   });
+});
+
+  // 这条是用户报"完全没反应"的根因：`helperPath` 默认是空，而以前"留空 = 不启动"。
+  // 于是安装、启用、授权都做了，日志里也只看得到每个挂载周期的 config.get / share.get，
+  // 一次 process.launch 都没有——插件看起来就是死的。
+  test('没配 helperPath 时自动用系统自带的 PowerShell', async () => {
+    harness = makeHarness({ config: {} });
+    await harness.settle();
+    const launches = harness.requests('process.launch');
+    expect(launches.length, '一次都没启动：留空又被当成"不启动"了').toBeGreaterThan(0);
+    expect(launches[0].payload.path.toLowerCase()).toContain('windowspowershell\\v1.0\\powershell.exe');
+  });
+
+  test('配了 helperPath 就先试它（默认值只是后备）', async () => {
+    harness = makeHarness({ config: { helperPath: 'D:\\tools\\pwsh.exe' } });
+    await harness.settle();
+    const launches = harness.requests('process.launch');
+    expect(launches.length).toBeGreaterThan(0);
+    expect(launches[0].payload.path).toBe('D:\\tools\\pwsh.exe');
+  });
+
+// 脚本落盘的名字必须与插件轮询的键**逐字**相同。
+//
+// 宿主存储键每段只允许 `[A-Za-z0-9_-]`（手册 §6.3），所以键里不可能有 `.txt`；而按绝对路径写
+// 文件的脚本侧很容易顺手写 `.txt`。2026-10-30 两边就是这么对不上：脚本写 `latest.txt`、插件读
+// `clip/inbox/latest`，于是**即使辅助脚本启动了，也永远读不到样本**——症状和"完全没反应"一样。
+test('辅助脚本落盘的名字与插件轮询的键一致（latest，不带扩展名）', () => {
+  const src = readFileSync(appPath, 'utf8');
+  expect(src, '脚本又写 latest.txt 了：插件轮询的是 clip/inbox/latest').not.toContain("'latest.txt'");
+  expect(src, "脚本没有写 'latest'").toContain("(Join-Path $OutDir 'latest')");
+  expect(src, '插件轮询的键变了，脚本侧要跟着改').toContain("request('storage.get', { key: 'clip/inbox/latest' })");
 });
