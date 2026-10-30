@@ -25,9 +25,13 @@ function loadSong({ request, api } = {}) {
   sandbox.sent = [];
   sandbox.calls = [];
   // 插件里的日志函数（真机写日志，这里只记录）
+  sandbox.requests = [];
   sandbox.notes = [];
   sandbox.note = (line) => sandbox.notes.push(String(line));
-  sandbox.request = request || (async () => ({ results: [SONG] }));
+  sandbox.request = async (method, payload) => {
+    sandbox.requests.push({ method, payload });
+    return (request || (async () => ({ results: [SONG] })))(method, payload);
+  };
   sandbox.api = api || (async (action, payload) => {
     sandbox.calls.push({ action, payload });
     return { ok: true };
@@ -144,5 +148,63 @@ describe('点歌命令：三种结局各说各的话', () => {
     const s = loadSong();
     await s.maybeHandleSongCommand('点歌 发如雪', '1');
     expect(s.notes.join('\n')).toContain('light_app');
+  });
+});
+
+
+// 核心说"这一轮带了歌" → QQ 这边发卡片，而不是让模型贴一条裸链接。
+//
+// 用户的原话："听歌依旧发的是链接，没有发卡片"。真机原因：`我要听发如雪` 走的是**核心的点歌通道**
+// （模型写 [SONG] → 核心问点歌插件 → 核心让模型把直链原样发出来），而字面命令「点歌 X」才走
+// 插件自己的卡片路径。所以核心的 `meta.music` 一到，平台侧就得把卡片补上。
+describe('核心带歌 → 发卡片', () => {
+  const META = { music: { title: '发如雪', singer: '周杰伦', provider: 'kuwo' } };
+
+  test('先按歌名+歌手要链接（song_link），再发 light_app 卡片', async () => {
+    const s = loadSong({
+      request: async (method, payload) => {
+        s.requests.push({ method, payload });
+        return { url: 'https://example.com/faxue.mp3', title: '发如雪', singer: '周杰伦', cover: 'https://example.com/c.jpg' };
+      },
+    });
+    const card = await s.maybeSendSongCard('1', META);
+    expect(s.requests[0].method).toBe('plugin.call');
+    expect(s.requests[0].payload).toMatchObject({ method: 'song_link', payload: { song: '发如雪', singer: '周杰伦' } });
+    expect(s.calls[0].payload.message[0].type).toBe('light_app');
+    expect(card).toMatchObject({ url: 'https://example.com/faxue.mp3' });
+  });
+
+  test('核心没带歌 → 什么都不做（省一个往返）', async () => {
+    const s = loadSong();
+    expect(await s.maybeSendSongCard('1', { music: null })).toBeNull();
+    expect(await s.maybeSendSongCard('1', null)).toBeNull();
+    expect(s.calls).toHaveLength(0);
+    expect(s.requests).toHaveLength(0);
+  });
+
+  test('要不到链接 → 不发空卡片，也不发文本（正文里本来就有链接）', async () => {
+    const s = loadSong({ request: async () => ({ url: '' }) });
+    expect(await s.maybeSendSongCard('1', META)).toBeNull();
+    expect(s.calls).toHaveLength(0);
+  });
+
+  test('桥接端不认 light_app → 返回 null，不退回文本（避免一条消息两个链接）', async () => {
+    const s = loadSong({
+      request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
+      api: async (action, payload) => {
+        s.calls.push({ action, payload });
+        throw new Error('不支持的消息段类型 light_app');
+      },
+    });
+    expect(await s.maybeSendSongCard('1', META)).toBeNull();
+    expect(s.calls).toHaveLength(1);
+  });
+
+  test('卡片带上链接后，正文里那条裸链接要去掉', () => {
+    const s = loadSong();
+    const url = 'http://kw-er.kuwo.cn/e2b2ae7b.mp3?bitrate$128';
+    expect(s.stripSongURL(`给你 ${url} 周杰伦的。`, url)).toBe('给你 周杰伦的。');
+    expect(s.stripSongURL('就这句，没链接。', url)).toBe('就这句，没链接。');
+    expect(s.stripSongURL(`${url}`, url)).toBe('');
   });
 });

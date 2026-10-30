@@ -116,6 +116,60 @@ async function askSongPlugin(query) {
   }
 }
 
+/**
+ * 问点歌插件要一条直链：`song_link`（"我知道是哪首，给我链接"）。
+ *
+ * 为什么不用核心给的那条：记忆核心的 `meta.music` **故意不带直链**（带签名的 URL 存下来就是
+ * 未来的死链，它的注释写明了）。所以这里按"歌名 + 歌手"重新要一次——点歌插件刚查过，这次基本是
+ * 缓存命中，一个本地往返就够。
+ */
+async function askSongLink(title, singer) {
+  try {
+    const out = await request('plugin.call', {
+      target: 'com.shixiansi.plugin-diange',
+      method: 'song_link',
+      payload: { song: title, singer: singer || '' },
+    });
+    return out && out.url ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 核心说"这一轮带了歌" → 发一张音乐卡片。
+ *
+ * **只试 light_app 那一级**：卡片发不出去就返回 null，让核心那段正文照原样发出去——它里面本来就有
+ * 直链，用户不至于什么都没有。这里**不**退到 text，否则一条消息里会出现两个链接。
+ *
+ * @returns {Promise<{url:string,title:string}|null>} 发出去了才返回歌的信息（调用方据此去掉正文里的裸链接）
+ */
+async function maybeSendSongCard(groupID, meta) {
+  const music = meta && meta.music;
+  if (!music || !String(music.title || '').trim()) return null;
+  const song = await askSongLink(music.title, music.singer);
+  if (!song) return null;
+  const card = buildSongCards(song).find((row) => row.label === 'light_app');
+  if (!card || !card.segments.length) return null;
+  try {
+    await sendSegments(groupID, card.segments);
+  } catch {
+    return null;
+  }
+  return { url: String(song.url || ''), title: String(song.title || music.title) };
+}
+
+/** 卡片已经带上了链接 → 正文里那条裸链接就该去掉（同一句里贴两次很吵）。 */
+function stripSongURL(text, url) {
+  const body = String(text || '');
+  const target = String(url || '').trim();
+  if (!target) return body;
+  return body.split(target).join('')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 async function sendSegments(groupID, segments) {
   await api('send_group_message', { group_id: Number(groupID), message: segments });
 }
