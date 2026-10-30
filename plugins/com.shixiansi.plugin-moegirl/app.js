@@ -108,10 +108,13 @@ async function lookUpEntry(query) {
   if (!asked) throw new Error('需要 query：要查的那个词');
 
   const ttlMin = cfgNum('cacheTtlMin', 0, 100000, 720);
-  const cacheKey = CACHE_PREFIX + encodeURIComponent(asked);
+  const cacheKey = CACHE_PREFIX + cacheKeyOf(asked);
   if (ttlMin > 0) {
     const hit = await readJSON(cacheKey, null);
-    if (hit && typeof hit.at === 'number' && Date.now() - hit.at < ttlMin * 60000 && hit.extract) {
+    // `hit.query === asked` 是必须的：键是哈希，撞了要当没命中（宁可多查一次，也不能把别的词条
+    // 的释义当这个词的）。
+    if (hit && hit.query === asked && typeof hit.at === 'number'
+      && Date.now() - hit.at < ttlMin * 60000 && hit.extract) {
       return { ...hit, cached: true };
     }
   }
@@ -126,7 +129,7 @@ async function lookUpEntry(query) {
   const page = parseExtract(await fetchText(extractURL(title, maxChars)));
   if (!page) return null;
 
-  const entry = { title: page.title || title, extract: page.extract, url, at: Date.now() };
+  const entry = { query: asked, title: page.title || title, extract: page.extract, url, at: Date.now() };
   await writeJSON(cacheKey, entry);
   return { ...entry, cached: false };
 }

@@ -76,13 +76,41 @@ function tidyReply(raw) {
   return stop > max * 0.5 ? cut.slice(0, stop + 1) : `${cut}…`;
 }
 
+/**
+ * 调一次模型；**空回复时加预算重试一次**。
+ *
+ * 起因是真机日志（2026-10-30）：
+ *
+ *     llm.chat 回了空文本，但模型写了 18 字思考（finish=stop）：多半是思考吃掉了输出预算
+ *
+ * 思考模型（qwen3.x 这类）把 reasoning 记在**同一个**输出预算里，而设置里的 `llmMaxTokens` 是按
+ * "只算正文"定的。于是答案还没开始写预算就用完了，调用方拿到一句空话，群里看到的是"机器人没说话"。
+ *
+ * 这里只做一件事：空回复时把这一次的预算翻倍再问一次（宿主夹到 64..4096）。**不改设置、不动历史**
+ * ——同一份 prompt，只是给它更多位置。第二次仍然空就把错误抛出去（调用方已经在处理这种失败）。
+ */
+async function askModelWithRetry(prompt) {
+  try {
+    return await askModel(prompt);
+  } catch (err) {
+    if (!err || !/没有返回内容/.test(String(err.message || ''))) throw err;
+    const bigger = Math.min(3840, Math.max(960, Number(prompt.maxTokens) || 480) * 2);
+    noteError('empty-reply', new Error(`按 ${bigger} tokens 重试（思考吃掉了输出预算）`));
+    return askModel(Object.assign({}, prompt, { maxTokens: bigger }));
+  }
+}
+
 /** 问一次模型。失败时抛宿主自己的句子（未获权限 / 额度用完 / 连不上），由调用方决定怎么讲。 */
 async function askModel(prompt) {
-  const out = await request('llm.chat', {
+  // `maxTokens` 是**这一次**的输出预算（宿主夹到 64..4096）。默认不传、沿用设置里的值；
+  // 只有"空回复重试"那一轮才要更多——见 askModelWithRetry。
+  const payload = {
     text: text(prompt.text, 4000),
     system: text(prompt.system, 4000),
     history: prompt.history || [],
-  });
+  };
+  if (prompt.maxTokens) payload.maxTokens = prompt.maxTokens;
+  const out = await request('llm.chat', payload);
   const reply = out && typeof out.text === 'string' ? out.text : '';
   if (!reply.trim()) throw new Error('模型没有返回内容（检查模型配置或每日额度）');
   return reply;
@@ -162,7 +190,7 @@ async function handleChat(payload) {
       return notes.length ? `${line}\n\n（${notes.join('；')}）` : line;
     };
 
-    let reply = tidyReply(await askModel({
+    let reply = tidyReply(await askModelWithRetry({
       text: askedNote(),
       system: [system, contextBlocks()].filter(Boolean).join('\n\n'),
       history,
@@ -190,7 +218,7 @@ async function handleChat(payload) {
         const notes = [];
         if (musicUsed) notes.push('第一遍你还没给出链接；已经替你查到这首歌，结果在系统提示里');
         if (searchUsed) notes.push('已经替你查过网页，结果在系统提示里');
-        reply = tidyReply(await askModel({
+        reply = tidyReply(await askModelWithRetry({
           text: `${line}\n\n（${notes.join('；')}）`,
           system: [system, contextBlocks()].filter(Boolean).join('\n\n'),
           history,
@@ -277,7 +305,7 @@ async function digestRole(roleKey, roleId, oldTurns, previousSummary, userKey) {
     material,
   ].join('\n');
 
-  const raw = await askModel({ text: prompt, system, history: [] });
+  const raw = await askModelWithRetry({ text: prompt, system, history: [] });
   const digest = parseDigest(raw);
   const at = now();
 
@@ -342,7 +370,7 @@ async function maybeBuildProfile(roleKey, roleId, userKey) {
     '请给出更新后的画像。',
   ].filter(Boolean).join('\n');
 
-  const raw = await askModel({ text: prompt, system, history: [] });
+  const raw = await askModelWithRetry({ text: prompt, system, history: [] });
   const body = parseObject(raw);
   if (!body) {
     // 画像解析不出来就保留旧的：一份坏画像比没有画像更糟（它会被每一轮注入）。

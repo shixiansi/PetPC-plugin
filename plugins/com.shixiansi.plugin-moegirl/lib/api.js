@@ -93,4 +93,22 @@ function renderEntry(entry, maxChars) {
   ].join('\n');
 }
 
-const MOEGIRL_PURE = { openSearchURL, extractURL, parseOpenSearch, parseExtract, tidyExtract, renderEntry, API, UA };
+/**
+ * 存储键的一段：djb2 的 36 进制写法（只有字母数字）。
+ *
+ * 为什么不能直接用 `encodeURIComponent`：宿主的存储键每段只允许 `[A-Za-z0-9_-]`（手册 §6.3），
+ * 而中文编码出来是 `%E6%97%B6…`——`%` 直接让整次 `storage.get` 不执行。2026-10-30 的日志里就是
+ * 一条这样的 WARN，缓存等于从来没命中过。
+ *
+ * 哈希会有碰撞，所以**读缓存时还要比对 `query`**（见 app.js）：撞了就当没命中，绝不能把另一个
+ * 词条的释义当成这个词的。
+ */
+function cacheKeyOf(query) {
+  const body = String(query || '');
+  let h = 5381;
+  for (let i = 0; i < body.length; i += 1) h = ((h << 5) + h + body.charCodeAt(i)) | 0;
+  return `${(h >>> 0).toString(36)}-${body.length.toString(36)}`;
+}
+
+const MOEGIRL_PURE = {
+  cacheKeyOf, openSearchURL, extractURL, parseOpenSearch, parseExtract, tidyExtract, renderEntry, API, UA };

@@ -634,14 +634,16 @@ test('内容变了就重新报高度（不能只靠 ResizeObserver）', async ()
   await harness.settle();
   const doc = harness.window.document;
   const ask = doc.getElementById('ask');
-  Object.defineProperty(ask, 'scrollHeight', { get: () => 68, configurable: true });
+  // 高度取 120：它要**明显高于声明高度（76）**，否则会被"不低于声明高度"的下限盖住，
+  // 于是"内容变了"和"没变"算出同一个数、根本不该再发请求（那正是下限想达到的效果）。
+  Object.defineProperty(ask, 'scrollHeight', { get: () => 120, configurable: true });
   const before = harness.requests('surface.blocks').length;
   doc.getElementById('ask-text').textContent = '需要我帮你翻译吗？';
   await new Promise((resolve) => setTimeout(resolve, 260));
   const calls = harness.requests('surface.blocks');
   expect(calls.length, '内容变了却没有重新报高度').toBeGreaterThan(before);
   const sizes = calls[calls.length - 1].payload.sizes;
-  expect(Number(sizes['0']), '报上去的高度没跟上内容').toBeGreaterThanOrEqual(68);
+  expect(Number(sizes['0']), '报上去的高度没跟上内容').toBeGreaterThanOrEqual(120);
 });
 
 // 模型经常以空行开头（实测：`"\n\n1. surface.blocks 请求…"`），而正文是 `white-space: pre-wrap`，

@@ -737,7 +737,8 @@ function initAskFrame() {
 
   // 光等"内容变化"不够：**初始那版静态内容就已经装不下**——标签 + 问话占位 + 两个按钮实测 50px，
   // 而块 0 声明 44px，于是从挂载那一刻起下沿就被裁着。所以开局先量一次。
-  autoFit(0, Object.assign(() => Math.min(152, Math.ceil(el('ask').scrollHeight + 2)), { node: el('ask') }));
+  // 同上：询问卡声明 76px，请求值不低于它（否则每轮都换来一条 WARN）。
+  autoFit(0, Object.assign(() => Math.max(76, Math.min(152, Math.ceil(el('ask').scrollHeight + 2))), { node: el('ask') }));
 }
 
 async function pollInbox() {
@@ -798,7 +799,10 @@ function initResultFrame() {
     // 所以 156 已经是能给的最大值。超过它的请求会被宿主夹回去并留一条 WARN，日志里每次都是
     // "请求 308px，超过声明的 maxH=156px"，而那 308px 是**内容**高度，不是窗口能给的。
     // 超出部分本来就该在正文里滚动（`.result-body` 有 overflow: auto）。
-    return Math.min(156, Math.ceil(body.scrollHeight + chrome + 2));
+    // 不低于声明高度（96，与 manifest 的 `h` 同步）：矮于它的请求一定会被宿主夹回去，
+    // 只在日志里留一条「低于声明高度…被夹到 96px」的 WARN，没有任何作用。
+    const declaredH = 96;
+    return Math.max(declaredH, Math.min(152, Math.ceil(body.scrollHeight + chrome + 2)));
   }, {
     node: document.querySelector('.result-body'),
     // 观察整张卡：正文一变（占位 → 真回答）就重新量。`.result-body` 自己是 `flex: 1`，
