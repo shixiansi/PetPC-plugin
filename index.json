@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T14:10:42Z",
+  "updatedAt": "2026-10-30T14:18:23Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -68,23 +68,23 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.6.2",
+      "version": "0.6.3",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.6.2.zip",
-      "sha256": "a5c11a999aa558d84126e54c2c9611732439fa41e6d1298105c7a26f3630de07"
+      "download": "dist/com.shixiansi.plugin-memcore-0.6.3.zip",
+      "sha256": "373914eb7017d146ff27b725a9c26ba4573f9422379db1b10545d1134f956770"
     },
     {
       "id": "com.shixiansi.plugin-moegirl",
       "name": "萌娘百科",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
       "netHosts": ["zh.moegirl.org.cn"],
-      "download": "dist/com.shixiansi.plugin-moegirl-0.1.1.zip",
-      "sha256": "f1c5e3225213677c047e60f97b2f84155378c2d80d7e4f2204c842afad3b0da0"
+      "download": "dist/com.shixiansi.plugin-moegirl-0.1.2.zip",
+      "sha256": "c09e7f81ded2229cb3fe58553feb12975761bdf05a23412d862b46a17ae6c6ce"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
