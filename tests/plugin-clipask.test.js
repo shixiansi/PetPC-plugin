@@ -618,3 +618,17 @@ describe('浮层面生命周期：有东西要看才打开', () => {
     expect(blocks[blocks.length - 1].payload.hidden).toEqual([0]);
   });
 });
+
+// 长高请求不许带 `hidden`：每个帧是独立文档、各有一份隐藏集合，带上去就会把另一帧刚藏起来的
+// 块放出来（2026-10-30：结果卡长高的请求把询问卡又显示了）。宿主现在把"缺省 hidden"当成
+// "别动隐藏集合"，所以这条在客户端也要守住。
+test('长高请求只发 sizes，不带 hidden', () => {
+  const src = readFileSync(appPath, 'utf8');
+  const calls = [...src.matchAll(/request\('surface\.blocks',\s*\{([^}]*)\}/g)].map((m) => m[1]);
+  expect(calls.length, '没有任何 surface.blocks 调用').toBeGreaterThan(0);
+  const sizeOnly = calls.filter((c) => /sizes\s*:/.test(c) && !/hidden\s*:/.test(c));
+  expect(sizeOnly.length, '没有"只发 sizes"的调用').toBeGreaterThan(0);
+  // 反向：允许 focusBlocks 那一个带 hidden 的调用，但不能有"既带 hidden 又带 sizes"的
+  const both = calls.filter((c) => /sizes\s*:/.test(c) && /hidden\s*:/.test(c));
+  expect(both, '有请求同时带 hidden 与 sizes：它会覆盖别人的隐藏集合').toHaveLength(0);
+});

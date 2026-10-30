@@ -284,11 +284,10 @@ async function readShare(name, owner) {
  * 2026-10-30 用户报的就是这个：日志里能看见 `share.set`（806 B 写入了样本），但 `share.get`
  * 只在轮询 clicks，没有任何一帧在读 inbox（询问卡那一帧根本没挂载）。
  *
- * `hidden` 是**整份替换**语义（宿主侧注释同样写了），所以这里记住当前隐藏集合；grow 那两处也
- * 必须带着它——否则"结果卡长高"的请求会把隐藏集合清空，询问卡又冒出来。
+ * `hidden` 是**整份替换**语义，而每个帧各有一份记录——所以 grow 那两处**只发 `sizes`**：宿主把
+ * 缺省的 `hidden` 当成"别动隐藏集合"。不然"结果卡长高"的请求会把自己那份空的隐藏集合发上去，
+ * 把刚被藏起来的询问卡又放出来。
  */
-let hiddenBlocks = [];
-
 async function showSurface() {
   if (!can(PERM.surface)) return;
   await request('surface.show', {}).catch(() => {});
@@ -301,9 +300,8 @@ async function hideSurface() {
 
 /** 只留这些块可见：`hidden` 是声明下标数组。 */
 async function focusBlocks(hidden) {
-  hiddenBlocks = hidden.slice();
   if (!can(PERM.surface)) return;
-  await request('surface.blocks', { hidden: hiddenBlocks, sizes: {} }).catch(() => {});
+  await request('surface.blocks', { hidden, sizes: {} }).catch(() => {});
 }
 
 /** 写一行状态给工坊页。 */
@@ -699,7 +697,7 @@ async function growAskIfNeeded() {
   if (!card) return;
   const want = Math.min(180, Math.max(44, Math.ceil(card.scrollHeight) + 12));
   try {
-    await request('surface.blocks', { hidden: hiddenBlocks, sizes: { 0: want } });
+    await request('surface.blocks', { sizes: { 0: want } });
   } catch {
     // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
   }
@@ -753,9 +751,19 @@ async function growIfNeeded() {
   lastGrowAt = nowMs;
   const card = document.querySelector('.result-card');
   if (!card) return;
-  const want = Math.min(156, Math.max(60, Math.ceil(card.scrollHeight) + 12));
+  // 量 **正文**，不是卡片。`.result-card` 是 `flex: 1; min-height: 0`，它的高度就是帧高；正文
+  // 在 `.result-body` 里滚动（`overflow: auto`），所以 `card.scrollHeight` 恒等于"当前帧高"，
+  // 算出来的 want 永远是帧高 + 12。2026-10-30 用户报"结果半天没有显示"就是这么来的：283 字的
+  // 回答只换来 72px 的卡片（日志里 `sizes: {"1": 72}`），正文挤在两行里。
+  //
+  // chrome = 卡片里不属于正文的那部分（标题栏 + 内边距 + 间隙），用 clientHeight 之差算，
+  // 不写死数字——字号/间距改了它自动跟上。
+  const body = card.querySelector('.result-body');
+  if (!body) return;
+  const chrome = Math.max(0, card.clientHeight - body.clientHeight);
+  const want = Math.min(156, Math.max(60, Math.ceil(body.scrollHeight + chrome)));
   try {
-    await request('surface.blocks', { hidden: hiddenBlocks, sizes: { 1: want } });
+    await request('surface.blocks', { sizes: { 1: want } });
   } catch {
     // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
   }
