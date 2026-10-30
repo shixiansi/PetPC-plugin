@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T14:43:33Z",
+  "updatedAt": "2026-10-30T14:49:28Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -78,13 +78,13 @@
     {
       "id": "com.shixiansi.plugin-moegirl",
       "name": "萌娘百科",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "author": "shixiansi",
       "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
       "netHosts": ["zh.moegirl.org.cn"],
-      "download": "dist/com.shixiansi.plugin-moegirl-0.1.5.zip",
-      "sha256": "6a5be65ced868c8fd9991e1093876db5a73d1305e9df88256803717059c8c6cc"
+      "download": "dist/com.shixiansi.plugin-moegirl-0.1.6.zip",
+      "sha256": "8bf62966789762146f7ccb7f65e50ff3e46660d0eff550aea6f94169b3ef51c9"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
@@ -142,12 +142,12 @@
     {
       "id": "com.shixiansi.plugin-slang",
       "name": "网络词词典",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "author": "shixiansi",
       "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
       "permissions": ["storage", "plugin.config", "plugin.call"],
-      "download": "dist/com.shixiansi.plugin-slang-0.1.2.zip",
-      "sha256": "84ebeb49809acc9582a1b81ba586aba7d5bd3b0315e92e387804bc8c03056590"
+      "download": "dist/com.shixiansi.plugin-slang-0.1.3.zip",
+      "sha256": "51c3464d6d3b27a13fd2dc8020cd3fa43f427f9e1373514c608fed3b00eabf63"
     },
     {
       "id": "com.shixiansi.plugin-todo",
