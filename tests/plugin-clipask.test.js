@@ -643,3 +643,21 @@ test('内容变了就重新报高度（不能只靠 ResizeObserver）', async ()
   const sizes = calls[calls.length - 1].payload.sizes;
   expect(Number(sizes['0']), '报上去的高度没跟上内容').toBeGreaterThanOrEqual(68);
 });
+
+// 模型经常以空行开头（实测：`"\n\n1. surface.blocks 请求…"`），而正文是 `white-space: pre-wrap`，
+// 行首空行会被如实渲染——看起来像"卡片上方少画了一块"。显示前去掉首尾空白，内部换行必须保留。
+test('结果卡正文去掉开头的空行（模型爱这么开头）', async () => {
+  harness = makeHarness({ surface: { kind: 'surface', rectIndex: 1, rectCount: 2 } });
+  await harness.settle();
+  harness.share.set('com.shixiansi.plugin-clipask/answer', {
+    value: JSON.stringify({
+      id: 'a9', title: '翻译', status: '', done: true, at: Date.now(),
+      text: '\n\n1. 第一行\n2. 第二行\n',
+    }),
+    at: Date.now(),
+  });
+  await harness.poll();
+  const body = harness.window.document.getElementById('result-body');
+  expect(body.textContent.startsWith('1. 第一行'), '开头还有空行').toBe(true);
+  expect(body.textContent, '内部换行被吃掉了').toContain('1. 第一行\n2. 第二行');
+});

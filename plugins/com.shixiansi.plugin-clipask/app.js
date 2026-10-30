@@ -831,7 +831,10 @@ async function pollAnswer() {
       el('result-status').textContent = '滚动看全文';
     }
   }
-  el('result-body').textContent = err ? `出了点问题：${err}` : String(v.text || '…');
+  // `trim()`：模型经常以空行开头（实测回答是 `\n\n\`eventPluginEvent\` 是…`），而正文是
+  // `white-space: pre-wrap`，行首的空行会被如实渲染成一片空白——看起来像"卡片上方少画了东西"。
+  // 只去首尾，内部换行与缩进一律保留（那是代码块和列表的结构）。
+  el('result-body').textContent = err ? `出了点问题：${err}` : String(v.text || '…').trim();
   if (v.done) answerDoneShown = true;
   // 同询问卡：正文是在挂载之后才到的，节流会把这次测量吞掉，卡片就停在旧高度。
 
