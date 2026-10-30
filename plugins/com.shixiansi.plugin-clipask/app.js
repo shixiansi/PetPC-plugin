@@ -288,6 +288,66 @@ async function readShare(name, owner) {
  * 缺省的 `hidden` 当成"别动隐藏集合"。不然"结果卡长高"的请求会把自己那份空的隐藏集合发上去，
  * 把刚被藏起来的询问卡又放出来。
  */
+/**
+ * 让块的高度跟着内容走：**监听内容尺寸，每次变化都把最终高度报上去**。
+ *
+ * 为什么不用"挂载时量一次 + 节流"：那个写法有两个竞态，而且都已在真机上咬过人——
+ *   1. 挂载那一刻量到的是静态占位（`…` 一行），真内容几百毫秒后才到；
+ *   2. 真内容到达时的那次测量正好落在 500ms 节流窗口里，被直接丢掉，之后没有第二次机会。
+ * 结果是块停在占位高度上，按钮被矩形下边缘切掉一半（2026-10-30 用户截图）。
+ *
+ * `ResizeObserver` 没有这个毛病：内容一变（文本落定、字体加载完、换行变化）它就回调，
+ * 回调里量 `scrollHeight` 并把**当前**高度发上去。宿主的 `surface.blocks` 是"最后一条生效"，
+ * 所以重复发送是安全的，反而是我们要的：发送意味着"这是现在的高度"。
+ *
+ * 节流保留一个小的防抖（120ms），避免一次布局变化触发十几条请求；防抖到期一定会发，
+ * 所以最后那个正确的高度**不会**被丢掉——这是和"每 500ms 只准发一次、多余的丢弃"的关键区别。
+ *
+ * 宿主读不到沙箱帧里的内容（`allow-scripts`、没有 `allow-same-origin`），所以"宿主自己量"
+ * 这条路不存在：高度只能由插件报，能做的就是保证"报的是最终值"。
+ */
+function autoFit(blockIndex, measure) {
+  if (!can(PERM.surface)) return () => {};
+  let last = 0;
+  let timer = 0;
+  let pending = false;
+
+  const send = async () => {
+    timer = 0;
+    pending = false;
+    let want = 0;
+    try {
+      want = Math.ceil(measure());
+    } catch {
+      return;
+    }
+    // 量不到（元素隐藏、或测试环境里没有排版引擎）就别发荒唐的小数字：等下一次回调。
+    // 宿主会把它夹进 [声明高度, maxH]，所以发错也不会画坏，但没必要污染日志与隐藏集合。
+    if (!Number.isFinite(want) || want < 16) return;
+    if (want === last) return; // 没变就不打扰宿主
+    last = want;
+    await request('surface.blocks', { sizes: { [blockIndex]: want } }).catch(() => {});
+  };
+
+  const schedule = () => {
+    if (timer) return;
+    pending = true;
+    timer = setTimeout(() => void send(), 120);
+  };
+
+  // 第一次立刻报，不等防抖：块刚挂载时宿主给的是声明高度，可能一屏都装不下。
+  void send();
+  if (typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(schedule);
+    const node = measure.node;
+    if (node) observer.observe(node);
+    return () => observer.disconnect();
+  }
+  // 老引擎（或测试环境）退回轮询式：每 400ms 量一次，只在变化时发。
+  const timerId = setInterval(schedule, 400);
+  return () => clearInterval(timerId);
+}
+
 async function showSurface() {
   if (!can(PERM.surface)) return;
   await request('surface.show', {}).catch(() => {});
@@ -658,7 +718,7 @@ function initAskFrame() {
 
   // 光等"内容变化"不够：**初始那版静态内容就已经装不下**——标签 + 问话占位 + 两个按钮实测 50px，
   // 而块 0 声明 44px，于是从挂载那一刻起下沿就被裁着。所以开局先量一次。
-  void growAskIfNeeded();
+  autoFit(0, Object.assign(() => Math.ceil(el('ask').scrollHeight + 2), { node: el('ask') }));
 }
 
 async function pollInbox() {
@@ -676,38 +736,10 @@ async function pollInbox() {
   // 调用会被直接吞掉，而且之后不会再有人量——块就停在"占位那一行"的高度上，两个按钮被卡片
   // 下边缘切掉一半（2026-10-30 用户截图就是这个）。
   // 160ms 再补一次：字体/换行落定后高度可能还会变一点，只量一次容易短一截。
-  void growAskIfNeeded(true);
-  setTimeout(() => void growAskIfNeeded(true), 160);
+
 }
 
 let askedId = '';
-
-let lastAskGrowAt = 0;
-
-/**
- * 询问卡长高（块 0）：和结果卡同一条路，只是它以前**没人走**。
- *
- * 块 0 声明的是 44px（`manifest.surface[0]`，`maxH: 180`）。44px 装得下"标签 + 两个按钮"，
- * 装不下多出来的一行问话：`scrollHeight` 实测 50，于是按钮那一排的下沿被矩形切掉 6px——
- * 预览器的 `--check --rect 0` 报的就是这个（`#ask-yes` 底边 50 > 44），是真机上会看到的。
- *
- * 结果卡一直有 `growIfNeeded()`，询问卡没有：声明高度刚好卡在边界上，谁也没注意。
- * 500ms 节流与"宿主拒绝就保持声明高度"的取舍都照抄结果卡——同一种失败模式该有同一种处理。
- */
-async function growAskIfNeeded(force = false) {
-  if (!can(PERM.surface)) return;
-  const nowMs = now();
-  if (!force && nowMs - lastAskGrowAt < 500) return;
-  lastAskGrowAt = nowMs;
-  const card = el('ask');
-  if (!card) return;
-  const want = Math.min(180, Math.max(44, Math.ceil(card.scrollHeight) + 12));
-  try {
-    await request('surface.blocks', { sizes: { 0: want } });
-  } catch {
-    // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
-  }
-}
 
 async function sendClick(action) {
   el('ask-yes').disabled = true;
@@ -737,43 +769,19 @@ function initResultFrame() {
     // （宿主侧 pluginSurfaceBlocks 的注释写着这件事）。
     void hideSurface();
   });
+  autoFit(1, Object.assign(() => {
+    const card = document.querySelector('.result-card');
+    const body = card && card.querySelector('.result-body');
+    if (!body) return 0;
+    const chrome = Math.max(0, card.clientHeight - body.clientHeight);
+    return Math.ceil(body.scrollHeight + chrome + 2);
+  }, { node: document.querySelector('.result-body') }));
+
   void pollAnswer();
   setInterval(() => void pollAnswer(), 700);
 }
 
 let answerId = '';
-
-let lastGrowAt = 0;
-
-/**
- * 结果卡长高：宿主把块夹在 [声明高度 60, maxH 156] 之间（手册 §8.2）。
- * 只有结果帧发这个请求（"同一时刻只有一个写者"），且 500ms 节流——更频繁的调用
- * 会被宿主合并，没有意义。
- */
-async function growIfNeeded(force = false) {
-  if (!can(PERM.surface)) return;
-  const nowMs = now();
-  if (!force && nowMs - lastGrowAt < 500) return;
-  lastGrowAt = nowMs;
-  const card = document.querySelector('.result-card');
-  if (!card) return;
-  // 量 **正文**，不是卡片。`.result-card` 是 `flex: 1; min-height: 0`，它的高度就是帧高；正文
-  // 在 `.result-body` 里滚动（`overflow: auto`），所以 `card.scrollHeight` 恒等于"当前帧高"，
-  // 算出来的 want 永远是帧高 + 12。2026-10-30 用户报"结果半天没有显示"就是这么来的：283 字的
-  // 回答只换来 72px 的卡片（日志里 `sizes: {"1": 72}`），正文挤在两行里。
-  //
-  // chrome = 卡片里不属于正文的那部分（标题栏 + 内边距 + 间隙），用 clientHeight 之差算，
-  // 不写死数字——字号/间距改了它自动跟上。
-  const body = card.querySelector('.result-body');
-  if (!body) return;
-  const chrome = Math.max(0, card.clientHeight - body.clientHeight);
-  const want = Math.min(156, Math.max(60, Math.ceil(body.scrollHeight + chrome)));
-  try {
-    await request('surface.blocks', { sizes: { 1: want } });
-  } catch {
-    // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
-  }
-}
 
 async function pollAnswer() {
   const out = await readShare(SHARE.answer);
@@ -790,8 +798,7 @@ async function pollAnswer() {
   el('result-body').textContent = err ? `出了点问题：${err}` : String(v.text || '…');
   if (v.done) answerDoneShown = true;
   // 同询问卡：正文是在挂载之后才到的，节流会把这次测量吞掉，卡片就停在旧高度。
-  void growIfNeeded(true);
-  setTimeout(() => void growIfNeeded(true), 160);
+
 }
 
 let answerDoneShown = false;

@@ -436,29 +436,6 @@ describe('询问卡（浮层块 0）', () => {
     expect(clicks ? JSON.parse(clicks.value) : []).toHaveLength(0);
   });
 
-  // 块 0 声明 44px（maxH 180）。44px 装得下"标签 + 两个按钮"，装不下多出来的一行问话——
-  // 真机上按钮那一排的下沿会被矩形切掉 6px（预览器 `--check --rect 0` 报的 `#ask-yes 底边 50 > 44`）。
-  // 结果卡一直有 growIfNeeded()，询问卡以前没有：声明高度刚好卡在边界上，谁也没注意。
-  //
-  // jsdom 没有排版引擎（scrollHeight 恒为 0），所以这里断言的是"有没有发这个请求"以及
-  // "请求的是块 0、且落在 [44, 180] 里"，不是具体数字。
-  test('内容一变就请求块 0 长高（和结果卡同一条路）', async () => {
-    harness = makeAskHarness();
-    await harness.settle();
-
-    harness.share.set('com.shixiansi.plugin-clipask/inbox', {
-      value: JSON.stringify({ id: 's9', kind: 'code', label: '这段代码', actions: ['解释'], text: 'x', at: Date.now() }),
-      at: Date.now(),
-    });
-    await harness.poll();
-
-    const calls = harness.requests('surface.blocks');
-    expect(calls.length, '没有请求长高：块 0 声明 44px，装不下问话那一行').toBeGreaterThan(0);
-    const sizes = calls[calls.length - 1].payload.sizes;
-    expect(sizes, '长高请求里没有块 0').toHaveProperty('0');
-    expect(sizes[0]).toBeGreaterThanOrEqual(44); // 声明高度是下限
-    expect(sizes[0]).toBeLessThanOrEqual(180);   // manifest 的 maxH 是上限
-  });
 });
 
 describe('结果卡（浮层块 1）', () => {
@@ -631,4 +608,20 @@ test('长高请求只发 sizes，不带 hidden', () => {
   // 反向：允许 focusBlocks 那一个带 hidden 的调用，但不能有"既带 hidden 又带 sizes"的
   const both = calls.filter((c) => /sizes\s*:/.test(c) && /hidden\s*:/.test(c));
   expect(both, '有请求同时带 hidden 与 sizes：它会覆盖别人的隐藏集合').toHaveLength(0);
+});
+
+// 高度由"监听内容尺寸"驱动，而不是"挂载时量一次 + 500ms 节流"。
+//
+// 旧写法有两个竞态，都已在真机上咬过人：挂载那一刻量到的是静态占位（`…` 一行），真内容到达时
+// 的那次测量正好落在节流窗口里被丢掉，之后没有第二次机会 —— 块停在占位高度，按钮被切掉一半
+// （2026-10-30 用户截图）。ResizeObserver 回调里量的是**当时**的内容，且防抖到期一定会发，
+// 所以最后那个正确高度不会被丢。
+test('两块的高度都交给 autoFit（监听内容尺寸），旧的节流式长高不许回来', () => {
+  const src = readFileSync(appPath, 'utf8');
+  expect(src, '没有 autoFit').toContain('function autoFit(');
+  expect(src, '没有用 ResizeObserver：内容变化就不会重新量').toContain('ResizeObserver');
+  expect(src, '旧的 growIfNeeded 又回来了').not.toContain('growIfNeeded');
+  expect(src, '旧的 growAskIfNeeded 又回来了').not.toContain('growAskIfNeeded');
+  const calls = (src.match(/autoFit\(/g) || []).length;
+  expect(calls, 'autoFit 至少要在询问卡与结果卡两处调用').toBeGreaterThanOrEqual(2);
 });
