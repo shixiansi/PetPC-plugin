@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T14:49:28Z",
+  "updatedAt": "2026-10-30T14:55:47Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -68,23 +68,23 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.6.3",
+      "version": "0.6.4",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.6.3.zip",
-      "sha256": "373914eb7017d146ff27b725a9c26ba4573f9422379db1b10545d1134f956770"
+      "download": "dist/com.shixiansi.plugin-memcore-0.6.4.zip",
+      "sha256": "edc796a32c2013baf7fe2a0e41e86c08aaff0b20322581348fd9619cd0a6c817"
     },
     {
       "id": "com.shixiansi.plugin-moegirl",
       "name": "萌娘百科",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "author": "shixiansi",
       "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
       "netHosts": ["zh.moegirl.org.cn"],
-      "download": "dist/com.shixiansi.plugin-moegirl-0.1.6.zip",
-      "sha256": "8bf62966789762146f7ccb7f65e50ff3e46660d0eff550aea6f94169b3ef51c9"
+      "download": "dist/com.shixiansi.plugin-moegirl-0.1.7.zip",
+      "sha256": "4ec4a7db7263b53633b32aa80fbc585c32ec77d1266f70de7cac6cd2a83027e8"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
@@ -142,12 +142,12 @@
     {
       "id": "com.shixiansi.plugin-slang",
       "name": "网络词词典",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "author": "shixiansi",
       "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
       "permissions": ["storage", "plugin.config", "plugin.call"],
-      "download": "dist/com.shixiansi.plugin-slang-0.1.3.zip",
-      "sha256": "51c3464d6d3b27a13fd2dc8020cd3fa43f427f9e1373514c608fed3b00eabf63"
+      "download": "dist/com.shixiansi.plugin-slang-0.1.4.zip",
+      "sha256": "6389fbcc6b077cb62460ae292a8b6f88a5811405eb99b991b76a302640774765"
     },
     {
       "id": "com.shixiansi.plugin-todo",
