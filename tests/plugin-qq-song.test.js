@@ -34,8 +34,12 @@ function loadSong({ request, api } = {}) {
   };
   sandbox.api = api || (async (action, payload) => {
     sandbox.calls.push({ action, payload });
-    return { ok: true };
+    // 默认当成"支持卡片的桥接端"（非 Yogurt），卡片路径才会被走到
+    if (action === 'get_impl_info') return { data: { impl_name: 'OtherBridge' } };
+    return { ok: true, message_seq: 1 };
   });
+  /** 只看真正发消息的那几次调用。 */
+  sandbox.sends = () => sandbox.calls.filter((c) => c.action === 'send_group_message');
   vm.createContext(sandbox);
   vm.runInContext(readFileSync(path.join(dir, 'lib', 'song.js'), 'utf8'), sandbox, { filename: 'lib/song.js' });
   return sandbox;
@@ -170,34 +174,53 @@ describe('核心带歌 → 发卡片', () => {
     const card = await s.maybeSendSongCard('1', META);
     expect(s.requests[0].method).toBe('plugin.call');
     expect(s.requests[0].payload).toMatchObject({ method: 'song_link', payload: { song: '发如雪', singer: '周杰伦' } });
-    expect(s.calls[0].payload.message[0].type).toBe('light_app');
-    expect(card).toMatchObject({ url: 'https://example.com/faxue.mp3' });
+    expect(s.sends()[0].payload.message[0].type).toBe('light_app');
+    expect(card).toMatchObject({ url: 'https://example.com/faxue.mp3', kind: 'card' });
   });
 
   test('核心没带歌 → 什么都不做（省一个往返）', async () => {
     const s = loadSong();
     expect(await s.maybeSendSongCard('1', { music: null })).toBeNull();
     expect(await s.maybeSendSongCard('1', null)).toBeNull();
-    expect(s.calls).toHaveLength(0);
+    expect(s.sends()).toHaveLength(0);
     expect(s.requests).toHaveLength(0);
   });
 
   test('要不到链接 → 不发空卡片，也不发文本（正文里本来就有链接）', async () => {
     const s = loadSong({ request: async () => ({ url: '' }) });
     expect(await s.maybeSendSongCard('1', META)).toBeNull();
-    expect(s.calls).toHaveLength(0);
+    expect(s.sends()).toHaveLength(0);
   });
 
-  test('桥接端不认 light_app → 返回 null，不退回文本（避免一条消息两个链接）', async () => {
+  test('卡片被拒 → 退到语音条（不是退到文本，避免一条消息两个链接）', async () => {
     const s = loadSong({
       request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
       api: async (action, payload) => {
         s.calls.push({ action, payload });
-        throw new Error('不支持的消息段类型 light_app');
+        if (action === 'get_impl_info') return { data: { impl_name: 'OtherBridge' } };
+        // 第一次（卡片）抛错，第二次（语音）成功
+        if (payload && payload.message && payload.message[0].type === 'light_app') {
+          throw new Error('不支持的消息段类型 light_app');
+        }
+        return { ok: true, message_seq: 7 };
+      },
+    });
+    const out = await s.maybeSendSongCard('1', META);
+    const sends = s.calls.filter((c) => c.action === 'send_group_message');
+    expect(sends.map((c) => c.payload.message[0].type)).toEqual(['light_app', 'record']);
+    expect(out.kind).toBe('voice');
+  });
+
+  test('卡片和语音都发不出去 → 返回 null（正文照发，至少还有链接）', async () => {
+    const s = loadSong({
+      request: async () => ({ url: 'https://example.com/a.mp3', title: '发如雪' }),
+      api: async (action, payload) => {
+        s.calls.push({ action, payload });
+        if (action === 'get_impl_info') return { data: { impl_name: 'OtherBridge' } };
+        throw new Error('这个桥接端什么都不认');
       },
     });
     expect(await s.maybeSendSongCard('1', META)).toBeNull();
-    expect(s.calls).toHaveLength(1);
   });
 
   test('卡片带上链接后，正文里那条裸链接要去掉', () => {
@@ -216,5 +239,27 @@ describe('核心带歌 → 发卡片', () => {
     const mangled = 'http://kw-er.kuwo.cn/562e/6ae4b2e3/resource/30106/trackmedia/M5000027oMO61wWi55.mp3'
       + '?bitrate$128&source$kwplayerar5.1.0.0Bjiakongvh.apk&type$converturlwithsign';
     expect(s.stripSongURL(`给你 ${mangled} 周杰伦的。`, url)).toBe('给你 周杰伦的。');
+  });
+});
+
+
+// Yogurt 发不出卡片（实测 seq 有、群里没有），而它已停更 —— 那就发语音条。
+describe('桥接端发不出卡片时用语音条', () => {
+  test('Yogurt → 不发卡片，直接发 record（能点开听）', async () => {
+    const s = loadSong({
+      request: async () => ({ url: 'https://example.com/faxue.mp3', title: '发如雪' }),
+      api: async (action, payload) => {
+        s.calls.push({ action, payload });
+        if (action === 'get_impl_info') return { data: { impl_name: 'Yogurt', impl_version: '0.1.0-dev.248' } };
+        return { ok: true, message_seq: 50027 };
+      },
+    });
+    const out = await s.maybeSendSongCard('1', { music: { title: '发如雪', singer: '周杰伦' } });
+    const sends = s.calls.filter((c) => c.action === 'send_group_message');
+    expect(sends).toHaveLength(1);
+    expect(sends[0].payload.message[0].type).toBe('record');
+    expect(sends[0].payload.message[0].data.uri).toBe('https://example.com/faxue.mp3');
+    expect(out.kind).toBe('voice');
+    expect(s.notes.join('\n'), '为什么要退语音，日志里要写清').toContain('发不出卡片');
   });
 });

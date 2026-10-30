@@ -144,24 +144,75 @@ async function askSongLink(title, singer) {
  *
  * @returns {Promise<{url:string,title:string}|null>} 发出去了才返回歌的信息（调用方据此去掉正文里的裸链接）
  */
+/**
+ * 桥接端能不能真的把卡片送进群？
+ *
+ * 2026-10-30 实测（群 1061170515，Yogurt 0.1.0-dev.248 / milky 1.3）：
+ *
+ *   light_app{json_payload} → 返回 seq 0          → 群里没有
+ *   light_app{json}         → 返回 seq 50023      → **读历史里根本没有这条**
+ *   json{data}              → 返回 seq 50024      → 没有
+ *   xml{service_id+…}       → 返回 seq 50025      → 没有
+ *   music{custom}           → 返回 seq 50028      → 没有（更早那版还把它转成一条文本 JSON）
+ *   record{uri}（语音）      → 返回 seq 50027      → **在，能播**
+ *
+ * 也就是说：**回 ok 完全不代表发出去了**。而 Yogurt 已停更（用户："yogurt都停更了"），
+ * 补上 lightApp 元素的那个补丁（LagrangeDev/acidify#12）等不到。所以对这类桥接端直接走语音条：
+ * 一首歌以"能直接点开听"的形态进群，比一张永远不出现的卡片有用。
+ *
+ * 判据用 `get_impl_info` 的 `impl_name`，并且**只排除已知发不出的实现**——将来换成 NapCat /
+ * Lagrange.OneBot 之类，卡片路径会自动生效，不需要再改这里。
+ */
+let bridgeImpl = null;
+async function bridgeSupportsCards() {
+  if (bridgeImpl === null) {
+    try {
+      const res = await api('get_impl_info', {});
+      bridgeImpl = String((res && res.data && res.data.impl_name) || '');
+    } catch {
+      bridgeImpl = '';
+    }
+  }
+  return bridgeImpl !== 'Yogurt';
+}
+
+/**
+ * 核心说"这一轮带了歌" → 让它以能用的形态进群：能发卡片就发卡片，发不出就发**语音条**。
+ *
+ * 返回 `{url, title, kind}` 表示"歌已经以某种形态进去了"，调用方据此把正文里那条裸链接去掉；
+ * 返回 null 表示什么都没发成（正文照原样发，至少还有链接）。
+ */
 async function maybeSendSongCard(groupID, meta) {
   const music = meta && meta.music;
   if (!music || !String(music.title || '').trim()) return null;
   const song = await askSongLink(music.title, music.singer);
   if (!song) return null;
-  const card = buildSongCards(song).find((row) => row.label === 'light_app');
-  if (!card || !card.segments.length) return null;
+  const title = String(song.title || music.title);
+
+  if (await bridgeSupportsCards()) {
+    const card = buildSongCards(song).find((row) => row.label === 'light_app');
+    if (card && card.segments.length) {
+      try {
+        const res = await sendSegments(groupID, card.segments);
+        const seq = res && res.message_seq ? `，seq ${res.message_seq}` : '，无 message_seq';
+        note(`群 ${groupID}：音乐卡片已发（${title}${seq}）`);
+        return { url: String(song.url || ''), title, kind: 'card' };
+      } catch (err) {
+        note(`群 ${groupID}：音乐卡片发不出去（${(err && err.message) || err}），改用语音条`);
+      }
+    }
+  }
+
+  // 语音条：桥接端会自己去把那条直链下回来再上传，用户点一下就能听。
   try {
-    // 把桥接端的应答记下来：它接受 light_app 时会回 `message_seq`。用户那边"看不到卡片"时，
-    // 这一行就是唯一的证据——是桥接端没接（没有 seq），还是接了但客户端不认（有 seq）。
-    const res = await sendSegments(groupID, card.segments);
-    const seq = res && res.message_seq ? `，seq ${res.message_seq}` : '，无 message_seq（桥接端可能没接）';
-    note(`群 ${groupID}：音乐卡片已发（${song.title || music.title}${seq}）`);
+    const res = await sendSegments(groupID, [{ type: 'record', data: { uri: song.url } }]);
+    const seq = res && res.message_seq ? `，seq ${res.message_seq}` : '';
+    note(`群 ${groupID}：音乐已发成语音条（${title}${seq}；这个桥接端发不出卡片）`);
+    return { url: String(song.url || ''), title, kind: 'voice' };
   } catch (err) {
-    note(`群 ${groupID}：音乐卡片发不出去（${(err && err.message) || err}），正文照发`);
+    note(`群 ${groupID}：语音条也发不出去（${(err && err.message) || err}），正文照发`);
     return null;
   }
-  return { url: String(song.url || ''), title: String(song.title || music.title) };
 }
 
 /**
