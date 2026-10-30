@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>本地知识库</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：启动抓远程文档，答 ask_kb。
+      workshop     控制中心插件页：加文档 + 文档列表/索引进度 + 提问（桌宠那面才跑）。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">本地知识库</span>
+        </div>
+        <p class="lede">
+          把 Markdown / TXT 粘进来（或填远程地址让它抓），文档按 500 字滑动窗口切片（50 字重叠），
+          建立 TF-IDF 倒排索引。提问时相关度最高的 3 个切片会注入 Prompt，桌宠以文档为准作答。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>提问</h2>
+        <div class="search-row">
+          <input id="question" class="input" type="text" placeholder="问一个文档里有答案的问题…" maxlength="1000" />
+          <button id="ask" class="btn primary" type="button" disabled>问</button>
+        </div>
+        <p id="answer" class="answer" data-state="idle"></p>
+        <p id="answer-meta" class="hint"></p>
+        <p class="hint desktop-only hidden">
+          提问要在桌宠那边的常驻帧里才能跑（控制中心不服务 plugin.call）。
+          别的插件 <code>plugin.call</code> 这个插件的 <code>ask_kb</code> 就能拿到同一份回答。
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>添加文档</h2>
+        <input id="doc-title" class="input" type="text" placeholder="文档标题（可留空）" maxlength="60" />
+        <textarea id="doc-text" class="input doc-textarea" rows="8"
+                  placeholder="粘贴 Markdown / TXT 全文……"></textarea>
+        <div class="search-row">
+          <button id="doc-add" class="btn" type="button">切片并建索引</button>
+          <button id="fetch-now" class="btn soft" type="button" disabled>抓取远程文档</button>
+        </div>
+        <p class="hint">切片大小与重叠、相关度门槛在设置里调；远程地址会按你填的值加进网络白名单。</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>文档</h2></div>
+        <p id="index-bar" class="hint">索引：读取中…</p>
+        <div id="doc-list" class="doc-list"></div>
+        <p id="doc-empty" class="muted">还没有文档。</p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!-- 经典 script；加载顺序 = 依赖顺序。 -->
+  <script src="lib/core.js"></script>
+  <script src="lib/chunker.js"></script>
+  <script src="lib/index.js"></script>
+  <script src="lib/qa.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
