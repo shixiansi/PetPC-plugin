@@ -95,6 +95,10 @@ let searchFetches;
 let callTargets;
 /** 每次 plugin.call 的 payload，按调用顺序。 */
 let callPayloads;
+/** 每次 plugins.services 的时刻：能力发现的刷新节奏靠它断言。 */
+let servicesCalls;
+/** true = 第一次问名单时释义提供方还没装（真机 2026-10-30 的那一幕）。 */
+let servicesCold;
 /** 搜索引擎应答（按队列；函数形式按请求算）。 */
 let engineReplies;
 let answered;
@@ -164,16 +168,16 @@ function answerRequest(doc, req) {
       return;
     case 'plugins.services':
       // 能力发现：宿主告诉调用方"谁能干什么"（真宿主 0.6.0 起提供）。
-      doc.send({
-        v: 1, type: 'response', id: req.id, ok: true,
-        result: {
-          services: [
-            { id: SLANG_ID, name: '网络词词典', description: '本地词库', serves: ['slang'] },
-            { id: MOEGIRL_ID, name: '萌娘百科', description: '百科条目', serves: ['slang', 'wiki'] },
-            { id: SEARCH_ID, name: '联网搜索', description: '整网搜索', serves: ['search'] },
-          ],
-        },
-      });
+      servicesCalls.push(Date.now());
+      // `servicesCold` 模拟真机：第一次问的时候释义提供方还没装完（名单里只有搜索）。
+      const list = servicesCold && servicesCalls.length === 1
+        ? [{ id: SEARCH_ID, name: '联网搜索', description: '整网搜索', serves: ['search'] }]
+        : [
+          { id: SLANG_ID, name: '网络词词典', description: '本地词库', serves: ['slang'] },
+          { id: MOEGIRL_ID, name: '萌娘百科', description: '百科条目', serves: ['slang', 'wiki'] },
+          { id: SEARCH_ID, name: '联网搜索', description: '整网搜索', serves: ['search'] },
+        ];
+      doc.send({ v: 1, type: 'response', id: req.id, ok: true, result: { services: list } });
       return;
     case 'plugin.call': {
       const target = String(payload.target || '');
@@ -309,6 +313,8 @@ beforeEach(() => {
   searchFetches = [];
   callTargets = [];
   callPayloads = [];
+  servicesCalls = [];
+  servicesCold = false;
   engineReplies = [];
   answered = { requests: new Set(), calls: new Map() };
 });
@@ -619,5 +625,23 @@ describe('能力发现：词库没有就问百科', () => {
     expect(callTargets, '没有去问发现了的百科提供方').toContain('com.shixiansi.plugin-moegirl/slang');
     expect(llmCalls[0].system, '百科给的释义没有进 prompt').toContain('萌娘百科');
     expect(packet.result.meta.slang, 'meta 里没有记下命中的条目').toBe('区');
+  });
+});
+
+
+// 能力发现的名单**不能永久缓存**。
+//
+// 真机事故（2026-10-30）：记忆核心的常驻帧只在挂载时问了一次 `plugins.services`，那时释义提供方
+// （网络词词典 / 萌娘百科）还没装完——之后整场会话都用那份旧名单，新装的插件一次都没被调用，
+// 用户看到的就是"发区还是不知道啥意思"。
+describe('能力发现：名单会刷新', () => {
+  test('第一次名单里没有提供方 → 作废缓存重问一次，然后真的去问它', async () => {
+    servicesCold = true;
+    bootDocs();
+    llmReplies.push('「区」是「区区」的自谦说法。');
+    const packet = await chat('区在网络用语中是什么意思');
+    expect(packet.ok).toBe(true);
+    expect(servicesCalls.length, '只问了一次名单：新装的插件会一直看不见').toBeGreaterThan(1);
+    expect(callTargets, '重问之后仍然没去问释义提供方').toContain('com.shixiansi.plugin-slang/slang');
   });
 });

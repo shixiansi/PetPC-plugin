@@ -17,16 +17,29 @@ const KNOWN_PROVIDERS = {
   search: ['com.shixiansi.plugin-websearch', 'com.shixiansi.plugin-bilibili'],
 };
 
-let discovered = null; // 一次会话里缓存：安装/启停要重启才变，这个粒度够了。
+/**
+ * 缓存多久。
+ *
+ * **不能永久缓存**：2026-10-30 真机上就栽在这里——记忆核心的常驻帧只在挂载时问了一次
+ * `plugins.services`（那时「网络词词典」「萌娘百科」还没装完），之后整场会话都用那份旧名单，
+ * 于是新装的提供方**一次都没被调用过**（用户："发区还是不知道啥意思"）。
+ * 安装/更新插件发生在桌宠运行期间，是很常见的事。
+ *
+ * 60 秒：一次查询只是一条本地请求，代价可以忽略；而"刚装的插件一秒内就能用上"值得这个代价。
+ */
+const SERVICES_TTL_MS = 60000;
+let discovered = null;
+let discoveredAt = 0;
 
 /** 问宿主一次（失败或不支持就返回 null，调用方退到 KNOWN_PROVIDERS）。 */
 async function listServices() {
-  if (discovered) return discovered;
+  if (discovered && Date.now() - discoveredAt < SERVICES_TTL_MS) return discovered;
   try {
     const out = await request('plugins.services', {});
     const rows = Array.isArray(out && out.services) ? out.services : [];
     if (!rows.length) return null;
     discovered = rows;
+    discoveredAt = Date.now();
     return discovered;
   } catch {
     return null;
@@ -39,6 +52,15 @@ async function listServices() {
  * `prefer` 用来把某个 id 提到最前（比如"整网搜索优先、B 站补位"这种顺序是意图，不是发现结果）。
  */
 async function providersFor(method, prefer) {
+  // 第一次没找到提供方，就当作"名单可能过期了"：作废缓存再问一次。刚装上的插件因此**立刻**
+  // 可用，而不必等 60 秒 TTL，更不必重启桌宠。
+  const found = await collectProviders(method, prefer);
+  if (found.length) return found;
+  resetServicesCache();
+  return collectProviders(method, prefer);
+}
+
+async function collectProviders(method, prefer) {
   const rows = await listServices();
   let ids;
   if (rows) {
@@ -66,4 +88,5 @@ async function providersFor(method, prefer) {
 /** 测试接缝：清掉发现缓存。 */
 function resetServicesCache() {
   discovered = null;
+  discoveredAt = 0;
 }
