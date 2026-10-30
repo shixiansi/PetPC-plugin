@@ -445,3 +445,42 @@ describe('后备链：搜索引擎搜不到就用 B 站', () => {
     expect(callTargets, '搜索引擎已经有结果，却又问了 B 站').not.toContain(BILI);
   });
 });
+
+// "在问 B 站上的东西" → B 站排第一顺位。
+//
+// 真机事故（2026-10-30）：问「看一下b站原神现在的最新pv叫啥」，搜索引擎返回 5 条**非空但没用**的
+// 结果（哔哩哔哩热门 / 下载中心 / UP主专栏 / 微软商店 / 山寨站），于是"0 条才换一家"的判据不触发，
+// 而 B 站站内搜索同一句话第一条就是「「原神」新角色PV」（实测 code 0）。所以判据从"结果数"改成
+// "词面意图"：命中 B 站/视频/PV/UP主 这些词就先问 B 站——顺带省掉搜索引擎那 20 秒。
+describe('B 站意图：先问 B 站', () => {
+  const BILI = 'com.shixiansi.plugin-bilibili/search';
+  const WEB = 'com.shixiansi.plugin-websearch/search';
+
+  test('用户明确说"b站…pv"：第一顺位是 B 站', async () => {
+    bootDocs();
+    llmReplies.push('这个我不清楚。', '最新的是「原神」新角色PV，链接 BV1dAxE6VErW。');
+    engineReplies.push({
+      status: 200,
+      body: JSON.stringify({ results: [{ title: '「原神」新角色PV', url: 'https://www.bilibili.com/video/BV1dAxE6VErW', content: 'PV' }] }),
+    });
+    const packet = await chat('看一下b站原神现在的最新pv叫啥，链接发来');
+    expect(packet.ok).toBe(true);
+    expect(callTargets[0], '第一顺位应当是 B 站，不是整网搜索').toBe(BILI);
+    // harness 里 B 站不存在 → 问不到 → 仍然会退回整网搜索（后备链不能因此断掉）
+    expect(callTargets).toContain(WEB);
+    expect(packet.result.text).toContain('BV');
+  });
+
+  test('普通问题仍然整网优先（别把每次搜索都变成 B 站）', async () => {
+    bootDocs();
+    llmReplies.push('这个我不清楚。', '今天是晴天。');
+    engineReplies.push({
+      status: 200,
+      body: JSON.stringify({ results: [{ title: '天气', url: 'https://w.example.com', content: '晴' }] }),
+    });
+    const packet = await chat('今天天气怎么样');
+    expect(packet.ok).toBe(true);
+    expect(callTargets[0], '普通问题不该先问 B 站').toBe(WEB);
+    expect(callTargets).not.toContain(BILI);
+  });
+});

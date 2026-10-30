@@ -38,6 +38,29 @@ const SEARCH_TARGETS = [
   { id: 'com.shixiansi.plugin-bilibili', method: 'search' },
 ];
 
+/**
+ * "这句话在问 B 站上的东西"——命中就把 B 站排到**第一顺位**。
+ *
+ * 为什么需要这条：只按"结果数是不是 0"决定要不要换一家，在真机上直接失效。2026-10-30 实测：
+ * 用户问「看一下b站原神现在的最新pv叫啥，链接发来」，搜索引擎返回了 5 条**非空但没用**的结果：
+ * 哔哩哔哩热门、下载中心、UP主专栏、微软商店、一个山寨站——一条原神 PV 都没有。于是后备链
+ * 判定"搜到了"，不去问 B 站，模型只能如实说查不到。而 B 站站内搜索同一句话第一条就是
+ * 「「原神」新角色PV」（实测 code 0，20 条结果）。
+ *
+ * 判据用"词面意图"而不是给结果打分：打分要判断相关性，脆且不可解释；而"用户说了 B 站/视频/PV"
+ * 是硬信号。命中就 B 站优先——顺带省掉搜索引擎那一次 20 秒的往返。
+ */
+// `\b` 对中文不成立（`\w` 只含 ASCII）：`up主`/`pv` 这些混排词要用前后断言，
+// 否则 `\bup\s*主\b` 的尾边界永远不成立，`UP主推荐` 会被判成整网优先。
+const BILI_INTENT_RE = /(b\s*站|哔哩哔哩|bilibili|视频|番剧|鬼畜|二创|投稿|弹幕|直播|up\s*主|(?<![a-z])pv(?![a-z]))/i;
+
+/** 这一轮先问谁：明显在问 B 站的东西就 B 站优先，否则整网优先。 */
+function searchOrder(query) {
+  const bili = SEARCH_TARGETS[1];
+  const web = SEARCH_TARGETS[0];
+  return BILI_INTENT_RE.test(String(query || '')) ? [bili, web] : [web, bili];
+}
+
 /** 回答里出现这些信号 = 模型在说"我答不了"（只匹配"没答上"，不匹配"提到了新词"）。 */
 const NO_ANSWER_RE = /(我不知道|我不清楚|我不了解|我没听过|我不记得|记不得|想不起来|没[法办]回答|答不了|答不上|无法回答|不太确定|没有相关的?(记忆|信息|资料)|找不到相关的?)/;
 
@@ -120,7 +143,7 @@ async function askOne(target, query, count) {
 async function askWebSearch(query, count) {
   const trimmed = text(query, 300).trim();
   if (!trimmed) return null;
-  for (const target of SEARCH_TARGETS) {
+  for (const target of searchOrder(trimmed)) {
     const hit = await askOne(target, trimmed, count);
     if (hit) return hit;
   }
