@@ -588,19 +588,23 @@ body.view-input #send {
 }
 
 /*
- * 这一行只属于**有输入框的身份**：输入条（view-input）与面板（view-panel）。
+ * 这一行只属于**有输入框、而且有高度**的身份：面板（view-panel）。
  *
- * 其余三种身份里必须消失，否则它会露出来抢地方——问句卡只有 40px，`.bar` 与 `.compose` 都
- * 是 `display:none`，于是 `<summary>`「图片（可选）」成了唯一有高度的东西，把问句挤成 0 高：
- * 真机上看到的就是一张只写着「图片（可选）」的空卡（2026-10-30 从预览器截图上发现的）。
- * boot 那一帧同理——它是首帧的空壳，闪一下这一行比什么都不画更怪。
+ * 输入条（view-input）也**必须**藏起来，理由不是审美：其余三种身份是 column，而胶囊是 **row**
+ * （见 `body.view-input { flex-direction: row }`），于是它变成行内块占住左边约 90px，把输入框挤成
+ * 一条缝、还带出滚动条；更糟的是 `body.view-input::before`（那道胶囊底，定位元素）画在它上面
+ * ——文字看不见、点击也落不到它身上，用户看到的就是"左边一块空的，点了没反应"（2026-10-30 由
+ * 用户截图报上来）。胶囊只有 64px 高（内容区 40），装不下第二行：图片入口要么让块长高，
+ * 要么换个位置，不能挤在同一行里。
  *
- * 结果卡（view-answer）虽然也被挤得看不见，但那是"被下边缘裁掉"，不是"不参与布局"：
- * 少一层隐藏就少一次靠运气。
+ * boot / question / answer 同理：问句卡只有 40px，`.bar` 与 `.compose` 都 `display:none`，
+ * `<summary>` 就成了唯一有高度的元素，把问句挤成 0 高——真机上是"一张只写着「图片（可选）」的
+ * 空卡"。结果卡里它更隐蔽（被下边缘裁掉），但那也只是"靠裁切"。
  */
 body.view-boot .imgtools,
 body.view-question .imgtools,
-body.view-answer .imgtools {
+body.view-answer .imgtools,
+body.view-input .imgtools {
   display: none;
 }
 
