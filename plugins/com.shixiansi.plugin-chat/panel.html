@@ -59,17 +59,22 @@
      is cropped to, so there is nowhere for a scrollbar to go. -->
 <main id="reply" class="reply" aria-live="polite"></main>
 
-<!-- 图片：折叠着，不用时不占高度（面板是固定 380×520 的矩形，多一行就是少一行对话）。
-     地址必须是 http(s)，域名还得在「设置 → 图片允许的域名」里——宿主只认这两个条件。 -->
-<details id="imgtools" class="imgtools">
-  <summary>图片（可选）</summary>
-  <input id="imgurl" class="imgurl" type="text" spellcheck="false"
-         placeholder="图片地址，空格分隔，最多 4 张" aria-label="图片地址" />
-</details>
-
 <footer class="compose">
   <textarea id="prompt" class="prompt" rows="1" placeholder="输入想说的话…" aria-label="消息" disabled></textarea>
   <div class="actions">
+    <!-- 图片：一个图标按钮 + 系统文件选择。
+         以前这里是"填图片地址"的一行文字（`<details>图片（可选）</details>`）：普通人没有图床，
+         而那一行在胶囊里还会横着占位、被胶囊底盖住——看着是一块点不动的空白（用户截图报过）。
+         现在点图标直接选文件：字节在插件里读出来（沙箱 iframe 能读用户选的文件），按需要缩小、
+         编码成 data: URI 交给 `llm.chat` 的 images，类型与大小由宿主校验。
+         图标是内联 SVG —— 这个文档是 opaque origin，不能去取外面的图片。 -->
+    <button id="imgpick" type="button" class="btn icon-only" aria-label="添加图片" title="添加图片（png / jpeg / webp / gif，最多 4 张）">
+      <svg class="icon" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M216 40H40a16 16 0 0 0-16 16v144a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a16 16 0 0 0-16-16Zm0 160H40V56h176Zm-40-96a16 16 0 1 1-16-16 16 16 0 0 1 16 16Zm-24 92h40l-56-72-32 40-24-24Z"/>
+      </svg>
+      <span id="imgpick-count" class="pick-count" hidden></span>
+    </button>
+    <input id="imgfile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
     <!-- The send button is an ICON, not the word 发送. Its accessible name is the
          aria-label, so a screen reader still announces it; the glyph is an inline
          SVG rather than a font or an image file because this document runs in an

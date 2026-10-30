@@ -34,13 +34,17 @@ const els = {
   root: document.getElementById('root') || document.body,
   reply: document.getElementById('reply'),
   prompt: document.getElementById('prompt'),
-  // 图片地址输入框：只有面板（对话页）有它，两个浮动块是固定小矩形，塞不下。
-  imgurl: document.getElementById('imgurl'),
+  // 图片：图标按钮 + 系统文件选择（读出来的是 data: URI，见 attachedImages）。
+  imgpick: document.getElementById('imgpick'),
+  imgfile: document.getElementById('imgfile'),
+  imgpickCount: document.getElementById('imgpick-count'),
   status: document.getElementById('status'),
   send: document.getElementById('send'),
   stop: document.getElementById('stop'),
   surface: document.getElementById('surface'),
 };
+
+initImagePicker();
 
 // Permission names, spelled once. A typo here would silently disable a control
 // the user did grant.
@@ -54,7 +58,7 @@ const PERM_SURFACE = 'pet.surface';
  * nothing. Every check this session had to be re-derived from screenshots because there was no
  * way to see which build was on screen - this makes that a glance. Keep it in step with
  * manifest.json's version. */
-const BUILD = '1.8.4';
+const BUILD = '1.9.0';
 
 /** The four jobs a document can have. `role` is decided by `init` and never changes. */
 const ROLE_PANEL = 'panel';
@@ -629,15 +633,78 @@ function halfHistory() {
   return turns.slice(Math.floor(turns.length / 2));
 }
 
-/** 把用户填的图片地址读出来（只认 http/https，最多 4 张，和宿主的规则一致）。 */
+/**
+ * 用户刚选的图片，已经缩好、编成 data: URI 的那几条（最多 4 张）。
+ *
+ * 为什么是"选文件"而不是"填地址"：地址形式只有写插件的人自己用得上——普通人没有图床。
+ * 沙箱 iframe **能**读用户通过文件选择交给它的文件（`FileReader` / `createImageBitmap` 不受
+ * opaque origin 限制），所以字节在插件里读、在这里缩小、再以 data: URI 交给 `llm.chat` 的
+ * `images`。宿主管的是"允许什么形状"：只认 image/png|jpeg|webp|gif，单张 4 MiB、一轮 8 MiB
+ * （见 app_plugins.go 的 pluginChatImages），所以这里先按 1024px 长边、JPEG 0.82 压一道。
+ *
+ * 不挂在 `role` 上：输入条（浮层块 2）和面板都该能用，而胶囊是唯一在桌宠里挂得到的身份。
+ */
+let attachedImages = [];
+
+/** 把一张 File 缩到长边 ≤1024 并编成 JPEG 的 data: URI。 */
+async function fileToDataURL(file) {
+  const bitmap = await createImageBitmap(file);
+  const longEdge = Math.max(bitmap.width, bitmap.height) || 1;
+  const scale = Math.min(1, 1024 / longEdge);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const paint = canvas.getContext('2d');
+  paint.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  if (typeof bitmap.close === 'function') bitmap.close();
+  // JPEG 而不是原格式：截图 PNG 动辄几 MB，而模型看到的差别在 1024px 上几乎没有。
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
+/** 收下一批文件（最多 4 张，坏了就跳过并说一句）。 */
+async function attachFiles(files) {
+  const list = Array.from(files || []).slice(0, 4);
+  if (list.length === 0) return;
+  attachedImages = [];
+  for (const file of list) {
+    if (!/^image\//.test(String(file && file.type))) continue;
+    try {
+      attachedImages.push(await fileToDataURL(file));
+    } catch {
+      // 读不出来就跳过这一张：一张坏图不该让整条消息发不出去。
+    }
+  }
+  paintPickCount();
+}
+
+function paintPickCount() {
+  const n = attachedImages.length;
+  if (els.imgpickCount) {
+    els.imgpickCount.textContent = String(n);
+    els.imgpickCount.hidden = n === 0;
+  }
+  if (els.imgpick) {
+    els.imgpick.title = n
+      ? `已选 ${n} 张图片（点一下可重选）`
+      : '添加图片（png / jpeg / webp / gif，最多 4 张）';
+  }
+}
+
+/** 图标按钮 → 系统文件选择。选完把 data: URI 挂到 attachedImages 上。 */
+function initImagePicker() {
+  if (!els.imgpick || !els.imgfile) return;
+  els.imgpick.addEventListener('click', () => els.imgfile.click());
+  els.imgfile.addEventListener('change', () => {
+    void attachFiles(els.imgfile.files).finally(() => {
+      // 清掉 value，否则"再选同一张"不会触发 change（浏览器只在值变化时派发）。
+      els.imgfile.value = '';
+    });
+  });
+}
+
+/** 这一轮要带上的图片（data: URI）。 */
 function pendingImages() {
-  if (role !== ROLE_PANEL || !els.imgurl) return [];
-  const raw = String(els.imgurl.value || '').trim();
-  if (!raw) return [];
-  return raw
-    .split(/[\s,，]+/)
-    .filter((item) => /^https?:\/\//i.test(item))
-    .slice(0, 4);
+  return attachedImages.slice(0, 4);
 }
 
 /** 开始一次带兜底的提问。 */
@@ -1139,7 +1206,8 @@ function sendPrompt() {
     base.images = images;
     const vision = imageModelName();
     if (vision) base.model = vision;
-    if (els.imgurl) els.imgurl.value = '';
+    attachedImages = [];
+    paintPickCount();
   }
   // 兜底链：主模型 → 备用模型 → 借来的渠道 → 本地兜底（见上面的注释）。
   startExchange(base);
@@ -1657,6 +1725,8 @@ postToHost({ v: 1, type: 'ready' });
  */
 window.__chat = Object.freeze({
   buildAttemptChain,
+  attachFiles,
+  attachedImages: () => attachedImages.slice(),
   classifyFailure,
   TIER_LABEL,
 });

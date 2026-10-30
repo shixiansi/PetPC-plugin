@@ -567,6 +567,11 @@ body.view-input #send {
   height: 100%;
 }
 
+body.view-input #imgpick {
+  width: 36px;
+  height: 100%;
+}
+
 @media (max-width: 200px) {
   .msg {
     padding: 3px 5px;
@@ -574,67 +579,35 @@ body.view-input #send {
   }
 }
 
-/* --- 图片地址（折叠） -------------------------------------------------------
+/* --- 图片：一个图标按钮 ------------------------------------------------------
  *
- * 面板是固定 380×520 的矩形：常驻的一行输入框就是少一行对话。所以它默认折叠，展开时才
- * 占位置。地址只认 http(s)，域名还要在「图片允许的域名」里——那是宿主 llm.chat 的规则，
- * 这一页只是把条件写在输入框旁边。 */
-.imgtools {
-  flex: 0 0 auto;
-  border-top: 1px solid var(--p-line);
-  padding: 0 10px;
-  font-size: 12px;
-  color: var(--p-muted);
-}
-
-/*
- * 这一行只属于**有输入框、而且有高度**的身份：面板（view-panel）。
+ * 点它开系统文件选择；选中的图片在 app.js 里缩到 1024px、编成 data: URI，随 `llm.chat` 的
+ * `images` 交上去（宿主只认 image/png|jpeg|webp|gif，单张 4 MiB、一轮 8 MiB）。
  *
- * 输入条（view-input）也**必须**藏起来，理由不是审美：其余三种身份是 column，而胶囊是 **row**
- * （见 `body.view-input { flex-direction: row }`），于是它变成行内块占住左边约 90px，把输入框挤成
- * 一条缝、还带出滚动条；更糟的是 `body.view-input::before`（那道胶囊底，定位元素）画在它上面
- * ——文字看不见、点击也落不到它身上，用户看到的就是"左边一块空的，点了没反应"（2026-10-30 由
- * 用户截图报上来）。胶囊只有 64px 高（内容区 40），装不下第二行：图片入口要么让块长高，
- * 要么换个位置，不能挤在同一行里。
- *
- * boot / question / answer 同理：问句卡只有 40px，`.bar` 与 `.compose` 都 `display:none`，
- * `<summary>` 就成了唯一有高度的元素，把问句挤成 0 高——真机上是"一张只写着「图片（可选）」的
- * 空卡"。结果卡里它更隐蔽（被下边缘裁掉），但那也只是"靠裁切"。
+ * 以前这里是一行"填图片地址"的文字（`<details>图片（可选）</details>`）：普通人没有图床，而它
+ * 在胶囊里（`body.view-input` 是 row）会横着占住约 90px，把输入框挤成一条缝；更糟的是
+ * `body.view-input::before`（胶囊底，定位元素）画在它上面，文字被盖住、点击也落不到它身上——
+ * 用户看到的就是"左边一块空的，点了没反应"（2026-10-30 截图报的）。胶囊只有 64px 高，
+ * 装不下第二行，所以入口只能是一个图标。
  */
-body.view-boot .imgtools,
-body.view-question .imgtools,
-body.view-answer .imgtools,
-body.view-input .imgtools {
-  display: none;
+#imgpick {
+  position: relative;
+  flex: 0 0 auto;
 }
 
-.imgtools > summary {
-  cursor: pointer;
-  padding: 4px 0;
-  list-style: none;
-  user-select: none;
-}
-
-.imgtools > summary::-webkit-details-marker {
-  display: none;
-}
-
-.imgtools[open] > summary {
-  color: var(--p-text);
-}
-
-.imgurl {
-  width: 100%;
-  margin: 2px 0 8px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--p-line);
-  background: var(--p-well);
-  color: var(--p-text);
-  font: inherit;
-}
-
-.imgurl:focus {
-  outline: none;
-  border-color: var(--p-accent);
+/* 已选张数：小角标，压在图标右上角。不占布局，所以不会再把输入框挤走。 */
+.pick-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--p-accent);
+  color: var(--p-on-accent);
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+  font-weight: 600;
 }

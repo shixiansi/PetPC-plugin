@@ -648,7 +648,7 @@ else { /* 这一面没有这件事，说明它在哪 */ }
   ],
   "model": "…",                         // 可选：只对这一次生效的模型名（≤96）
   "provider": "com.example.llm-ollama", // 可选：点名一个模型渠道（提供方插件的 id），见下
-  "images": ["https://…"],              // 可选，≤4 张；http(s)，必须落在你的 netHosts 里
+  "images": ["https://…"],              // 可选，≤4 张；http(s)（要在 netHosts 里）或 data:image/…;base64
   "tools": ["pet_say", "memory_read"]   // 可选：宿主工具目录里的名字，见下
 }
 // → { "requestId": "…", "text": "完整回复" }
@@ -756,9 +756,19 @@ manifest 的 `config` 只能声明**一个** `llmBaseUrl`、一个 `llmModel`、
 - **已经收到的半截回答不丢**：切级之前把文本留在屏幕上，只加一条"已切换"的提示，不要清空重来。
 - 最后一级**不要**往对话记录里塞一条假的助手消息——那会污染下一轮历史，让模型以为它说过这句话。
 
-**图片**同理：`llm.chat` 的 `images` 收 http(s) 地址（一次最多 4 张，域名要在 `netHosts` 或
-`hostWhitelist` 项里），`model` 可以单独指定视觉模型，不必为此维护第二套端点与密钥。参考实现里
-`llmImageModel` + `llmImageHosts` 两个配置项就是这件事。
+**图片**两种形式，回答的是两个不同的问题：
+
+- **`http(s)` 地址**——"网上已有的一张图"。一次最多 4 张，域名要在 `netHosts` 或 `hostWhitelist`
+  项里（和 `net.fetch` 同一张白名单）。
+- **`data:image/<type>;base64,…`**——**用户刚从自己磁盘上选的那张图**。它没有域名可查，因为字节
+  不是从任何网站来的。宿主单独给它把关：只认 `png` / `jpeg` / `webp` / `gif`，单张解码后 ≤4 MiB、
+  一轮合计 ≤8 MiB，超了会**点名**拒绝（哪一张、多少 MiB）。
+
+第二种是"聊天框里能发图"的唯一办法：普通人没有图床。沙箱帧**能**读用户通过文件选择交给它的文件
+（`createImageBitmap` / `FileReader` 不受 opaque origin 限制），所以做法是在插件里读字节、按需要
+缩小（参考实现按长边 1024px 重编 JPEG 0.82，一张截图约 100–300 KB），再以 data URI 交给
+`llm.chat`。`model` 可以单独指定视觉模型，不必为此维护第二套端点与密钥——参考实现里的
+`llmImageModel` + `llmImageHosts` 就是这件事。
 
 #### `llm.providers`
 

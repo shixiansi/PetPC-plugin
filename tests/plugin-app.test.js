@@ -68,25 +68,51 @@ describe('style.css: the hidden attribute is authoritative', () => {
   });
 });
 
-// 图片行（`#imgtools`）只属于**有输入框、而且有高度**的身份：面板。这一条 jsdom 测不出来、
-// `plugin-check` 也看不见，只有浏览器排版时才现形：
-//
-//   - 问句卡（40px）：`.bar`/`.compose` 都 `display:none`，`<summary>` 成了唯一有高度的元素，
-//     问句被挤成 0 高 → 一张只写着「图片（可选）」的空卡；
-//   - 输入条：那三种身份是 column，而胶囊是 **row**，于是它成了行内块占住左边约 90px，把输入框
-//     挤成一条缝；而且 `body.view-input::before`（胶囊底，定位元素）画在它上面 —— 文字看不见、
-//     点击落不到它身上，用户看到的就是"左边一块空的，点了没反应"（2026-10-30 用户截图报的）。
-describe('style.css: 图片行只在面板里有位置', () => {
-  test('boot / question / answer / input 里它必须被藏起来', () => {
-    for (const view of ['view-boot', 'view-question', 'view-answer', 'view-input']) {
-      const rule = css.match(new RegExp(`body\\.${view} \\.imgtools[^{]*\\{([^}]*)\\}`));
-      expect(rule, `style.css 里没有 body.${view} .imgtools 的规则：图片行会漏进这一屏`).toBeTruthy();
-      expect(rule[1], `${view} 里图片行没被藏起来`).toMatch(/display\s*:\s*none/);
+// 图片入口：一个图标按钮 + 系统文件选择。这一组守的是"别再退回成一行文字地址"——
+// 那一行在胶囊里（`body.view-input` 是 row）会横着占住约 90px 把输入框挤成一条缝，还被胶囊底
+// 盖住，用户看到的是"一块空的、点了没反应"（2026-10-30 截图报的）。全部是静态检查：选文件本身
+// 归预览器与宿主那侧的 llm.chat 校验。
+describe('图片入口是一个图标按钮，不是一行地址', () => {
+  test('markup: 图标按钮 + 隐藏的文件选择，类型限定为图片', () => {
+    expect(html, '没有 #imgpick 图标按钮').toContain('id="imgpick"');
+    expect(html, '没有 #imgfile 文件选择').toContain('id="imgfile"');
+    const file = html.match(/<input[^>]*id="imgfile"[^>]*>/);
+    expect(file, '#imgfile 不是 input').toBeTruthy();
+    expect(file[0], '文件选择必须是 type=file').toMatch(/type="file"/);
+    expect(file[0], '文件选择必须能多选（最多 4 张由 js 截断）').toMatch(/\bmultiple\b/);
+    expect(file[0], '文件选择必须是 hidden：它不该占胶囊里的位置').toMatch(/\bhidden\b/);
+    for (const type of ['image/png', 'image/jpeg', 'image/webp', 'image/gif']) {
+      expect(file[0], `accept 里没有 ${type}`).toContain(type);
     }
   });
 
-  test('面板里它仍然可见——那是唯一装得下它的身份', () => {
-    expect(css.includes('body.view-panel .imgtools'), '面板里图片行被误藏').toBe(false);
+  test('markup: 那一行"填图片地址"已经删掉', () => {
+    expect(html, '旧的地址输入框又回来了').not.toContain('id="imgurl"');
+    expect(html, '旧的 <details>图片（可选）</details> 又回来了').not.toContain('id="imgtools"');
+  });
+
+  test('style: 图片按钮在胶囊里是个方块，不跟着 .btn 抢宽度', () => {
+    const rule = css.match(/body\.view-input #imgpick \{([^}]*)\}/);
+    expect(rule, 'style.css 里没有 body.view-input #imgpick 的规则').toBeTruthy();
+    expect(rule[1], '胶囊里的图片按钮必须有固定宽度').toMatch(/width\s*:\s*\d+px/);
+  });
+
+  test('style: 已选张数用角标，不占布局', () => {
+    const rule = css.match(/\.pick-count \{([^}]*)\}/);
+    expect(rule, 'style.css 里没有 .pick-count').toBeTruthy();
+    expect(rule[1], '角标必须绝对定位，否则又会把输入框挤走').toMatch(/position\s*:\s*absolute/);
+  });
+
+  // 编码那一段（`createImageBitmap` + canvas）在 jsdom 里跑不了——没有 canvas 实现，也没有
+  // `createImageBitmap`。所以这里只钉**闸门**：不是 image/* 的一律不进 `attachedImages`。
+  // 真正的"选了图 → 变成 data: URI → 交给 llm.chat"由预览器（真浏览器）与宿主那侧的
+  // `pluginChatImages` 测试分别覆盖。
+  test('非图片文件被忽略，角标保持隐藏', async () => {
+    await loadApp();
+    expect(window.__chat && window.__chat.attachFiles, '测试接缝没了').toBeTruthy();
+    await window.__chat.attachFiles([new File(['hello'], 'note.txt', { type: 'text/plain' })]);
+    expect(window.__chat.attachedImages()).toHaveLength(0);
+    expect(document.getElementById('imgpick-count').hidden).toBe(true);
   });
 });
 
