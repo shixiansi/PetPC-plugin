@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T11:15:53Z",
+  "updatedAt": "2026-10-30T11:29:35Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -57,12 +57,12 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.4.1.zip",
-      "sha256": "97f25947fa98a6b1fc5a393cb957cd923a4e8e78f736ebe2dda6ef235b6140bb"
+      "download": "dist/com.shixiansi.plugin-memcore-0.4.2.zip",
+      "sha256": "6616cbcd1c935dbd6d0413d819d2709364192183c1c020c0c30d0ce0cfdf67a7"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
@@ -152,13 +152,13 @@
     {
       "id": "com.shixiansi.plugin-websearch",
       "name": "联网搜索",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "author": "shixiansi",
       "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
       "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
-      "download": "dist/com.shixiansi.plugin-websearch-1.0.2.zip",
-      "sha256": "ba6b8ad67831bbc148f6cdbeb879c81c820dbdd0acb02ce14e566ea5ba780f4a"
+      "download": "dist/com.shixiansi.plugin-websearch-1.0.3.zip",
+      "sha256": "8c87fc8fd724348e62f1edaadb96f0a63c1e8a7bb8d8836292bd9631faf9bafb"
     }
   ]
 }
