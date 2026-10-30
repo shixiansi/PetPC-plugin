@@ -69,6 +69,9 @@ let cfg = {};
 // --- storage -----------------------------------------------------------------
 
 async function readJSON(key, fallback) {
+  // 没有 storage 权限就连问都不问：宿主会拒绝，而一次被拒的请求在自检里就是一条
+  // `ungranted-request`。插件该在**发请求之前**知道自己没有这个能力。
+  if (!granted.has('storage')) return fallback;
   try {
     const out = await request('storage.get', { key });
     const raw = out && typeof out.value === 'string' ? out.value : '';
@@ -86,6 +89,11 @@ async function writeJSON(key, value) {
 
 /** 重读设置。搜索与界面各用各的时机：每次 search、每次重画都读一遍最新的。 */
 async function refreshConfig() {
+  // 同上：没有 plugin.config 就别问。
+  if (!granted.has('plugin.config')) {
+    cfg = {};
+    return;
+  }
   try {
     const out = await request('config.get', {});
     cfg = Object.assign({}, (out && out.values) || {});

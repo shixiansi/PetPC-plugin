@@ -46,6 +46,10 @@ function onInit(payload) {
   self = {
     pluginId: payload.pluginId || '',
     slot: (payload.surface && payload.surface.slot) || '',
+    // 宿主能力表（init.host = {program, methods}，手册 §5.2.1）。**别按 slot 猜**：
+    // “这个窗口服务不服务 net.fetch”只有这一份答案。这里猜错过一次——写死了“控制中心不服务
+    // net.fetch”，于是插件页上的「试一下」永远是灰的，而控制中心其实注册了它。
+    host: payload.host && Array.isArray(payload.host.methods) ? payload.host : null,
   };
   granted.clear();
   for (const name of payload.granted || []) granted.add(name);
@@ -55,9 +59,12 @@ function onInit(payload) {
   void refreshConfig()
     .then(() => {
       if (self.slot === 'workshop') {
-        // 控制中心不服务 net.fetch：这一页只能看，不能搜。
-        if (els.go) els.go.disabled = true;
-        if (els.workshop) {
+        // 能不能在这里搜，看宿主**服务不服务** net.fetch —— 问能力表，不看 slot。
+        const hostServesFetch = self.host
+          ? self.host.methods.includes('net.fetch')
+          : self.slot !== 'workshop'; // 没有 host 的旧宿主才退回保守判断
+        if (els.go) els.go.disabled = !hostServesFetch || !granted.has('net.fetch');
+        if (!hostServesFetch) {
           const note = els.workshop.querySelector('.desktop-only');
           if (note) note.classList.remove('hidden');
         }
