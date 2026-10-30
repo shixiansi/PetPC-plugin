@@ -25,22 +25,23 @@ function songCommandOf(raw) {
 }
 
 /**
- * 一条歌 → **按顺序试的几种卡片形态**。
+ * 一条歌 → 卡片消息段。
  *
- * 为什么不是一种：QQ NT 只认它认识的消息元素。最初这里发的是 OneBot v11 的 `music` 段
- * （`type: "custom"`），桥接端照发了，而客户端显示「该消息类型暂不支持查看」——那正是"元素发过去
- * 了，QQ 不认识它"的样子。而同一个插件**入站**早就在处理三类卡片（`json` / `xml` / `light_app`，
- * 见 bili.js 头注），说明这条通道上跑的是 QQ NT 的 ark 体系，不是 v11 的 music 段。
+ * **Milky 的出站段只有这几种**（https://milky.ntqqrev.org/struct/OutgoingSegment）：
+ * `text / mention / mention_all / face / reply / image / record / video / forward / light_app`。
+ * 没有 `xml`、没有 `json`、没有 OneBot v11 的 `music`——前两版就是发这些，于是客户端显示
+ * 「该消息类型暂不支持查看」（元素发过去了，QQ 不认它）。
  *
- * 所以这里按"最像 QQ 自己的卡片"到"最退让"排四级，逐级试：
+ * 而 `light_app` 的出站结构**只有一个字段**：
  *
- *   1. `light_app`  —— QQ NT 的 light-app 元素（ark 卡片的现代形态）；
- *   2. `json`       —— OneBot v11 的 ark 段，多数桥接端也吃；
- *   3. `xml`        —— 经典 QQ 音乐卡（serviceID=1 / templateID=1 + <audio>），老客户端认；
- *   4. `text`       —— 歌名 + 歌手 + 直链。宁可少一张卡，也不要一条点不开的卡片。
+ *     { "type": "light_app", "data": { "json_payload": "<ark JSON 字符串>" } }
  *
- * 每一级都**不预设桥接端支持**：发送抛错就下一级；全失败才退文本。哪一级成功会写进日志
- * （`点歌卡片：light_app`），下次排查不用猜。
+ * 入站那份（/struct/IncomingSegment）多一个 `app_name`，发送侧不需要——按上游实现
+ * （LagrangeDev/acidify#12）桥接端会自己把 `json_payload` 做 zlib 压缩 + 0x01 前缀再塞进
+ * `lightAppElem`，所以这边**只交纯 JSON**，不要自己压缩、也不要编字段名。
+ *
+ * 于是只有两级：`light_app`（卡片）→ `text`（歌名 + 歌手 + 直链）。第二级是给"桥接端版本太老
+ * 不支持 light_app"留的退路，不是常态。
  */
 function buildSongCards(song) {
   const title = String((song && song.title) || '').trim() || '未知歌曲';
@@ -49,7 +50,7 @@ function buildSongCards(song) {
   const cover = String((song && song.cover) || '').trim();
   if (!url) return [];
 
-  // ① ark 载荷（QQ 音乐的 light-app 卡片）：官方音乐卡就是这个形状，字段名不能改。
+  // QQ 音乐卡片（ark）：`com.tencent.music.lua` / view `music`。字段名是腾讯定的，不能改。
   const ark = {
     app: 'com.tencent.music.lua',
     config: { ctime: Math.floor(Date.now() / 1000), forward: true, type: 'normal', autosize: true },
@@ -71,30 +72,11 @@ function buildSongCards(song) {
     ver: '0.0.0.1',
     view: 'music',
   };
-  const arkJSON = JSON.stringify(ark);
 
-  // ② 经典 XML 音乐卡（老客户端仍然认这一份）。
-  const xml = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<msg serviceID="1" templateID="1" action="web" brief="[分享] ' + title + '" url="' + url + '">',
-    '<item layout="2">',
-    '<audio cover="' + (cover || '') + '" src="' + url + '"/>',
-    '<title>' + title + '</title>',
-    '<summary>' + (singer || '') + '</summary>',
-    '</item>',
-    '</msg>',
-  ].join('');
-
-  const cards = [
-    {
-      label: 'light_app',
-      segments: [{ type: 'light_app', data: { app_name: 'com.tencent.music.lua', app_view: 'music', json: arkJSON, meta: ark.meta } }],
-    },
-    { label: 'json', segments: [{ type: 'json', data: { data: arkJSON } }] },
-    { label: 'xml', segments: [{ type: 'xml', data: { xml } }] },
+  return [
+    { label: 'light_app', segments: [{ type: 'light_app', data: { json_payload: JSON.stringify(ark) } }] },
     { label: 'text', segments: buildTextSegments(song) },
   ];
-  return cards;
 }
 
 /** 最后的退路：一条能点的文本。 */
