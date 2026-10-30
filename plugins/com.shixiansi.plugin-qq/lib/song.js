@@ -25,30 +25,88 @@ function songCommandOf(raw) {
 }
 
 /**
- * 一条歌 → 消息段。
+ * 一条歌 → **按顺序试的几种卡片形态**。
  *
- * `music` 段（custom）需要的字段：`url`（点卡片跳去哪）、`audio`（点播放放什么）、`title`、
- * `image`（封面）、`content`（副标题，这里放歌手）。酷我给的是直链，两个 url 都用它——参考实现
- * 也是这么干的（`link` 与 `audio` 同一条）。
+ * 为什么不是一种：QQ NT 只认它认识的消息元素。最初这里发的是 OneBot v11 的 `music` 段
+ * （`type: "custom"`），桥接端照发了，而客户端显示「该消息类型暂不支持查看」——那正是"元素发过去
+ * 了，QQ 不认识它"的样子。而同一个插件**入站**早就在处理三类卡片（`json` / `xml` / `light_app`，
+ * 见 bili.js 头注），说明这条通道上跑的是 QQ NT 的 ark 体系，不是 v11 的 music 段。
+ *
+ * 所以这里按"最像 QQ 自己的卡片"到"最退让"排四级，逐级试：
+ *
+ *   1. `light_app`  —— QQ NT 的 light-app 元素（ark 卡片的现代形态）；
+ *   2. `json`       —— OneBot v11 的 ark 段，多数桥接端也吃；
+ *   3. `xml`        —— 经典 QQ 音乐卡（serviceID=1 / templateID=1 + <audio>），老客户端认；
+ *   4. `text`       —— 歌名 + 歌手 + 直链。宁可少一张卡，也不要一条点不开的卡片。
+ *
+ * 每一级都**不预设桥接端支持**：发送抛错就下一级；全失败才退文本。哪一级成功会写进日志
+ * （`点歌卡片：light_app`），下次排查不用猜。
  */
-function buildSongSegments(song, mode) {
+function buildSongCards(song) {
   const title = String((song && song.title) || '').trim() || '未知歌曲';
   const singer = String((song && song.singer) || '').trim();
   const url = String((song && song.url) || '').trim();
   const cover = String((song && song.cover) || '').trim();
   if (!url) return [];
 
-  if (String(mode || 'music') === 'text') {
-    const lines = [`点歌：${title}${singer ? ` —— ${singer}` : ''}`];
-    if (song.album) lines.push(`专辑：${song.album}`);
-    lines.push(url);
-    return [{ type: 'text', data: { text: lines.join('\n') } }];
-  }
+  // ① ark 载荷（QQ 音乐的 light-app 卡片）：官方音乐卡就是这个形状，字段名不能改。
+  const ark = {
+    app: 'com.tencent.music.lua',
+    config: { ctime: Math.floor(Date.now() / 1000), forward: true, type: 'normal', autosize: true },
+    desc: '0',
+    meta: {
+      music: {
+        app_type: 1,
+        appid: 100495085,
+        ctime: Math.floor(Date.now() / 1000),
+        desc: singer,
+        jumpUrl: url,
+        musicUrl: url,
+        preview: cover || '',
+        tag: '音乐',
+        title,
+      },
+    },
+    prompt: `[分享] ${title}${singer ? ` - ${singer}` : ''}`,
+    ver: '0.0.0.1',
+    view: 'music',
+  };
+  const arkJSON = JSON.stringify(ark);
 
-  const data = { type: 'custom', url, audio: url, title };
-  if (singer) data.content = singer;
-  if (cover) data.image = cover;
-  return [{ type: 'music', data }];
+  // ② 经典 XML 音乐卡（老客户端仍然认这一份）。
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<msg serviceID="1" templateID="1" action="web" brief="[分享] ' + title + '" url="' + url + '">',
+    '<item layout="2">',
+    '<audio cover="' + (cover || '') + '" src="' + url + '"/>',
+    '<title>' + title + '</title>',
+    '<summary>' + (singer || '') + '</summary>',
+    '</item>',
+    '</msg>',
+  ].join('');
+
+  const cards = [
+    {
+      label: 'light_app',
+      segments: [{ type: 'light_app', data: { app_name: 'com.tencent.music.lua', app_view: 'music', json: arkJSON, meta: ark.meta } }],
+    },
+    { label: 'json', segments: [{ type: 'json', data: { data: arkJSON } }] },
+    { label: 'xml', segments: [{ type: 'xml', data: { xml } }] },
+    { label: 'text', segments: buildTextSegments(song) },
+  ];
+  return cards;
+}
+
+/** 最后的退路：一条能点的文本。 */
+function buildTextSegments(song) {
+  const title = String((song && song.title) || '').trim() || '未知歌曲';
+  const singer = String((song && song.singer) || '').trim();
+  const url = String((song && song.url) || '').trim();
+  if (!url) return [];
+  const lines = [`点歌：${title}${singer ? ` —— ${singer}` : ''}`];
+  if (song.album) lines.push(`专辑：${song.album}`);
+  lines.push(url);
+  return [{ type: 'text', data: { text: lines.join('\n') } }];
 }
 
 /**
@@ -56,11 +114,11 @@ function buildSongSegments(song, mode) {
  *
  * 三种结局必须分开，因为它们该说不同的话：
  *
- *   { ok: true,  song }     搜到了；
+ *   { ok: true,  song }       搜到了；
  *   { ok: true,  song: null } 问了、它说没有这首（该回一句"没找到"）；
- *   { ok: false }            根本没问到（插件没装/没启用/被关掉/超时）——这时**不要**回"没找到"，
- *                            那会把"你没装点歌插件"伪装成"世上没这首歌"。调用方应当放它过，
- *                            让这句话照常当聊天处理。
+ *   { ok: false }             根本没问到（插件没装/没启用/被关掉/超时）——这时**不要**回"没找到"，
+ *                             那会把"你没装点歌插件"伪装成"世上没这首歌"。调用方应当放它过，
+ *                             让这句话照常当聊天处理。
  */
 async function askSongPlugin(query) {
   try {
@@ -98,14 +156,24 @@ async function maybeHandleSongCommand(raw, groupID) {
     return true;
   }
 
-  // 卡片形态不设配置项：这个插件的设置已经到 40 项上限，而"发不成卡片就退回文本"本来就不需要人选。
-  const mode = 'music';
-  const segments = buildSongSegments(song, mode);
-  try {
-    await sendSegments(groupID, segments);
-  } catch {
-    // 桥接端不认 `music` 段（有的实现只支持文本/图片）：退回一条能点的链接。
-    await sendSegments(groupID, buildSongSegments(song, 'text')).catch(() => {});
+  // 逐级试：哪一级桥接端接受就用它（README/日志里能看到是哪一级）。
+  const cards = buildSongCards(song);
+  let sent = '';
+  for (const card of cards) {
+    if (!card.segments.length) continue;
+    try {
+      await sendSegments(groupID, card.segments);
+      sent = card.label;
+      break;
+    } catch {
+      // 这一级桥接端不认：试下一级。
+    }
   }
+  if (!sent) {
+    await sendSegments(groupID, buildTextSegments(song)).catch(() => {});
+    sent = 'text';
+  }
+  // 哪一级成功要留痕：客户端显示「暂不支持查看」时，这条日志就是唯一能定位的线索。
+  note(`点歌卡片：${song.title}${song.singer ? ` - ${song.singer}` : ''} 用 ${sent} 发出`);
   return true;
 }

@@ -24,6 +24,9 @@ function loadSong({ request, api } = {}) {
   const sandbox = { console, JSON, String, Number, Array, Object, Promise, encodeURIComponent };
   sandbox.sent = [];
   sandbox.calls = [];
+  // 插件里的日志函数（真机写日志，这里只记录）
+  sandbox.notes = [];
+  sandbox.note = (line) => sandbox.notes.push(String(line));
   sandbox.request = request || (async () => ({ results: [SONG] }));
   sandbox.api = api || (async (action, payload) => {
     sandbox.calls.push({ action, payload });
@@ -52,35 +55,47 @@ describe('点歌命令：认句子', () => {
   });
 });
 
-describe('点歌卡片：拼消息段', () => {
-  test('music 段（custom）带齐 url / audio / title / 歌手 / 封面', () => {
+describe('点歌卡片：四级形态，按顺序试', () => {
+  test('第一级是 light_app（QQ NT 的 ark 卡片），字段齐、能解析回 JSON', () => {
     const s = loadSong();
-    const segs = s.buildSongSegments(SONG, 'music');
-    expect(segs).toHaveLength(1);
-    expect(segs[0].type).toBe('music');
-    expect(segs[0].data).toMatchObject({
-      type: 'custom',
-      url: SONG.url,
-      audio: SONG.url,
-      title: '发如雪',
-      content: '周杰伦',
-      image: SONG.cover,
-    });
+    const cards = s.buildSongCards(SONG);
+    const first = cards[0];
+    expect(first.label).toBe('light_app');
+    const seg = first.segments[0];
+    expect(seg.type).toBe('light_app');
+    const ark = JSON.parse(seg.data.json);
+    expect(ark.app).toBe('com.tencent.music.lua');
+    expect(ark.view).toBe('music');
+    expect(ark.meta.music).toMatchObject({ title: '发如雪', musicUrl: SONG.url, jumpUrl: SONG.url, desc: '周杰伦' });
   });
 
-  test('text 形态：歌名、歌手、链接都在（桥接端不认卡片时的退路）', () => {
+  test('四级顺序固定：light_app → json → xml → text', () => {
     const s = loadSong();
-    const segs = s.buildSongSegments(SONG, 'text');
-    expect(segs[0].type).toBe('text');
-    expect(segs[0].data.text).toContain('发如雪');
-    expect(segs[0].data.text).toContain('周杰伦');
-    expect(segs[0].data.text).toContain(SONG.url);
+    expect(s.buildSongCards(SONG).map((c) => c.label)).toEqual(['light_app', 'json', 'xml', 'text']);
+  });
+
+  test('xml 那一级是经典音乐卡（serviceID=1 + <audio src>）', () => {
+    const s = loadSong();
+    const xml = s.buildSongCards(SONG)[2].segments[0];
+    expect(xml.type).toBe('xml');
+    expect(xml.data.xml).toContain('serviceID="1"');
+    expect(xml.data.xml).toContain(`src="${SONG.url}"`);
+    expect(xml.data.xml).toContain('发如雪');
+  });
+
+  test('text 那一级带歌名、歌手、直链（最后的退路）', () => {
+    const s = loadSong();
+    const text = s.buildSongCards(SONG)[3].segments[0];
+    expect(text.type).toBe('text');
+    expect(text.data.text).toContain('发如雪');
+    expect(text.data.text).toContain('周杰伦');
+    expect(text.data.text).toContain(SONG.url);
   });
 
   test('没有可播链接就什么都不发（宁可不发，也不发一张点不开的卡片）', () => {
     const s = loadSong();
-    expect(s.buildSongSegments({ ...SONG, url: '' }, 'music')).toEqual([]);
-    expect(s.buildSongSegments(null, 'music')).toEqual([]);
+    expect(s.buildSongCards({ ...SONG, url: '' })).toEqual([]);
+    expect(s.buildSongCards(null)).toEqual([]);
   });
 });
 
@@ -92,7 +107,7 @@ describe('点歌命令：三种结局各说各的话', () => {
     expect(s.calls).toHaveLength(1);
     expect(s.calls[0].action).toBe('send_group_message');
     expect(s.calls[0].payload.group_id).toBe(292298495);
-    expect(s.calls[0].payload.message[0].type).toBe('music');
+    expect(s.calls[0].payload.message[0].type).toBe('light_app');
   });
 
   test('问了但没有这首 → 回一句"没找到"，仍然算处理过', async () => {
@@ -109,21 +124,27 @@ describe('点歌命令：三种结局各说各的话', () => {
     expect(s.calls, '不该替"没装插件"回一句"没找到"').toHaveLength(0);
   });
 
-  test('桥接端不认 music 段 → 退回纯文本链接', async () => {
+  test('前三级卡片都被拒时，第四级文本仍能发出去', async () => {
     let nth = 0;
     const s = loadSong({
       api: async (action, payload) => {
         nth += 1;
         s.calls.push({ action, payload });
-        if (nth === 1) throw new Error('不支持的消息段类型 music');
+        if (nth < 4) throw new Error('不支持的消息段类型');
         return { ok: true };
       },
     });
     const handled = await s.maybeHandleSongCommand('点歌 发如雪', '1');
     expect(handled).toBe(true);
-    expect(s.calls).toHaveLength(2);
-    expect(s.calls[0].payload.message[0].type).toBe('music');
-    expect(s.calls[1].payload.message[0].type).toBe('text');
-    expect(s.calls[1].payload.message[0].data.text).toContain(SONG.url);
+    // light_app / json / xml 各被拒一次，第四次（text 那一级）成功
+    expect(s.calls).toHaveLength(4);
+    expect(s.calls.map((c) => c.payload.message[0].type)).toEqual(['light_app', 'json', 'xml', 'text']);
+    expect(s.calls[3].payload.message[0].data.text).toContain(SONG.url);
+  });
+
+  test('哪一级成功要写进日志（客户端显示"暂不支持查看"时，这是唯一线索）', async () => {
+    const s = loadSong();
+    await s.maybeHandleSongCommand('点歌 发如雪', '1');
+    expect(s.notes.join('\n')).toContain('light_app');
   });
 });
