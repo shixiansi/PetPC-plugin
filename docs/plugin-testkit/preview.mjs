@@ -25,7 +25,7 @@
 
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
-import { existsSync, readFileSync, statSync, openSync, closeSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, openSync, closeSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -72,11 +72,23 @@ const MIME = {
   '.woff2': 'font/woff2',
 };
 
-function startServer(pluginDir, port) {
+function startServer(pluginDir, port, galleryBox = null) {
   return new Promise((resolvePromise, rejectPromise) => {
     const server = createServer(async (req, res) => {
       const url = new URL(req.url, 'http://127.0.0.1');
       try {
+        if (url.pathname === '/gallery') {
+          // 画廊页：本来只有"一个插件一个 server"，所以画廊由**同一个** server 在 /gallery 上发，
+          // 里面的 iframe 各自指向对应插件的那个端口。galleryBox 是可变对象，因为页面内容要等
+          // 所有 server 都起来（端口确定）之后才能拼出来。
+          if (!galleryBox || !galleryBox.html) {
+            res.writeHead(404).end('gallery not ready');
+            return;
+          }
+          res.writeHead(200, { 'content-type': MIME['.html'] });
+          res.end(galleryBox.html);
+          return;
+        }
         if (url.pathname === '/' || url.pathname === '/index.html') {
           res.writeHead(200, { 'content-type': MIME['.html'] });
           res.end(await readFile(join(here, 'preview.html')));
@@ -116,7 +128,7 @@ function startServer(pluginDir, port) {
       }
     });
     server.on('error', (err) => {
-      if (err && err.code === 'EADDRINUSE') return startServer(pluginDir, port + 1).then(resolvePromise, rejectPromise);
+      if (err && err.code === 'EADDRINUSE') return startServer(pluginDir, port + 1, galleryBox).then(resolvePromise, rejectPromise);
       rejectPromise(err);
     });
     server.listen(port, '127.0.0.1', () => resolvePromise({ server, port }));
@@ -185,13 +197,16 @@ function profileDir() {
   return join(tmpdir(), 'petpc-preview-' + Math.random().toString(36).slice(2, 10));
 }
 
-async function shot(browser, url, out, size) {
+async function shot(browser, url, out, size, budgetMs = 6000) {
   await mkdir(dirname(resolve(out)), { recursive: true });
   const args = [
     '--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run',
     '--user-data-dir=' + profileDir(),
     `--window-size=${size.w},${size.h}`,
-    '--virtual-time-budget=6000',
+    // 虚拟时间预算：Chrome 会等页面"安静"到这么久为止。画廊一屏要拉 15 个插件的资源（每个插件
+    // 一个端口），6000 不够——会拍到一半的帧，画面里就是几个空框、"等待宿主初始化"。单插件沿用
+    // 6s，画廊传更长。
+    `--virtual-time-budget=${budgetMs}`,
     '--screenshot=' + resolve(out),
     url,
   ];
@@ -225,15 +240,182 @@ async function check(browser, url) {
 }
 
 // ---------------------------------------------------------------------------
+// 画廊：一次看到所有插件的观感
+// ---------------------------------------------------------------------------
+//
+// 为什么需要它：判断"风格统不统一"要同时看很多个插件，而单插件模式一次只画一个——于是要么不判断，
+// 要么靠回忆判断。2026-10-30 的教训是三个插件的包里根本没带 ui.css，谁也没发现，因为**没有任何
+// 一个画面同时展示了"有人有 kit、有人没有"**。一张接触表就让这种差异无法被忽略。
+//
+// 它不另写渲染管线：每个插件仍然起一个自己的 server（`/plugin/…` 映射到那个目录），页面里用
+// `?bare=1` 的 iframe 一格一格引用它们。所以看到的和单插件模式**是同一套渲染**（同一份假宿主、
+// 同一套状态机），不是"另画一份预览"。
+
+/** 每个带 manifest.json 的子目录，按 id 排序。 */
+function discoverPlugins(root) {
+  const out = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dir = join(root, entry.name);
+    if (!existsSync(join(dir, 'manifest.json'))) continue;
+    let manifest;
+    try {
+      manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
+    } catch {
+      continue; // 坏清单不该挡住整张表；单插件模式会为它报错
+    }
+    out.push({ dir, manifest });
+  }
+  return out.sort((a, b) => String(a.manifest.id).localeCompare(String(b.manifest.id)));
+}
+
+/**
+ * 一个插件画几格。
+ *
+ * 声明了浮层面的：一块矩形一格，**按声明的尺寸**——那才是宿主真正裁出来的框。
+ * 没声明的：一格"工坊页"，尺寸取 `--frame`（默认 420×340）。那不是它真实的窗口尺寸（宿主给多少
+ * 就是多少），所以格里溢出只当观感参考，不算错。
+ */
+function cellsFor(manifest, opts) {
+  const rects = Array.isArray(manifest.surface) ? manifest.surface : [];
+  if (rects.length === 0) {
+    const frame = opts.frame || { w: 420, h: 340 };
+    return [{ kind: 'panel', slot: 'workshop', rect: 0, w: frame.w, h: frame.h, label: '工坊页' }];
+  }
+  return rects.map((r, i) => ({
+    kind: 'surface',
+    slot: opts.slot || 'pomodoro',
+    rect: i,
+    w: Math.round(Number(r.w) || 380),
+    h: Math.round(Number(r.h) || 260),
+    label: `rect ${i}`,
+  }));
+}
+
+/** 拼出接触表。纯字符串——没有图片库，排版交给浏览器。 */
+function galleryPage(cards, theme, cols) {
+  const dark = theme !== 'light';
+  // 统一列宽：格子宽度不一（308×64 挨着 380×260）时，flex 换行会让行参差不齐，
+  // 读的人会把标题配错格子——这正是第一版我把 voice 看成浅色的原因。
+  const colW = Math.max(320, ...cards.map((c) => c.w)) + 2;
+  const cells = cards.map((c) => `
+    <figure>
+      <div class="box" style="width:${c.w}px;height:${c.h}px">
+        <iframe loading="eager" title="${c.id} ${c.label}"
+          src="http://127.0.0.1:${c.port}/?bare=1&plugin=${encodeURIComponent(c.id)}&rect=${c.rect}&kind=${c.kind}&slot=${encodeURIComponent(c.slot)}&theme=${theme}&state=${encodeURIComponent(c.state)}"></iframe>
+      </div>
+      <figcaption>
+        <b>${c.short}</b> <code>v${c.version}</code>
+        <span class="dim">· ${c.label} ${c.w}×${c.h}</span><br>
+        <span class="dim">${c.styleNote}${c.surface ? ' · 有浮层面（按矩形裁剪）' : ''}</span>
+      </figcaption>
+    </figure>`).join('');
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>插件画廊 · ${theme}</title>
+<style>
+  :root { color-scheme: ${dark ? 'dark' : 'light'}; }
+  body { margin: 0; padding: 24px; background: ${dark ? '#080b12' : '#e9edf4'};
+         color: ${dark ? '#e6ebf5' : '#1c2430'};
+         font: 13px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  h1 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  p.note { margin: 0 0 20px; opacity: .66; font-size: 12px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start; }
+  figure { margin: 0; width: ${colW}px; }
+  .box { outline: 1px dashed ${dark ? 'rgba(255,255,255,.22)' : 'rgba(0,0,0,.22)'}; overflow: hidden; }
+  .box iframe { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+  figcaption { margin-top: 8px; max-width: 420px; }
+  figcaption b { font-weight: 600; }
+  code { font: 12px ui-monospace, Consolas, monospace; opacity: .8; }
+  .dim { opacity: .6; font-size: 12px; }
+</style></head><body>
+<h1>插件画廊 · ${theme} · ${cards.length} 格 / ${new Set(cards.map((c) => c.id)).size} 个插件</h1>
+<p class="note">虚线框 = manifest 声明的矩形（宿主就是按它裁窗口的）。浮层面按真实尺寸画；工坊页给一个固定框，溢出只作参考——那由宿主窗口决定。</p>
+<div class="grid"${cols ? ` style="max-width:${cols * 470}px"` : ''}>${cells}</div>
+</body></html>`;
+}
+
+async function runGallery(opts) {
+  const root = resolve(opts.gallery);
+  const plugins = discoverPlugins(root);
+  if (plugins.length === 0) {
+    console.error(`${root} 下没有任何带 manifest.json 的插件目录`);
+    process.exit(2);
+  }
+  const box = { html: '' };
+  const servers = [];
+  const cards = [];
+  let port = opts.port;
+  for (const p of plugins) {
+    const started = await startServer(p.dir, port, box);
+    servers.push(started.server);
+    port = started.port + 1; // 一个插件一个端口：各自的 /plugin/… 才成立
+    const styleNote = existsSync(join(p.dir, 'ui.css')) ? 'kit · 带 ui.css' : '自带调色板';
+    for (const cell of cellsFor(p.manifest, opts)) {
+      cards.push({
+        ...cell,
+        port: started.port,
+        id: p.manifest.id,
+        short: String(p.manifest.id).replace(/^com\.[^.]+\.plugin-/, ''),
+        version: p.manifest.version,
+        surface: (p.manifest.surface || []).length > 0,
+        styleNote,
+        state: opts.state,
+      });
+    }
+  }
+  const theme = opts.theme === 'light' ? 'light' : 'dark';
+  box.html = galleryPage(cards, theme, opts.cols);
+  const first = `http://127.0.0.1:${cards[0].port}/gallery`;
+
+  // 文字版一览：谁用 kit、谁自带调色板、谁有浮层面。截图能看出来的，终端里也要说得清。
+  for (const p of plugins) {
+    const note = existsSync(join(p.dir, 'ui.css')) ? 'kit' : '自带调色板';
+    const surf = (p.manifest.surface || []).length;
+    console.log(`  ${String(p.manifest.id).replace(/^com\.[^.]+\.plugin-/, '').padEnd(14)} v${String(p.manifest.version).padEnd(9)} ${note.padEnd(12)} ${surf ? `surface ×${surf}` : '无浮层面'}`);
+  }
+
+  if (opts.shot) {
+    const browser = findBrowser();
+    if (!browser) {
+      console.error('SKIP：没找到 Edge / Chrome，没法截图。');
+      console.error(`      画廊页仍然可以自己看：${first}`);
+      process.exitCode = 0;
+      return;
+    }
+    const cols = opts.cols || 3;
+    const cellW = Math.max(...cards.map((c) => c.w)) + 26;
+    const cellH = Math.max(...cards.map((c) => c.h)) + 76;
+    const rows = Math.ceil(cards.length / cols);
+    const pageSize = opts.size || { w: cols * cellW + 48, h: rows * cellH + 96 };
+    const out = await shot(browser, first, opts.shot, pageSize, 20000);
+    console.log(`已截图：${out}（${cards.length} 格，窗口 ${pageSize.w}×${pageSize.h}）`);
+    for (const s of servers) s.close();
+    return;
+  }
+
+  console.log(`\n画廊：${first}`);
+  console.log(`（${cards.length} 格 / ${plugins.length} 个插件，Ctrl+C 结束）`);
+  if (opts.open) {
+    const browser = findBrowser();
+    if (browser) spawn(browser, [first], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
+    else console.error('没找到 Edge / Chrome，请自己打开上面的地址。');
+  }
+  return; // 服务器留着，直到进程被结束
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const opts = { dir: null, shot: null, check: false, open: false, port: 7801, rect: 0, rectGiven: false, slot: 'pomodoro', kind: 'surface', state: 'gate', granted: null, deny: false, size: null, click: null, frame: null, bare: false };
+  const opts = { dir: null, gallery: null, cols: null, shot: null, check: false, open: false, port: 7801, rect: 0, rectGiven: false, slot: 'pomodoro', kind: 'surface', state: 'gate', granted: null, deny: false, size: null, click: null, frame: null, bare: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--shot') opts.shot = argv[++i];
     else if (a === '--check') opts.check = true;
     else if (a === '--open') opts.open = true;
+    // --gallery <pluginsRoot>：把这个目录下**所有**插件铺成一张接触表（一次看到全部观感）。
+    else if (a === '--gallery') opts.gallery = argv[++i];
+    else if (a === '--cols') opts.cols = Number(argv[++i]);
     else if (a === '--port') opts.port = Number(argv[++i]);
     else if (a === '--rect') { opts.rect = Number(argv[++i]); opts.rectGiven = true; }
     else if (a === '--slot') opts.slot = argv[++i];
@@ -254,7 +436,7 @@ function parseArgs(argv) {
     else if (a.startsWith('-')) throw new Error('未知参数 ' + a);
     else opts.dir = a;
   }
-  if (!opts.dir) throw new Error('要一个插件目录：node preview.mjs <pluginDir> [--check|--shot out.png]');
+  if (!opts.dir && !opts.gallery) throw new Error('要一个插件目录（或 --gallery <pluginsRoot>）：node preview.mjs <pluginDir> [--check|--shot out.png]');
   return opts;
 }
 
@@ -271,7 +453,13 @@ async function main() {
   } catch (err) {
     console.error(err.message);
     console.error('用法：node preview.mjs <插件目录> [--open] [--check] [--shot out.png] [--state gate|running|idle] [--rect N] [--slot S] [--kind surface|panel] [--deny] [--click "#id"] [--frame WxH] [--bare]');
+    console.error('      node preview.mjs --gallery <pluginsRoot> [--shot out.png] [--open] [--theme light|dark] [--cols N] [--frame WxH]');
     process.exit(2);
+  }
+  // 画廊模式：一次看到全部插件的观感（一张接触表，或者一个可交互的页面）。
+  if (opts.gallery) {
+    await runGallery(opts);
+    return;
   }
   const pluginDir = resolve(opts.dir);
   if (!existsSync(join(pluginDir, 'manifest.json'))) {

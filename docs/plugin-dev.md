@@ -1280,6 +1280,17 @@ com.example.hello-1.0.0.zip
 > 声明的矩形里跑一遍，越界就 FAIL（--check），也能截图（--shot）、能点（--click）、能直达
 > 「等你回答」那一屏（--state gate）。
 >
+> **要判断"跟别人的插件长得像不像"，用画廊模式一次看全**：
+>
+> ```powershell
+> node docs/plugin-testkit/preview.mjs --gallery plugins --shot sheet.png --theme dark --cols 3
+> node docs/plugin-testkit/preview.mjs --gallery plugins --open     # 或者直接看
+> ```
+>
+> 每个插件按它声明的矩形铺一格，格下写着它用的是 `kit · 带 ui.css` 还是`自带调色板`。
+> **它只能看排版，不能看颜色**：一张表缩下来，深色卡片在深色底上会被看成浅色（实测会误判）。
+> 判断配色深浅用单插件 `--shot`，一张图一个插件。
+>
 > **只在控制中心里挂的插件（没有 `surface`）要看整页，用这两个开关**：
 >
 > ```powershell
