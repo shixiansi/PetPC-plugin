@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T13:47:41Z",
+  "updatedAt": "2026-10-30T14:03:11Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -26,12 +26,12 @@
     {
       "id": "com.shixiansi.plugin-clipask",
       "name": "剪贴板助手",
-      "version": "0.1.13",
+      "version": "0.1.14",
       "author": "shixiansi",
       "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
       "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-clipask-0.1.13.zip",
-      "sha256": "1239ae9ab9b97d071fbe4f6d34f563fa9e6ac53a91a0371e2ffee607aef4450e"
+      "download": "dist/com.shixiansi.plugin-clipask-0.1.14.zip",
+      "sha256": "90a273df0bd57ded20e115b583d978684fdf017b3ca9cd858c4cb0d6f22647df"
     },
     {
       "id": "com.shixiansi.plugin-diange",
@@ -68,23 +68,23 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.6.0.zip",
-      "sha256": "38894e3c3aebd46018fdb7f9d5610b0599773bed0eeebde102ff5a2f0d9afd5b"
+      "download": "dist/com.shixiansi.plugin-memcore-0.6.1.zip",
+      "sha256": "fc664e619dfcfd26d64d77a78a0bb3b38aa4f2f51abd797ebccaa5fd23321bdd"
     },
     {
       "id": "com.shixiansi.plugin-moegirl",
       "name": "萌娘百科",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": "shixiansi",
       "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
       "netHosts": ["zh.moegirl.org.cn"],
-      "download": "dist/com.shixiansi.plugin-moegirl-0.1.0.zip",
-      "sha256": "8b9c1d54483e3338c04207b0c53df3dc3483f49dbba18140e381cdf736d4ced0"
+      "download": "dist/com.shixiansi.plugin-moegirl-0.1.1.zip",
+      "sha256": "f1c5e3225213677c047e60f97b2f84155378c2d80d7e4f2204c842afad3b0da0"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
