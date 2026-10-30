@@ -157,7 +157,8 @@ async function askOne(target, query, count, timeoutMs) {
 }
 
 async function askWebSearch(query, count) {
-  const trimmed = text(query, 300).trim();
+  // 同 slang：说话人前缀对搜索没有意义（`lookupQueryOf` 在 lib/slang.js 里）。
+  const trimmed = text(lookupQueryOf(query), 300).trim();
   if (!trimmed) return null;
   const targets = searchOrder(trimmed);
   const deadline = Date.now() + SEARCH_BUDGET_MS;

@@ -645,3 +645,31 @@ describe('能力发现：名单会刷新', () => {
     expect(callTargets, '重问之后仍然没去问释义提供方').toContain('com.shixiansi.plugin-slang/slang');
   });
 });
+
+
+// 查词/查资料前要去掉**说话人前缀**。
+//
+// 真机事故（2026-10-30）：QQ 为了模型知道谁在说话，发给核心的正文是「白泽：蛆」「时先思：区」。
+// 前缀对模型是对的，对查词是灾难——`时先思：区` 被拿去 opensearch，解析成别的条目，回来一个
+// missing page（109 B），于是「发区还是不知道啥意思」；`白泽：蛆` 更被解析成「白泽加奈惠」（声优）。
+describe('查词前剥掉说话人前缀', () => {
+  test('「时先思：区」→ 提供方收到的是「区」，而 prompt 里的原文不动', async () => {
+    bootDocs();
+    llmReplies.push('「区」是「区区」的自谦说法。');
+    const packet = await chat('时先思：区');
+    expect(packet.ok).toBe(true);
+    const slangAt = callTargets.indexOf('com.shixiansi.plugin-slang/slang');
+    expect(slangAt, '没有去问词库').toBeGreaterThanOrEqual(0);
+    expect(callPayloads[slangAt].query, '说话人前缀被当成查询词了').toBe('区');
+    // 进模型的那一句必须保持原样（前缀是给模型看的）
+    expect(llmCalls[0].text).toContain('时先思：区');
+  });
+
+  test('图片提示也一起去掉（它只对模型有意义）', async () => {
+    bootDocs();
+    llmReplies.push('嗯。');
+    await chat('时先思：区（这条消息带了 2 张图，你看不到；不确定就别描述画面。）');
+    const slangAt = callTargets.indexOf('com.shixiansi.plugin-slang/slang');
+    expect(callPayloads[slangAt].query).toBe('区');
+  });
+});

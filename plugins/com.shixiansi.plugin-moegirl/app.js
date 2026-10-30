@@ -93,10 +93,21 @@ function cfgNum(key, min, max, fallback) {
 /** 一次 net.fetch，返回 body 文本（失败抛出带原因的错误）。 */
 async function fetchText(url) {
   const out = await request('net.fetch', { method: 'GET', url, headers: { accept: 'application/json', 'user-agent': UA } });
+  const body = String((out && out.body) || '');
+  // **落盘诊断**：真机上"查了个空"很难从宿主日志看出来——它只记 `net.fetch ok（289 B → 109 B）`，
+  // 既不说是哪个 URL、也不说回来的是什么。这一条把 URL、状态、长度和开头 160 字记进插件自己的
+  // 私有目录（`debug/last`），排查时直接读文件，不用再猜。2026-10-30 就是靠猜浪费了一轮。
+  await writeJSON('debug/last', {
+    at: Date.now(),
+    url: String(url).slice(0, 400),
+    status: out && out.status ? out.status : 0,
+    bodyLen: body.length,
+    head: body.slice(0, 160),
+  });
   if (!out || out.status < 200 || out.status >= 300) {
     throw new Error(`萌娘百科返回 HTTP ${out && out.status ? out.status : '?'}`);
   }
-  return String(out.body || '');
+  return body;
 }
 
 /**

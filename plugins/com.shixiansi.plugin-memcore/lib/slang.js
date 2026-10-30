@@ -19,13 +19,38 @@
 const SLANG_METHODS = ['slang', 'wiki'];
 
 /**
+ * 「查词/查资料用的那一句」——剥掉调用方塞进来的**说话人前缀**与**图片提示**。
+ *
+ * 为什么需要：QQ 那边为了让模型知道谁在说话，发给核心的正文是 `白泽：蛆`、`时先思：区`
+ * （`text: asker + 冒号 + ask`）。这个格式对**模型**是对的，对**查词/搜索**是灾难：
+ *
+ *   · 2026-10-30 真机：查 `时先思：区` 时，萌娘百科的 opensearch 解析成别的条目，回来一个
+ *     missing page（109 B），于是「发区还是不知道啥意思」；
+ *   · 同一晚 `白泽：蛆` 被解析成条目「白泽加奈惠」（一位声优）——前缀把整个查询带偏了。
+ *
+ * 只影响「拿去查」的字符串，**进 prompt 的原文一个字都不动**。
+ *
+ * 放在这个文件里是因为它先于 websearch.js 加载（两个消费方都要用），而它不碰 DOM——
+ * 可以被 node 直接跑起来验（`lib/core.js` 一加载就要 document，验不了）。
+ */
+function lookupQueryOf(line) {
+  let body = String(line || '').trim();
+  // 说话人前缀：同一行里的第一个冒号，且前面不超过 24 字（`白泽：` / `时先思:`）
+  body = body.replace(/^[^：:\n]{1,24}[：:]\s*/, '');
+  // 图片提示（见 lib/memcore.js 的 imageNote）
+  body = body.replace(/（这条消息带了[^）]*）/g, '');
+  return body.trim();
+}
+
+/**
  * 问一次本地词库。
  *
  * @returns {Promise<{text: string, matched: string, hits: Array}|null>}
  *          `text` 是能直接拼进 system prompt 的段落；查不到就是 null。
  */
 async function askSlang(line) {
-  const query = text(line, 300).trim();
+  // 调用方给的是「谁：内容」，查词只要「内容」。
+  const query = text(lookupQueryOf(line), 300).trim();
   if (!query) return null;
   const tried = new Set();
   for (const method of SLANG_METHODS) {
