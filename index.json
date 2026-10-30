@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T04:59:53Z",
+  "updatedAt": "2026-10-30T05:40:13Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -26,12 +26,12 @@
     {
       "id": "com.shixiansi.plugin-clipask",
       "name": "剪贴板助手",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
       "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-clipask-0.1.1.zip",
-      "sha256": "27b90e4a85ef1ab0bd5181591df5ff8f6a3af17133baf73bb6b9f787b4928a6c"
+      "download": "dist/com.shixiansi.plugin-clipask-0.1.2.zip",
+      "sha256": "e3eff3f592cb89c8862ba2141ebb233b8d00d8be9ae6fe7aa1cd56d960dd796b"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -47,12 +47,12 @@
     {
       "id": "com.shixiansi.plugin-media-sync",
       "name": "媒体同步（正在播放）",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "桌宠知道你正在听什么：由本机辅助脚本读 Windows SMTC（System Media Transport Controls）的当前曲目——歌名、歌手、专辑、播放状态。别的插件把用户「我在听什么」的问题用 plugin.call 问它的 now_playing，答案直接可放进模型上下文；宠物头顶也会挂「♪ 歌名 - 歌手」徽标。监听走 process.launch 启动的 PowerShell 脚本。",
       "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-media-sync-0.1.1.zip",
-      "sha256": "856c9084588cd7e5e657a1baad283090e2282b90b096de30f5042e95f2dc0d97"
+      "download": "dist/com.shixiansi.plugin-media-sync-0.1.2.zip",
+      "sha256": "438bd6a49b534557481e9e9b7809e57f9efe954ffe5bf103893c2dcfff30c1fe"
     },
     {
       "id": "com.shixiansi.plugin-memcore",
@@ -78,12 +78,12 @@
     {
       "id": "com.shixiansi.plugin-pet-sense",
       "name": "系统与 DSH 感知",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。采样与监听走本机辅助脚本（process.launch）。",
       "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-pet-sense-0.1.1.zip",
-      "sha256": "2bb016b07e71fbe8a959c3fa54e38dce57654a03716cb3751d6a24d711b080de"
+      "download": "dist/com.shixiansi.plugin-pet-sense-0.1.2.zip",
+      "sha256": "8710bff76523c1608ed0839b3be84a1a5956b14c220beea1abf91249aeb292f2"
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
@@ -141,13 +141,13 @@
     {
       "id": "com.shixiansi.plugin-weather-env",
       "name": "天气与环境感知",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": "shixiansi",
       "description": "桌宠出门前提醒你带伞：默认接入 Open-Meteo 公开天气 API（免密钥），也可配置和风天气。get_weather(city) 工具让模型能回答任意城市的天气；下雨、雷雨、下雪、晴天高温时在桌宠头顶挂出提醒徽标，并经 plugin.share 推送 weather/now 与 weather/condition 状态事件（同一事件 3 小时只提醒一次，不刷屏）。",
       "permissions": ["net.fetch", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
       "netHosts": ["api.open-meteo.com", "geocoding-api.open-meteo.com", "geoapi.qweather.com", "devapi.qweather.com"],
-      "download": "dist/com.shixiansi.plugin-weather-env-0.1.0.zip",
-      "sha256": "e8c23ded6a147514f199a6625a3811c055baf0be25ff756dd414942276bfeeb5"
+      "download": "dist/com.shixiansi.plugin-weather-env-0.1.1.zip",
+      "sha256": "06707d1aaa45451662c04265d0d0e1764bd289bef92c104f5492891f9922db97"
     },
     {
       "id": "com.shixiansi.plugin-websearch",
