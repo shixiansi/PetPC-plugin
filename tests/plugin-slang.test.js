@@ -145,3 +145,60 @@ describe('导入诊断与整份 JSON', () => {
     expect(P.parseChunksJSONL(asObject).entries).toHaveLength(1);
   });
 });
+
+
+// 自学习：百科答过一次的词要落地，下次本地命中、不再联网。
+//
+// 用户的原话："萌娘百科搜索后的词应该添加到网络词词典，而不是每次都搜一次，效率太低了。"
+// 策略抽成了纯函数（mergeLearned），所以这里钉的是**纪律**，不是实现。
+describe('自学习词条', () => {
+  test('新词条进列表，带上来源与时间', () => {
+    const { list, added } = P.mergeLearned([], {
+      term: '区', meaning: '区，本字为蛆，是ACG亚文化中的一种称谓，呈贬义。',
+      source: 'com.shixiansi.plugin-moegirl', at: 1700000000000,
+    }, { cap: 100 });
+    expect(added).toBe(true);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ term: '区', source: 'learned', from: 'com.shixiansi.plugin-moegirl' });
+  });
+
+  test('人挑过的语料不许被机器盖掉', () => {
+    const { list, added, reason } = P.mergeLearned([], { term: '破防', meaning: '机器学来的释义' }, {
+      cap: 100,
+      isCurated: (key) => key === P.normalizeTerm('破防'),
+    });
+    expect(added).toBe(false);
+    expect(reason).toBe('curated');
+    expect(list).toHaveLength(0);
+  });
+
+  test('同一个词再学一次是替换，不是追加', () => {
+    const first = P.mergeLearned([], { term: '区', meaning: '旧释义' }, { cap: 100 }).list;
+    const second = P.mergeLearned(first, { term: '区', meaning: '新释义' }, { cap: 100 }).list;
+    expect(second).toHaveLength(1);
+    expect(second[0].meaning).toBe('新释义');
+  });
+
+  test('有上限：超了丢最旧的（先进先出）', () => {
+    let list = [];
+    for (const term of ['甲', '乙', '丙']) {
+      list = P.mergeLearned(list, { term, meaning: `${term}的意思` }, { cap: 2 }).list;
+    }
+    expect(list.map((r) => r.term)).toEqual(['乙', '丙']);
+  });
+
+  test('缺词或缺释义就不学（别往词库里塞半句话）', () => {
+    expect(P.mergeLearned([], { term: '区' }, { cap: 10 }).added).toBe(false);
+    expect(P.mergeLearned([], { meaning: '只有释义' }, { cap: 10 }).added).toBe(false);
+  });
+
+  test('学来的词条能被查到（下次本地命中）', () => {
+    const learned = P.mergeLearned([], {
+      term: '区', meaning: '区，本字为蛆，是ACG亚文化中的一种称谓，呈贬义。',
+    }, { cap: 10 }).list;
+    const index = P.buildIndex([learned]);
+    const hit = P.lookup(index, '区');
+    expect(hit.entries.length, '学进来的词条查不到，等于白学').toBeGreaterThan(0);
+    expect(hit.entries[0].term).toBe('区');
+  });
+});

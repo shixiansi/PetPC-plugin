@@ -15,6 +15,12 @@
 
 const PROTOCOL = 1;
 const STORE_IMPORTED = 'lex/imported';
+// 自学习词条：萌娘百科那类"问过一次就够"的资料，答完写到这里，下次本地命中、不再联网。
+// 和 imported 分开存，是因为它们的可信度不同：imported 是人挑过的语料，learned 是机器顺手记的，
+// 用户要能单独清掉后者而不动前者。
+const STORE_LEARNED = 'lex/learned';
+/** 自学习最多留这么多条（FIFO）。没有上限的话，一个活跃群一年能把它写成几万条。 */
+const LEARNED_CAP = 2000;
 const STORE_RECENT = 'log/recent';
 const RECENT_CAP = 12;
 /** 导入时把【详解】截到这么长：它是给人看的考据，prompt 里只留最有用的一两句。 */
@@ -24,6 +30,8 @@ let self = { pluginId: '', slot: '', host: null };
 const granted = new Set();
 let cfg = {};
 let index = buildIndex([SEED_ENTRIES]);
+/** 自学习词条（见 STORE_LEARNED）。 */
+let learned = [];
 let importedCount = 0;
 let importedAt = 0;
 let ready = false;
@@ -104,7 +112,9 @@ async function loadLexicon() {
   const list = Array.isArray(rows) ? rows : [];
   importedCount = list.length;
   importedAt = Number((rows && rows.at) || 0) || 0;
-  index = buildIndex([SEED_ENTRIES, list]);
+  const learnedRows = await readJSON(STORE_LEARNED, []);
+  learned = Array.isArray(learnedRows) ? learnedRows : [];
+  index = buildIndex([SEED_ENTRIES, list, learned]);
 }
 
 /**
@@ -215,6 +225,45 @@ async function handleSlang(payload) {
   };
 }
 
+/**
+ * `learn`：把"刚查到的释义"记进本地词库。
+ *
+ * 为什么由**调用方**喂进来，而不是自己去查：查资料的渠道（萌娘百科之类）是**另一个插件**，它
+ * 自己的白名单、许可、限流都在它那边。词典只负责"存 + 下次本地答"，不该再长出一条网络依赖。
+ *
+ * 三条纪律：
+ *   · **不覆盖人挑过的语料**：同名词条若已在 seed / imported 里，直接返回 added:false——机器顺手
+ *     记的东西不该盖掉用户导入的那份；
+ *   · 截断：`meaning` 只留 400 字（prompt 里真正有用的是这一句）；
+ *   · 有上限：LEARNED_CAP 条，超了按先进先出丢最旧的。
+ */
+async function handleLearn(payload) {
+  const term = String((payload && payload.term) || '').slice(0, 60).trim();
+  const meaning = String((payload && payload.meaning) || '').slice(0, 400).trim();
+  if (!term) throw new Error('learn 需要 term：要记住的那个词');
+  if (!meaning) throw new Error('learn 需要 meaning：那个词的意思');
+
+  // 策略（不覆盖语料 / 去重 / 上限）在 lib/lexicon.js 的 mergeLearned 里，是纯函数，有测试。
+  const curatedKeys = new Set(
+    index.entries.filter((entry) => entry.source !== 'learned').map((entry) => normalizeTerm(entry.term)),
+  );
+  const merged = mergeLearned(learned, {
+    term,
+    meaning,
+    detail: (payload && payload.detail) || '',
+    source: (payload && payload.source) || '',
+    at: Date.now(),
+  }, { cap: LEARNED_CAP, isCurated: (key) => curatedKeys.has(key) });
+  if (!merged.added) {
+    return { term, added: false, reason: merged.reason, total: index.entries.length };
+  }
+  learned = merged.list;
+  await writeJSON(STORE_LEARNED, learned);
+  const rows = await readJSON(STORE_IMPORTED, []);
+  index = buildIndex([SEED_ENTRIES, Array.isArray(rows) ? rows : [], learned]);
+  return { term, added: true, total: index.entries.length, learned: learned.length };
+}
+
 function postCallResult(ticket, ok, value) {
   const message = { type: 'call-result', ticket, ok: Boolean(ok) };
   if (ok) message.result = value === undefined ? null : value;
@@ -224,12 +273,13 @@ function postCallResult(ticket, ok, value) {
 
 async function onCall(data) {
   const method = String((data && data.method) || '');
-  if (method !== 'slang') {
-    postCallResult(data && data.ticket, false, new Error(`这个插件只提供 slang，不认识 ${method || '(空)'}`));
+  if (method !== 'slang' && method !== 'learn') {
+    postCallResult(data && data.ticket, false, new Error(`这个插件只提供 slang / learn，不认识 ${method || '(空)'}`));
     return;
   }
   try {
-    postCallResult(data.ticket, true, await handleSlang((data && data.payload) || {}));
+    const payload = (data && data.payload) || {};
+    postCallResult(data.ticket, true, method === 'learn' ? await handleLearn(payload) : await handleSlang(payload));
   } catch (err) {
     postCallResult(data.ticket, false, err);
   }
@@ -310,6 +360,8 @@ async function renderWorkshop() {
   if (els.count) {
     els.count.textContent = `${index.entries.length} 条（自带 ${SEED_ENTRIES.length}`
       + (importedCount ? `，导入 ${importedCount}` : '，还没导入')
+      // 自学习的那部分单独写出来：用户要能看出"词库自己在长大"，也能看出它长了多少。
+      + (learned.length ? `，自学 ${learned.length}` : '')
       + '）';
   }
   if (els.status) {

@@ -709,3 +709,31 @@ describe('人设拼装', () => {
     expect(llmCalls[0].system).toContain('【资料】开头的段落');
   });
 });
+
+
+// 查过一次就落地：百科答上来的词要写进本地词库，下次不必再联网。
+//
+// 用户的原话："萌娘百科搜索后的词应该添加到网络词词典，而不是每次都搜一次，效率太低了。"
+describe('学进词库', () => {
+  test('百科答上来 → 顺手调 slang/learn，带上词条名与正文', async () => {
+    bootDocs();
+    llmReplies.push('就是蛆的谐音，骂人的说法。');
+    const packet = await chat('区在网络用语中是什么意思');
+    expect(packet.ok).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const at = callTargets.indexOf('com.shixiansi.plugin-slang/learn');
+    expect(at, '答上来了却没让词库记住').toBeGreaterThanOrEqual(0);
+    expect(callPayloads[at]).toMatchObject({ term: '区' });
+    // 学进去的是**正文**（百科的 extract），不是给人设读的那整段（带指令与格式）
+    expect(String(callPayloads[at].meaning)).toContain('区');
+    expect(String(callPayloads[at].meaning), '不该把注入块的指令也存进词库').not.toContain('不是要发给用户的话');
+  });
+
+  test('本地词库自己答上来 → 不必再学一遍（省一次往返）', async () => {
+    bootDocs();
+    llmReplies.push('嗯。');
+    await chat('我今天真的破防了');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(callTargets, '本地命中还去教词库，纯属多余').not.toContain('com.shixiansi.plugin-slang/learn');
+  });
+});

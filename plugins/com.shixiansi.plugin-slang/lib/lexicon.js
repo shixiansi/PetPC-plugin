@@ -220,4 +220,40 @@ function renderHits(result) {
 }
 
 /** 测试接缝用：这些是纯函数，不碰 DOM、不碰宿主。 */
-const SLANG_PURE = { parseChunksJSONL, rowsOfWholeJSON, importReason, parseChunkText, buildIndex, lookup, renderHits, normalizeTerm, makeEntry };
+/**
+ * 把一条"学来的"词条并进自学习列表——**纯函数**，于是"学什么、不学什么"能被测试钉住。
+ *
+ * 三条纪律（每一条都有对应的失败场景）：
+ *   · **不覆盖人挑过的语料**：同名词条已在 seed / imported 里 → 拒绝。机器顺手记的东西不该盖掉
+ *     用户导入的那份（他导的可能是精校过的释义）；
+ *   · **同词条去重**：再学一次就替换（百科的正文可能更新过），但列表里只留一条；
+ *   · **有上限**：超过 cap 按先进先出丢最旧的——否则一个活跃群一年能写出几万条。
+ *
+ * @param {Array} existing 现有的自学习列表
+ * @param {object} incoming `{term, meaning, detail?, source?, at?}`
+ * @param {{cap?:number, isCurated?:(key:string)=>boolean}} opts
+ * @returns {{list:Array, added:boolean, reason:string}}
+ */
+function mergeLearned(existing, incoming, opts) {
+  const cap = Math.max(1, Number((opts && opts.cap) || 2000));
+  const isCurated = (opts && opts.isCurated) || (() => false);
+  const term = String((incoming && incoming.term) || '').trim();
+  const meaning = String((incoming && incoming.meaning) || '').trim();
+  if (!term || !meaning) return { list: Array.isArray(existing) ? existing : [], added: false, reason: 'empty' };
+  const key = normalizeTerm(term);
+  if (isCurated(key)) return { list: Array.isArray(existing) ? existing : [], added: false, reason: 'curated' };
+
+  const rest = (Array.isArray(existing) ? existing : []).filter((row) => normalizeTerm(row && row.term) !== key);
+  rest.push({
+    term,
+    meaning,
+    detail: String((incoming.detail || '')).slice(0, 240),
+    source: 'learned',
+    from: String((incoming.source || '')).slice(0, 60),
+    at: Number(incoming.at) || Date.now(),
+  });
+  return { list: rest.slice(-cap), added: true, reason: 'added' };
+}
+
+const SLANG_PURE = {
+  mergeLearned, parseChunksJSONL, rowsOfWholeJSON, importReason, parseChunkText, buildIndex, lookup, renderHits, normalizeTerm, makeEntry };

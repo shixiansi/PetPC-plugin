@@ -58,7 +58,16 @@ async function askSlang(line) {
       if (tried.has(id)) continue;
       tried.add(id);
       const hit = await askSlangProvider(id, method, query);
-      if (hit) return hit;
+      if (hit) {
+        // 顺手把"外面查到的"记进本地词库：下次同一个词就不用再联网了。
+        //
+        // 判据是**返回形状**，不是方法名：萌娘百科既提供 `slang` 也提供 `wiki`，按方法名判断会把
+        // 它在 slang 通道上的回答漏掉（第一版就漏了，测试直接抓到）。本地词库返回 `hits`（结构化
+        // 词条），百科返回 `entry`（正文）——`fromDictionary` 记的就是这件事。
+        // 不 await：存起来是副作用，不该让用户多等一个往返。
+        if (!hit.fromDictionary) void learnTerm(hit, id);
+        return hit;
+      }
     }
   }
   return null;
@@ -71,6 +80,32 @@ async function askSlang(line) {
  * `lib/websearch.js` 里已经有一个 `askOne`（签名叫 `askOne(target, query, count)`）。同名会
  * 静默互相覆盖——2026-10-30 就这样把两边都打崩了（payload 变成 `{query:'slang'}`）。
  */
+/**
+ * 把刚查到的一条释义写进**本地词库**（`com.shixiansi.plugin-slang` 的 `learn` 方法）。
+ *
+ * 用户的原话："萌娘百科搜索后的词应该添加到网络词词典，而不是每次都搜一次，效率太低了。"
+ * 对：查过一次就该落地。这里做三件不显眼但必要的事：
+ *
+ *   · **不 await、不报错**：存词库是副作用，失败（没装词典 / 没给 learn 权限）不该影响这次回答；
+ *   · **缺词或缺正文就不学**：否则会往词库里塞一条只有半句话的词条；
+ *   · **名字带前缀**（`learnTerm`）：这些 lib 是经典脚本、共享全局作用域，重名会静默互相覆盖
+ *     （`askOne` 那次就吃过这个亏）。
+ */
+async function learnTerm(hit, providerId) {
+  const term = String((hit && hit.matched) || '').trim();
+  const meaning = String((hit && hit.detail) || '').trim();
+  if (!term || !meaning) return;
+  try {
+    await request('plugin.call', {
+      target: 'com.shixiansi.plugin-slang',
+      method: 'learn',
+      payload: { term, meaning, source: providerId || '' },
+    });
+  } catch {
+    // 词库没装 / 没授权：这次照常答，下次再查一遍就是了。
+  }
+}
+
 async function askSlangProvider(id, method, query) {
   try {
     const out = await request('plugin.call', {
@@ -83,11 +118,20 @@ async function askSlangProvider(id, method, query) {
     const matched = typeof out.matched === 'string' && out.matched
       ? out.matched
       : (typeof out.title === 'string' ? out.title : '');
+    // `detail` 是**给词库用的正文**（百科的 extract），和 `text` 不同：`text` 是给模型读的一整段
+    // （带指令与格式），存进词库只要那条释义本身。
+    const detail = out.entry && typeof out.entry.extract === 'string'
+      ? out.entry.extract
+      : (Array.isArray(out.hits) && out.hits[0] && out.hits[0].meaning ? out.hits[0].meaning : '');
+    const hits = Array.isArray(out.hits) ? out.hits : [];
     return {
       text: out.text,
       matched,
+      detail,
       source: id,
-      hits: Array.isArray(out.hits) ? out.hits : [],
+      hits,
+      // 本地词库自己答的（结构化 hits 非空）不必再学一遍；外面查到的才要落地。
+      fromDictionary: hits.length > 0,
     };
   } catch {
     // 没装 / 没启用 / 没声明在 callTargets 里 / 被关掉 / 超时：都当作这一家问不到。
