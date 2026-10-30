@@ -1,0 +1,58 @@
+{
+  "id": "com.shixiansi.plugin-diary-writer",
+  "name": "日记（自动情绪追踪）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "每天 23:00（或手动触发）把当天的交互碎片写成一篇 ≤300 字、带情绪标签的日记：对话摘要来自记忆核心的 export-state、已完成待办来自待办插件的共享快照、专注时长来自番茄钟的共享状态。日记存进插件私有目录，并把「昨天写了什么」注入下一次生成时的 Prompt；可经 plugin.call 问 get_recent 让桌宠在对话里引用昨天的日记。",
+  "permissions": [
+    "plugin.call",
+    "plugin.share",
+    "storage",
+    "plugin.config",
+    "events",
+    "pet.bubble"
+  ],
+  "serves": ["get_recent", "write_now"],
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/export-state"
+  ],
+  "shareRead": [
+    "com.shixiansi.plugin-todo/todo-list",
+    "com.shixiansi.plugin-pomodoro/phase-ended"
+  ],
+  "background": true,
+  "config": [
+    {
+      "key": "diaryTime",
+      "label": "每天几点写日记（HH:mm，24 小时制；默认 23:00）",
+      "type": "text",
+      "default": "23:00"
+    },
+    {
+      "key": "maxChars",
+      "label": "日记字数上限（100–600，默认 300）",
+      "type": "number",
+      "default": "300"
+    },
+    {
+      "key": "bubbleDiary",
+      "label": "写完后弹一个气泡告诉桌宠在场的主人",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "keepDays",
+      "label": "日记留多少天（超过就删最旧的；0=永久保留）",
+      "type": "number",
+      "default": "90"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/collect.js",
+    "lib/diary.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

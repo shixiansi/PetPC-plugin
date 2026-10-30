@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>日记</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：23:00 定时写日记，答 get_recent / write_now。
+      workshop     控制中心插件页：最近一篇 + 日记列表 + 手动触发（桌宠那面才跑）。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">日记</span>
+        </div>
+        <p class="lede">
+          每天 23:00 把当天的碎片写成一篇带情绪标签的日记：对话摘要来自记忆核心、
+          完成的待办来自待办插件、专注时长来自番茄钟。写完会弹气泡，最近的日记会被引用。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>最近一篇</h2>
+        <p id="latest" class="diary-latest">还没有日记。</p>
+        <p id="latest-meta" class="hint"></p>
+        <button id="write-now" class="btn primary" type="button" disabled>立刻写一篇</button>
+        <p class="hint desktop-only hidden">
+          「立刻写一篇」要在桌宠那边的常驻帧里才能跑（控制中心不服务 plugin.call）。
+          别的插件 <code>plugin.call</code> 这个插件的 <code>get_recent</code> 就能读到最近的日记，
+          <code>write_now</code> 可以手动触发一篇。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>最近 7 天</h2></div>
+        <div id="diary-list" class="diary-list"></div>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!-- 经典 script；加载顺序 = 依赖顺序。 -->
+  <script src="lib/core.js"></script>
+  <script src="lib/collect.js"></script>
+  <script src="lib/diary.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

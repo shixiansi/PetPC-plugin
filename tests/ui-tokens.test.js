@@ -23,6 +23,7 @@ const hostTokensPath = path.join(marketRoot, '..', 'tools', 'plugin-market', 'cc
 
 /** The plugins that adopted the shared stylesheet. Adding one here is the whole opt-in. */
 const ADOPTERS = [
+  'com.shixiansi.plugin-diary-writer',
   'com.shixiansi.plugin-llmchannel',
   'com.shixiansi.plugin-memcore',
   'com.shixiansi.plugin-onebot',
