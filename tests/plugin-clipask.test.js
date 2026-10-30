@@ -432,6 +432,30 @@ describe('询问卡（浮层块 0）', () => {
     const clicks = harness.share.get('com.shixiansi.plugin-clipask/clicks');
     expect(clicks ? JSON.parse(clicks.value) : []).toHaveLength(0);
   });
+
+  // 块 0 声明 44px（maxH 180）。44px 装得下"标签 + 两个按钮"，装不下多出来的一行问话——
+  // 真机上按钮那一排的下沿会被矩形切掉 6px（预览器 `--check --rect 0` 报的 `#ask-yes 底边 50 > 44`）。
+  // 结果卡一直有 growIfNeeded()，询问卡以前没有：声明高度刚好卡在边界上，谁也没注意。
+  //
+  // jsdom 没有排版引擎（scrollHeight 恒为 0），所以这里断言的是"有没有发这个请求"以及
+  // "请求的是块 0、且落在 [44, 180] 里"，不是具体数字。
+  test('内容一变就请求块 0 长高（和结果卡同一条路）', async () => {
+    harness = makeAskHarness();
+    await harness.settle();
+
+    harness.share.set('com.shixiansi.plugin-clipask/inbox', {
+      value: JSON.stringify({ id: 's9', kind: 'code', label: '这段代码', actions: ['解释'], text: 'x', at: Date.now() }),
+      at: Date.now(),
+    });
+    await harness.poll();
+
+    const calls = harness.requests('surface.blocks');
+    expect(calls.length, '没有请求长高：块 0 声明 44px，装不下问话那一行').toBeGreaterThan(0);
+    const sizes = calls[calls.length - 1].payload.sizes;
+    expect(sizes, '长高请求里没有块 0').toHaveProperty('0');
+    expect(sizes[0]).toBeGreaterThanOrEqual(44); // 声明高度是下限
+    expect(sizes[0]).toBeLessThanOrEqual(180);   // manifest 的 maxH 是上限
+  });
 });
 
 describe('结果卡（浮层块 1）', () => {

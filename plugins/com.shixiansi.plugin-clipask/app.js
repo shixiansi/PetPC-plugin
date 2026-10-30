@@ -584,6 +584,10 @@ function initAskFrame() {
 
   yes.addEventListener('click', () => void sendClick('yes'));
   no.addEventListener('click', () => void sendClick('no'));
+
+  // 光等"内容变化"不够：**初始那版静态内容就已经装不下**——标签 + 问话占位 + 两个按钮实测 50px，
+  // 而块 0 声明 44px，于是从挂载那一刻起下沿就被裁着。所以开局先量一次。
+  void growAskIfNeeded();
 }
 
 async function pollInbox() {
@@ -595,9 +599,38 @@ async function pollInbox() {
   el('ask-text').textContent = v.actions && v.actions.length ? `需要我帮你${v.actions[0]}吗？` : '需要我看一眼吗？';
   el('ask-yes').disabled = false;
   el('ask-no').disabled = false;
+  // 内容换了一句更长得多的问话，块高就得跟着变——见 growAskIfNeeded 的注释。
+  void growAskIfNeeded();
 }
 
 let askedId = '';
+
+let lastAskGrowAt = 0;
+
+/**
+ * 询问卡长高（块 0）：和结果卡同一条路，只是它以前**没人走**。
+ *
+ * 块 0 声明的是 44px（`manifest.surface[0]`，`maxH: 180`）。44px 装得下"标签 + 两个按钮"，
+ * 装不下多出来的一行问话：`scrollHeight` 实测 50，于是按钮那一排的下沿被矩形切掉 6px——
+ * 预览器的 `--check --rect 0` 报的就是这个（`#ask-yes` 底边 50 > 44），是真机上会看到的。
+ *
+ * 结果卡一直有 `growIfNeeded()`，询问卡没有：声明高度刚好卡在边界上，谁也没注意。
+ * 500ms 节流与"宿主拒绝就保持声明高度"的取舍都照抄结果卡——同一种失败模式该有同一种处理。
+ */
+async function growAskIfNeeded() {
+  if (!can(PERM.surface)) return;
+  const nowMs = now();
+  if (nowMs - lastAskGrowAt < 500) return;
+  lastAskGrowAt = nowMs;
+  const card = el('ask');
+  if (!card) return;
+  const want = Math.min(180, Math.max(44, Math.ceil(card.scrollHeight) + 12));
+  try {
+    await request('surface.blocks', { hidden: [], sizes: { 0: want } });
+  } catch {
+    // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
+  }
+}
 
 async function sendClick(action) {
   el('ask-yes').disabled = true;
