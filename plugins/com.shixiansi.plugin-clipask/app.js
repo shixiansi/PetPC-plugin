@@ -318,12 +318,24 @@ async function ensureHelper() {
     // 脚本本体随包（assets/clip-watch.ps1），但插件读不到包内文件的内容——所以把脚本
     // 以字符串常量（WATCH_SCRIPT，与本文件底部定义逐字同义）写进私有目录。写小文本的
     // 代价可以忽略，换来的是"脚本一定在"：私有目录可能被"卸载并删除数据"清空过。
-    await request('storage.set', { key: 'clip/watch.ps1', value: WATCH_SCRIPT });
+    //
+    // 键以 `clip/watch` 结尾而**不**是 `watch.ps1`：宿主的存储键每一段只允许
+    // `[A-Za-z0-9_-]`（手册 §6.3），带点的键会被判定为非法，`storage.set` 整个不执行——
+    // 于是"脚本没写进去、启动又失败"，而这个插件在真机上从来没报过错，因为没人配过
+    // helperPath：这条路一次都没走过。
+    await request('storage.set', { key: 'clip/watch', value: WATCH_SCRIPT });
 
     // 相对目录交给脚本拼；Windows 路径里的反斜杠原样传。
     const outDir = joinPath(dir, 'inbox');
-    const scriptPath = joinPath(dir, 'watch.ps1');
-    const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-OutDir', outDir];
+    const scriptPath = joinPath(dir, 'watch');
+    // 用 `[scriptblock]::Create((Get-Content …))` 而不是 `-File`：`-File` 明确要求 `.ps1`
+    // 扩展名（实测：`-File` 跑无扩展名文件直接报 "does not have a '.ps1' extension"），
+    // 而存储键里不能有点。这条路不挑扩展名，代价是启动参数从"一个路径"变成一行短命令，
+    // 仍是 512 字符一参的上限之内（只有两个路径）。
+    const runner =
+      `& { $sb = [scriptblock]::Create((Get-Content -LiteralPath '${scriptPath}' -Raw)); ` +
+      `& $sb -OutDir '${outDir}' }`;
+    const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', runner];
 
     await request('process.launch', { path: exe, args });
     helperLaunched = true;

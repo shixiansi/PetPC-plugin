@@ -194,7 +194,7 @@ describe('app.js 行为（jsdom）', () => {
   }
 
   function playTrack(title, artist, status = 'playing') {
-    storage.set('outbox/media.json', JSON.stringify({ title, artist, album: '', status, at: Date.now() }));
+    storage.set('outbox/media', JSON.stringify({ title, artist, album: '', status, at: Date.now() }));
   }
 
   test('握手只发一次 ready', () => {
@@ -268,7 +268,7 @@ describe('app.js 行为（jsdom）', () => {
     expect(on.result.text).toContain('《七里香》');
 
     // 停止播放：数据过期（at 是旧的）→ playing:false
-    storage.set('outbox/media.json', JSON.stringify({ title: '七里香', artist: '', status: 'playing', at: Date.now() - 120000 }));
+    storage.set('outbox/media', JSON.stringify({ title: '七里香', artist: '', status: 'playing', at: Date.now() - 120000 }));
     const off = await ask('now_playing');
     expect(off.ok).toBe(true);
     expect(off.result.playing).toBe(false);

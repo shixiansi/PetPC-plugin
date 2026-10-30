@@ -11,7 +11,7 @@
 //
 // 数据流（每个键只有一个写者，手册 §6.3）：
 //
-//   辅助脚本 ──写──> outbox/*.json ──本文件轮询──> share.set（自己名下的键）
+//   辅助脚本 ──写──> outbox/{system,load,dsh} ──本文件轮询──> share.set（自己名下的键）
 //   DSH ──POST :3210──> 辅助脚本 ──┘
 //   别的插件 ──shareRead: sense/*──> 只读快照
 //   工坊页 ──plugin.call status──> 本文件回答当前一切
@@ -139,15 +139,20 @@ async function launchHelper(helperExe, scriptPath, outDir) {
 }
 
 // --- 轮询：outbox → share / badge ----------------------------------------------
+//
+// 键名**不带扩展名**，而且这不是风格问题：宿主的存储键每一段只允许 `[A-Za-z0-9_-]`
+// （手册 §6.3），`outbox/system.json` 会被判为非法键、整个 `storage.get` 不执行。真机上
+// 这件事的表现是"插件装了但什么都不做"——245 行 WARN 在日志里，界面上一片安静
+// （2026-10-30）。辅助脚本按**绝对路径**写文件，所以它那边的文件名必须和这里的键逐字一致。
 
 let lastDshAt = 0;
 let lastLoad = null;
 
 async function pollOnce() {
   const [sysRaw, loadRaw, dshRaw] = await Promise.all([
-    request('storage.get', { key: 'outbox/system.json' }).catch(() => ({ value: '' })),
-    request('storage.get', { key: 'outbox/load.json' }).catch(() => ({ value: '' })),
-    request('storage.get', { key: 'outbox/dsh.json' }).catch(() => ({ value: '' })),
+    request('storage.get', { key: 'outbox/system' }).catch(() => ({ value: '' })),
+    request('storage.get', { key: 'outbox/load' }).catch(() => ({ value: '' })),
+    request('storage.get', { key: 'outbox/dsh' }).catch(() => ({ value: '' })),
   ]);
 
   const system = parseSnapshot(sysRaw && sysRaw.value, now());

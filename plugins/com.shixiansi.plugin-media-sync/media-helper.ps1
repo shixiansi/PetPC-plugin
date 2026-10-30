@@ -5,7 +5,7 @@
 # 是它的 WinRT 门面。PowerShell 能借 WinRT 投影拿到它——宿主的能力表里没有这一条
 # （手册 §4.1 是穷尽的），所以和剪贴板、系统采样一样，只能委托给本机脚本。
 #
-# 每 2 秒把当前曲目写进 outbox/media.json（原子写）：
+# 每 2 秒把当前曲目写进 outbox/media（原子写）：
 #   { title, artist, album, status, at }
 # status: playing | paused | stopped | ""
 #
@@ -25,7 +25,7 @@ try {
   $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
 } catch {
   @{ error = "WinRT 不可用：$($_.Exception.Message)"; at = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() } |
-    ConvertTo-Json -Compress | Set-Content -Path (Join-Path $outbox 'media.json') -Encoding UTF8
+    ConvertTo-Json -Compress | Set-Content -Path (Join-Path $outbox 'media') -Encoding UTF8
   exit 1
 }
 
@@ -79,8 +79,8 @@ while ($true) {
         status = $status
         at     = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
       }
-      $tmp = Join-Path $outbox 'media.json.tmp'
-      $dst = Join-Path $outbox 'media.json'
+      $tmp = Join-Path $outbox 'media.tmp'
+      $dst = Join-Path $outbox 'media'
       $event | ConvertTo-Json -Compress -Depth 4 | Set-Content -Path $tmp -Encoding UTF8
       Move-Item -Force -Path $tmp -Destination $dst
     }

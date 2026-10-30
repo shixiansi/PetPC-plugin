@@ -2,20 +2,20 @@
 #
 # 它同时做两件事，一个进程：
 #
-#   1. 采样：每 5 秒把 CPU / 内存写进 outbox（插件私有目录里的 state.json），
+#   1. 采样：每 5 秒把 CPU / 内存写进 outbox（插件私有目录里的 system 键），
 #      连续 N 次（默认 3 次 = 15 秒）负载 > 阈值（默认 80%）时写一条 load-high 事件；
 #   2. 监听：在 127.0.0.1:3210 上开一个 HTTP 服务，POST /api/state 收 DSH 的
-#      thinking / tool / done / error 状态，原样落进 outbox（dsh.json）。
+#      thinking / tool / done / error 状态，原样落进 outbox（dsh 键）。
 #
 # 为什么一个脚本干两件事：宿主的能力表里没有 TCP 监听（手册 §4.1 是穷尽的），"收 DSH
 # 的 HTTP 推送"只能委托给本机程序——而既然必须起一个进程，采样也放这里，插件侧只做
 # 文件轮询，一条流水线两个来源。
 #
 # 输出全是文件（$env:PET_SENSE_DIR 下的 outbox/）：
-#   outbox/system.json   { cpu, memUsedGb, memTotalGb, at }
-#   outbox/load.json     { high, at, consecutive }        负载事件（含恢复）
-#   outbox/dsh.json      { state, tool, note, at }        DSH 状态（原样转发）
-#   outbox/health.json   { http, port, requests, at }     自身健康
+#   outbox/system   { cpu, memUsedGb, memTotalGb, at }
+#   outbox/load     { high, at, consecutive }        负载事件（含恢复）
+#   outbox/dsh      { state, tool, note, at }        DSH 状态（原样转发）
+#   outbox/health   { http, port, requests, at }     自身健康
 #
 # 协议：POST /api/state  body { "state": "thinking"|"tool"|"done"|"error",
 #                               "tool"?: "…", "note"?: "…" }
@@ -57,12 +57,12 @@ $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add('http://127.0.0.1:3210/')
 try { $listener.Start() } catch {
   # 端口被占（多半是上一个实例没退）不是死局：采样照跑，HTTP 部分报告 error。
-  Write-Json (Join-Path $outbox 'health.json') @{ http = 'error'; port = 3210; note = "$($_.Exception.Message)"; at = 0 }
+  Write-Json (Join-Path $outbox 'health') @{ http = 'error'; port = 3210; note = "$($_.Exception.Message)"; at = 0 }
   $listener = $null
 }
 
 if ($listener) {
-  Write-Json (Join-Path $outbox 'health.json') @{ http = 'listening'; port = 3210; requests = 0; at = 0 }
+  Write-Json (Join-Path $outbox 'health') @{ http = 'listening'; port = 3210; requests = 0; at = 0 }
 }
 
 $script:httpState = if ($listener) { 'listening' } else { 'error' }
@@ -73,8 +73,8 @@ $job = $null
 if ($listener) {
   $job = Start-ThreadJob -ScriptBlock {
     param($Listener, $Outbox)
-    $DshPath = Join-Path $Outbox 'dsh.json'
-    $HealthPath = Join-Path $Outbox 'health.json'
+    $DshPath = Join-Path $Outbox 'dsh'
+    $HealthPath = Join-Path $Outbox 'health'
     while ($Listener.IsListening) {
       $ctx = $Listener.GetContext()          # 阻塞等下一个请求
       try {
@@ -138,7 +138,7 @@ while ($true) {
     $mem = Get-MemInfo
     $at = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
-    Write-Json (Join-Path $outbox 'system.json') @{
+    Write-Json (Join-Path $outbox 'system') @{
       cpu        = $cpu
       memUsedGb  = $mem.usedGb
       memTotalGb = $mem.totalGb
@@ -150,11 +150,11 @@ while ($true) {
     $busy = ($cpu -ge $CpuThreshold) -or ($mem.pct -ge $CpuThreshold)
     $streak = if ($busy) { $streak + 1 } else { 0 }
     if ($streak -eq $HighStreak) {
-      Write-Json (Join-Path $outbox 'load.json') @{ high = $true; consecutive = $streak; cpu = $cpu; memPct = $mem.pct; at = $at }
-    } elseif ($streak -eq 0 -and (Test-Path (Join-Path $outbox 'load.json'))) {
-      $prev = Get-Content (Join-Path $outbox 'load.json') -Raw | ConvertFrom-Json
+      Write-Json (Join-Path $outbox 'load') @{ high = $true; consecutive = $streak; cpu = $cpu; memPct = $mem.pct; at = $at }
+    } elseif ($streak -eq 0 -and (Test-Path (Join-Path $outbox 'load'))) {
+      $prev = Get-Content (Join-Path $outbox 'load') -Raw | ConvertFrom-Json
       if ($prev.high) {
-        Write-Json (Join-Path $outbox 'load.json') @{ high = $false; consecutive = 0; cpu = $cpu; memPct = $mem.pct; at = $at }
+        Write-Json (Join-Path $outbox 'load') @{ high = $false; consecutive = 0; cpu = $cpu; memPct = $mem.pct; at = $at }
       }
     }
   } catch {

@@ -344,17 +344,29 @@ describe('常驻帧：流水线', () => {
     expect(answer.error).toContain('密钥不对');
   });
 
-  test('辅助脚本：写 watch.ps1 进私有目录，用配置里的 exe 启动', async () => {
+  test('辅助脚本：写 watch 键进私有目录，用配置里的 exe 以 scriptblock 方式启动', async () => {
     harness = makeHarness({ config: { helperPath: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' } });
     await harness.settle();
-    const script = harness.store.get('clip/watch.ps1');
-    expect(script, '没有把 watch.ps1 写进私有目录').toBeTruthy();
+    // 键名**不带 .ps1**：宿主的存储键每段只允许 [A-Za-z0-9_-]，带点的话 storage.set 整个
+    // 不执行——脚本根本没落盘，而这条路径以前没人走过（helperPath 是空的），所以静默。
+    const script = harness.store.get('clip/watch');
+    expect(script, '没有把脚本写进私有目录的 clip/watch 键').toBeTruthy();
+    expect(harness.store.get('clip/watch.ps1'), '键名又带上扩展名了').toBeUndefined();
     expect(script).toContain('Clipboard');
     expect(script).toContain('latest.txt');
+
     const launches = harness.requests('process.launch');
     expect(launches).toHaveLength(1);
     expect(launches[0].payload.path).toBe('C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');
-    expect(launches[0].payload.args).toContain('-File');
+    // `-File` 要求 .ps1 扩展名，而键不能带点，所以启动走 -Command + scriptblock::Create。
+    const args = launches[0].payload.args;
+    expect(args).toContain('-Command');
+    expect(args).not.toContain('-File');
+    const command = String(args[args.indexOf('-Command') + 1] ?? '');
+    expect(command, '启动命令里没有指向私有目录里的脚本').toContain('watch');
+    expect(command).toContain('scriptblock');
+    // 宿主的 process.launch 每个参数上限 512 字符：两个路径必须塞得下。
+    expect(command.length).toBeLessThan(512);
   });
 
   test('没配 helperPath 时不启动任何进程', async () => {

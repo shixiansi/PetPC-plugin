@@ -8,7 +8,7 @@
 //
 // 数据流（每个键只有一个写者）：
 //
-//   辅助脚本(SMTC) ──写──> outbox/media.json ──本文件轮询──> share.set media/now
+//   辅助脚本(SMTC) ──写──> outbox/media ──本文件轮询──> share.set media/now
 //                                                └──────> pet.badge ♪ 曲目
 //   别的插件/模型 ──plugin.call now_playing──> { playing, title, artist, text }
 //
@@ -98,7 +98,7 @@ let lastBadge = null;      // 上一条徽标（同样的曲目不重挂）
 let recent = [];           // 最近听过的曲目（工坊页显示；上限 10）
 
 async function pollOnce() {
-  const out = await request('storage.get', { key: 'outbox/media.json' }).catch(() => ({ value: '' }));
+  const out = await request('storage.get', { key: 'outbox/media' }).catch(() => ({ value: '' }));
   const track = parseTrack(out && out.value, now());
 
   const actions = [];
@@ -162,7 +162,7 @@ function stopPoll() {
 const CALL_HANDLERS = {
   /** 模型问"我在听什么"：返回 {playing, title?, artist?, album?, status?, text}。 */
   now_playing: async () => {
-    const out = await request('storage.get', { key: 'outbox/media.json' }).catch(() => ({ value: '' }));
+    const out = await request('storage.get', { key: 'outbox/media' }).catch(() => ({ value: '' }));
     const track = parseTrack(out && out.value, now());
     return trackAnswer(track, now());
   },

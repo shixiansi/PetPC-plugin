@@ -281,9 +281,9 @@ describe('app.js 行为（jsdom）', () => {
 
     // 模拟辅助脚本写文件
     const at = Date.now();
-    storage.set('outbox/system.json', JSON.stringify({ cpu: 10, memPct: 30, memUsedGb: 4, memTotalGb: 16, at }));
-    storage.set('outbox/load.json', JSON.stringify({ high: true, consecutive: 3, cpu: 90, memPct: 85, at }));
-    storage.set('outbox/dsh.json', JSON.stringify({ state: 'thinking', tool: '', note: '', at }));
+    storage.set('outbox/system', JSON.stringify({ cpu: 10, memPct: 30, memUsedGb: 4, memTotalGb: 16, at }));
+    storage.set('outbox/load', JSON.stringify({ high: true, consecutive: 3, cpu: 90, memPct: 85, at }));
+    storage.set('outbox/dsh', JSON.stringify({ state: 'thinking', tool: '', note: '', at }));
 
     expect(await until(() => badges.length > 0)).toBe(true);
     const names = shares.map((s) => s.name);
@@ -301,7 +301,7 @@ describe('app.js 行为（jsdom）', () => {
   test('负载恢复只发一次 load.low（中间轮不重发）', async () => {
     boot({ grantedNames: ['plugin.share', 'pet.surface', 'storage', 'plugin.config'] });
     const at = Date.now();
-    storage.set('outbox/load.json', JSON.stringify({ high: true, consecutive: 3, cpu: 90, memPct: 85, at }));
+    storage.set('outbox/load', JSON.stringify({ high: true, consecutive: 3, cpu: 90, memPct: 85, at }));
 
     expect(await until(() => badges.includes('系统很忙'))).toBe(true);
     const highCount = shares.filter((s) => {
@@ -310,7 +310,7 @@ describe('app.js 行为（jsdom）', () => {
     expect(highCount).toBeGreaterThanOrEqual(1);
 
     // 恢复
-    storage.set('outbox/load.json', JSON.stringify({ high: false, consecutive: 0, cpu: 10, memPct: 30, at: at + 1000 }));
+    storage.set('outbox/load', JSON.stringify({ high: false, consecutive: 0, cpu: 10, memPct: 30, at: at + 1000 }));
     expect(await until(() => shares.some((s) => {
       try { return JSON.parse(s.value).high === false; } catch { return false; }
     }), 2500)).toBe(true);
@@ -328,10 +328,10 @@ describe('app.js 行为（jsdom）', () => {
   test('DSH done → 徽标清除（空串也是一次 pet.badge）', async () => {
     boot({ grantedNames: ['plugin.share', 'pet.surface', 'storage', 'plugin.config'] });
     const at = Date.now();
-    storage.set('outbox/dsh.json', JSON.stringify({ state: 'thinking', tool: '', note: '', at }));
+    storage.set('outbox/dsh', JSON.stringify({ state: 'thinking', tool: '', note: '', at }));
     expect(await until(() => badges.includes('思考中…'))).toBe(true);
 
-    storage.set('outbox/dsh.json', JSON.stringify({ state: 'done', tool: '', note: '', at: at + 100 }));
+    storage.set('outbox/dsh', JSON.stringify({ state: 'done', tool: '', note: '', at: at + 100 }));
     expect(await until(() => badges.includes(''))).toBe(true);
   });
 
@@ -339,7 +339,7 @@ describe('app.js 行为（jsdom）', () => {
     boot({ grantedNames: ['plugin.call', 'storage'] });
 
     const at = Date.now();
-    storage.set('outbox/system.json', JSON.stringify({ cpu: 22, memPct: 50, memUsedGb: 8, memTotalGb: 16, at }));
+    storage.set('outbox/system', JSON.stringify({ cpu: 22, memPct: 50, memUsedGb: 8, memTotalGb: 16, at }));
 
     // 等轮询至少跑过一轮（status 内部也会自己 pollOnce）
     await until(() => shares.length > 0);
@@ -369,7 +369,7 @@ describe('app.js 行为（jsdom）', () => {
 
   test('没有授权时不发 share / badge（静默降级，不崩）', async () => {
     boot({ grantedNames: ['storage'] });
-    storage.set('outbox/dsh.json', JSON.stringify({ state: 'error', tool: 'x', note: 'boom', at: Date.now() }));
+    storage.set('outbox/dsh', JSON.stringify({ state: 'error', tool: 'x', note: 'boom', at: Date.now() }));
     await new Promise((r) => setTimeout(r, 1200));
     expect(shares).toEqual([]);
     expect(badges).toEqual([]);
