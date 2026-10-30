@@ -228,7 +228,20 @@ function runReport() {
   const walk = (node) => {
     for (const child of node.children) {
       const style = win.getComputedStyle(child);
-      const visible = style.display !== 'none' && style.visibility !== 'hidden' && child.getClientRects().length > 0;
+      // 可见性判据要说清楚：漏一种"看不见"的状态，报出来的就全是假阳性。
+      //
+      // 旧判据是 `display!=='none' && visibility!=='hidden' && getClientRects().length>0`，它漏掉了
+      // **收起的 `<details>` 里的元素**：Chrome 97 起 `<details>` 改用 slot 实现，收起时子元素不再是
+      // `display:none`，`getClientRects()` 照样返回一条、`getBoundingClientRect()` 照样给出真实盒子
+      // （实测 display=inline-block、bottom=42）。于是"用户根本看不见的输入框"被算成越界。
+      // 2026-10-30 就据此误报了 chat 三个浮层面块的 `#imgurl`——截图里那块只画了「图片（可选）」
+      // 一行摘要，输入框根本没显示。
+      //
+      // `checkVisibility()` 就是为这件事加的：对收起 details 里的内容返回 false。有就用它，
+      // 没有（老引擎）退回旧判据。
+      const visible = typeof child.checkVisibility === 'function'
+        ? child.checkVisibility()
+        : style.display !== 'none' && style.visibility !== 'hidden' && child.getClientRects().length > 0;
       if (visible) {
         const r = child.getBoundingClientRect();
         const id = child.id ? '#' + child.id : child.tagName.toLowerCase() + (child.className ? '.' + String(child.className).split(' ')[0] : '');
