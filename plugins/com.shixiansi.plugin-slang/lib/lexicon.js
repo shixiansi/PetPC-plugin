@@ -207,7 +207,7 @@ function lookup(index, query, opts) {
 function renderHits(result) {
   const entries = (result && result.entries) || [];
   if (!entries.length) return '';
-  const lines = ['【网络词】用户提到的词在本地词库里查到了，可以直接用它的意思，不要再说「不知道」：'];
+  const lines = ['【网络词·已查到】用户提到的词在本地词库里查到了，可以直接用它的意思，不要再说「不知道」：'];
   for (const entry of entries) {
     lines.push(`- ${entry.term}：${entry.meaning}`);
     if (entry.example) lines.push(`  例：${entry.example}`);

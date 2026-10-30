@@ -104,7 +104,7 @@ describe('导入：吃 astrbot-rag-kb / Buzzword 的 chunks.jsonl', () => {
 describe('给模型读的那段话', () => {
   test('查到就是一段可直接拼进 prompt 的文本', () => {
     const text = P.renderHits(P.lookup(builtin(), '尊嘟假嘟'));
-    expect(text).toContain('【网络词】');
+    expect(text).toContain('【网络词·已查到】');
     expect(text).toContain('尊嘟假嘟');
   });
 

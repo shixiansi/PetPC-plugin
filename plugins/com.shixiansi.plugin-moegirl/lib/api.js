@@ -87,7 +87,11 @@ function renderEntry(entry, maxChars) {
   const body = tidyExtract(entry.extract, maxChars);
   if (!body) return '';
   return [
-    `【萌娘百科】${entry.title}`,
+    // **自报身份**：核心的人设里常写着"只用给你的记忆回答"，于是它会把这坨查到的资料当成
+    // "不属于我的记忆"而忽略（2026-10-30 实测：注入成功了，模型仍回"是不是打错了"）。
+    // 所以这一段要自己说清楚：这是**查到的资料**，不是记忆，下面就是要用的内容。
+    `【萌娘百科·已查到】用户这句话里的「${entry.title}」有词条，下面是原文；直接按它回答，`
+      + '不要说"不知道"，也不要猜是不是打错了：',
     body,
     `（来源：萌娘百科 ${entry.url || `https://zh.moegirl.org.cn/${encodeURIComponent(entry.title)}`}，CC BY-NC-SA 3.0 CN）`,
   ].join('\n');
