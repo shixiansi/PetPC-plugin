@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T10:30:49Z",
+  "updatedAt": "2026-10-30T10:42:38Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -57,12 +57,12 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.3.0.zip",
-      "sha256": "5cf8cbe26c3843f71607a404999f4497b22b45d24080a7364a96b8542bb7b1c3"
+      "download": "dist/com.shixiansi.plugin-memcore-0.3.1.zip",
+      "sha256": "b7d6a29e53d67667da38b9499800da96f14cf269be95606962497804926ed173"
     },
     {
       "id": "com.shixiansi.plugin-onebot",

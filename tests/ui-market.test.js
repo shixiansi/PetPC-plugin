@@ -302,3 +302,37 @@ describe('manage.html 管理页', () => {
     expect(bad, `style 属性写死了颜色：${bad.join(', ')}`).toEqual([]);
   });
 });
+
+// 市场页的卡片必须和 index.json 说同一句话。
+//
+// 2026-10-30 实测：memcore 的卡片停在 0.2.0，而实际发布的是 0.3.1——页面上那个"下载"按钮指向
+// 一个 `dist/com.shixiansi.plugin-memcore-0.2.0.zip`，包是旧的。没人会手工比对 15 张卡片，
+// 所以让测试来比。
+describe('index.html 每张卡片与 index.json 一致', () => {
+  const catalogue = JSON.parse(readFileSync(path.join(marketRoot, 'index.json'), 'utf8')).plugins;
+  const byId = new Map(catalogue.map((p) => [p.id, p]));
+
+  test('版本号、下载链接都指向 index.json 里那一个版本', () => {
+    const cards = indexHtml.split(/(?=<section class="card)/).filter((b) => b.includes('com.shixiansi.plugin-'));
+    expect(cards.length, '没找到任何插件卡片').toBeGreaterThan(0);
+    const wrong = [];
+    for (const block of cards) {
+      const id = (block.match(/<code>(com\.shixiansi\.plugin-[a-z0-9-]+)<\/code>/) || [])[1];
+      if (!id || !byId.has(id)) continue;
+      const want = byId.get(id).version;
+      const shown = (block.match(/版本 <code>([0-9.]+)<\/code>/) || [])[1];
+      const link = (block.match(new RegExp(`dist/${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-([0-9.]+)\\.zip`)) || [])[1];
+      if (shown !== want || link !== want) wrong.push(`${id}: 页面=${shown} 链接=${link} 实际=${want}`);
+    }
+    expect(wrong, wrong.join('；')).toEqual([]);
+  });
+
+  test('每个下载链接都指向一个真的存在的包', () => {
+    const missing = [];
+    for (const p of catalogue) {
+      const file = path.join(marketRoot, 'dist', `${p.id}-${p.version}.zip`);
+      if (!existsSync(file)) missing.push(`${p.id}-${p.version}.zip`);
+    }
+    expect(missing, missing.join('、')).toEqual([]);
+  });
+});
