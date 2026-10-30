@@ -209,12 +209,13 @@ function renderHits(result) {
   if (!entries.length) return '';
   // 这段同样是资料，不是要发出去的话：用户要的是「你懂了以后用自己的人设讲一遍」，
   // 不是把释义原样贴出来（2026-10-30 真机反馈）。
-  const lines = ['【资料·网络词】查到了用户这句话里的词；下面不是要发给用户的话，是给你参考的资料：'];
+  const lines = ['【资料】查到了用户这句话里的词；下面不是要发给用户的话，是给你参考的资料：'];
   for (const entry of entries) {
     lines.push(`- ${entry.term}：${entry.meaning}`);
     if (entry.example) lines.push(`  例：${entry.example}`);
   }
-  lines.push('用你自己的话、按你的人设讲给用户听：一两句说清它是什么、什么场合用。不要照抄上面的释义。');
+  // 同 moegirl：不规定说几句（人设里有），只要求别照抄、别报出处。
+  lines.push('用你自己的话、按你的人设自然地说给用户听。不要照抄上面的释义，也不要提出处。');
   return lines.join('\n');
 }
 

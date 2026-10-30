@@ -64,7 +64,7 @@ describe('消歧义页：认得出、挑得准', () => {
 describe('给模型读的那段话', () => {
   test('自报身份：说清是"查到的资料"、直接用它回答', () => {
     const text = A.renderEntry({ title: '破防', extract: PLAIN, url: 'https://zh.moegirl.org.cn/破防' }, 300);
-    expect(text).toContain('【资料·萌娘百科】');
+    expect(text).toContain('【资料】');
     expect(text, '要说明这段不是发给用户的话').toContain('不是要发给用户的话');
     expect(text, '要要求用自己的人设重说').toContain('用你自己的话');
     expect(text).toContain('破防是个游戏术语');

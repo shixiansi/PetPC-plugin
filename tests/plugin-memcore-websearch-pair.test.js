@@ -673,3 +673,39 @@ describe('查词前剥掉说话人前缀', () => {
     expect(callPayloads[slangAt].query).toBe('区');
   });
 });
+
+
+// 人设是权威：配了自定义人设就**不许再往前塞一个名字**。
+//
+// 真机 2026-10-30：人设写的是「你是「鲸鱼娘」，群里养着的一只小鲸鱼…」，而 personaName 配的是
+// 「小记」。旧代码无条件加一句 `你是「小记」。`，于是 system 开头两行各说一个身份——模型只好折中成
+// 没有性格的腔调，用户的原话是"回复的还是不对味"。
+describe('人设拼装', () => {
+  test('自定义人设自己说了名字 → 不再加 `你是「personaName」。`，也不加那句通用腔调', async () => {
+    bootDocs();
+    core.config.persona = '你是「鲸鱼娘」，群里养着的一只小鲸鱼。傲娇、嘴硬、心软，说话一般两句话。';
+    core.config.personaName = '小记';
+    llmReplies.push('嗯。');
+    await chat('你好');
+    const system = llmCalls[0].system;
+    expect(system).toContain('鲸鱼娘');
+    expect(system, '出现了第二个身份').not.toContain('你是「小记」');
+    expect(system, '通用腔调句会拉平人设').not.toContain('说话像人在聊天：短句、口语');
+  });
+
+  test('人设压根没提配置里的名字 → 补一句，让它知道自己叫什么', async () => {
+    bootDocs();
+    core.config.persona = '话很少，爱答不理，偶尔毒舌。';
+    core.config.personaName = '小记';
+    llmReplies.push('嗯。');
+    await chat('你好');
+    expect(llmCalls[0].system).toContain('你是「小记」');
+  });
+
+  test('人设块里给【资料】留了例外（否则查到的资料会被当成"不属于记忆"）', async () => {
+    bootDocs();
+    llmReplies.push('嗯。');
+    await chat('你好');
+    expect(llmCalls[0].system).toContain('【资料】开头的段落');
+  });
+});
