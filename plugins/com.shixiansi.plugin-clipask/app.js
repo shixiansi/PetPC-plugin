@@ -324,6 +324,9 @@ function autoFit(blockIndex, measure) {
     if (!Number.isFinite(want) || want < 16) return;
     if (want === last) return; // 没变就不打扰宿主
     last = want;
+    // 记一份到自己的共享目录：日志里 surface.blocks 有 5 秒合并，"到底报了多少"会被合并掉，
+    // 而这一条能从磁盘直接读（也顺便让工坊页可以说"现在这一块多高"）。
+    void writeShare('fit', { block: blockIndex, h: want, at: now() });
     await request('surface.blocks', { sizes: { [blockIndex]: want } }).catch(() => {});
   };
 
