@@ -157,14 +157,35 @@ let frames = [];
 const store = createMemoryStore();
 const tray = createMemoryStore();
 
+// 浮层面可以请求长高（`surface.blocks` 的 `sizes`）。真宿主把新高度夹在
+// [声明高度, maxH] 之间并立刻重排，预览照做——否则"插件会自己长高"这件事在预览里**永远看不见**，
+// 能看到的只有声明高度被裁。clipask 的询问卡就是这样：声明 44px、内容 50px，它请求长到 62，
+// 而预览一直按 44 量，于是把一块**本来正常**的浮层报成"#ask-yes 底边 50 > 44"。
+let grownH = 0;
+
 function currentRect() {
   const r = rects[params.rect] || { w: 380, h: 260, radius: 14 };
   // 显式的框优先：一个没有 surface 的插件（只在控制中心里挂）不该被 380×260 限制。
   return {
     w: Math.round(params.frameW || r.w),
-    h: Math.round(params.frameH || r.h),
+    h: grownH || Math.round(params.frameH || r.h),
     radius: r.radius || 0,
   };
+}
+
+/** 按插件的 `surface.blocks` 请求把这一块长高（夹在 [声明高度, maxH]）。 */
+function applyBlocksRequest(payload) {
+  if (params.kind !== 'surface' || !payload || !payload.sizes) return;
+  const want = Number(payload.sizes[String(params.rect)]);
+  if (!Number.isFinite(want) || want <= 0) return;
+  const r = rects[params.rect] || {};
+  const declaredH = Math.round(params.frameH || r.h || 0);
+  const maxH = Math.round(r.maxH || declaredH);
+  const next = Math.max(declaredH, Math.min(maxH, Math.round(want)));
+  if (next === (grownH || declaredH)) return;
+  grownH = next;
+  applySize();
+  scheduleReport();
 }
 
 function applySize() {
@@ -173,7 +194,12 @@ function applySize() {
   els.frame.style.height = h + 'px';
   els.card.style.width = w + 'px';
   els.card.style.height = h + 'px';
-  els.card.dataset.label = params.frameW || params.frameH ? `frame ${w}×${h}` : `declared rect ${w}×${h}`;
+  const declared = Math.round(params.frameH || (rects[params.rect] || {}).h || h);
+  els.card.dataset.label = params.frameW || params.frameH
+    ? `frame ${w}×${h}`
+    : grownH
+      ? `declared ${w}×${declared} → 插件请求长高 ${w}×${h}`
+      : `declared rect ${w}×${h}`;
 }
 
 function logLine(who, dir, text) {
@@ -280,7 +306,11 @@ function makeFrame(el, label, surface) {
     surface,
     theme: params.theme,
     mode: params.deny ? 'deny' : 'ok',
-    answers: (method, payload) => previewAnswers(method, payload, { state: params.state, manifest, store, share: tray }),
+    answers: (method, payload) => {
+      // 插件请求长高时先把框改了，再回答——顺序和真宿主一致（先重排，再回 ok）。
+      if (method === 'surface.blocks') applyBlocksRequest(payload);
+      return previewAnswers(method, payload, { state: params.state, manifest, store, share: tray });
+    },
     deliver: (msg) => el.contentWindow.postMessage(msg, '*'),
   });
   return { el, label, host };
