@@ -19,6 +19,7 @@
   --p-accent-hover: #3b7cf7;
   --p-focus: #7aa2ff;
   --p-break: #3fbf8f;
+  --p-on-accent: #ffffff;
   color-scheme: dark;
 }
 
@@ -34,6 +35,7 @@ html[data-theme="light"] {
   --p-accent-hover: #245cd4;
   --p-focus: #2456c8;
   --p-break: #1d8f66;
+  --p-on-accent: #ffffff;
   color-scheme: light;
 }
 
@@ -190,7 +192,7 @@ body.view-boot .compose {
 .btn.primary {
   background: var(--p-accent);
   border-color: var(--p-accent);
-  color: #ffffff;
+  color: var(--p-on-accent);
 }
 
 .btn.primary:hover:not(:disabled) {

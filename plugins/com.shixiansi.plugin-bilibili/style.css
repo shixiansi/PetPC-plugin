@@ -33,6 +33,7 @@
   --warn: #f0c274;
   --bad: #f08c8c;
   --chip-bg: #1a2331;
+  --qr-bg: #ffffff;
 }
 
 :root[data-theme="light"] {
@@ -51,6 +52,7 @@
   --warn: #8a5b12;
   --bad: #b03434;
   --chip-bg: #eef2f8;
+  --qr-bg: #ffffff;
 }
 
 [hidden] {
@@ -406,7 +408,7 @@ button.danger {
   width: 168px;
   height: 168px;
   flex: 0 0 auto;
-  background: #ffffff;
+  background: var(--qr-bg);
   border-radius: 6px;
 }
 

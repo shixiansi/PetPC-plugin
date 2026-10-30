@@ -20,6 +20,7 @@
   --p-chip: #232733;
   --p-accent: #2f6feb;
   --p-accent-hover: #3b7cf7;
+  --p-on-accent: #ffffff;
   color-scheme: dark;
 }
 
@@ -36,6 +37,7 @@ html[data-theme="light"] {
   --p-chip: #eef2f8;
   --p-accent: #2f6bea;
   --p-accent-hover: #245cd4;
+  --p-on-accent: #ffffff;
   color-scheme: light;
 }
 
@@ -226,7 +228,7 @@ body.bg .compose {
 .btn.primary {
   background: var(--p-accent);
   border-color: var(--p-accent);
-  color: #ffffff;
+  color: var(--p-on-accent);
 }
 
 .btn.primary:hover:not(:disabled) {

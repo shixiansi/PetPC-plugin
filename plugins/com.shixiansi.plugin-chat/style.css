@@ -60,6 +60,7 @@
   --p-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   --p-danger-bg: #3a2626;
   --p-danger-fg: #ffb4b4;
+  --p-on-accent: #ffffff;
   color-scheme: dark;
 }
 
@@ -86,6 +87,7 @@ html[data-theme="light"] {
   --p-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
   --p-danger-bg: #fdeceb;
   --p-danger-fg: #ab2419;
+  --p-on-accent: #ffffff;
   color-scheme: light;
 }
 
@@ -228,7 +230,7 @@ body.view-boot .compose {
 .msg.user {
   align-self: flex-end;
   background: var(--p-accent);
-  color: #ffffff;
+  color: var(--p-on-accent);
 }
 
 .msg.assistant {
@@ -303,7 +305,7 @@ body.view-boot .compose {
 .btn.primary {
   background: var(--p-accent);
   border-color: var(--p-accent);
-  color: #ffffff;
+  color: var(--p-on-accent);
 }
 
 .btn.primary:hover:not(:disabled) {
