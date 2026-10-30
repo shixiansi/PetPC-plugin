@@ -670,8 +670,14 @@ async function pollInbox() {
   el('ask-text').textContent = v.actions && v.actions.length ? `需要我帮你${v.actions[0]}吗？` : '需要我看一眼吗？';
   el('ask-yes').disabled = false;
   el('ask-no').disabled = false;
-  // 内容换了一句更长得多的问话，块高就得跟着变——见 growAskIfNeeded 的注释。
-  void growAskIfNeeded();
+  // 内容换了一句更长得多的问话，块高就得跟着变——**必须强制重量**。
+  //
+  // 挂载时那次测量量到的是静态占位（`…` 一行），真内容在 500ms 内到达；用普通节流的话这次
+  // 调用会被直接吞掉，而且之后不会再有人量——块就停在"占位那一行"的高度上，两个按钮被卡片
+  // 下边缘切掉一半（2026-10-30 用户截图就是这个）。
+  // 160ms 再补一次：字体/换行落定后高度可能还会变一点，只量一次容易短一截。
+  void growAskIfNeeded(true);
+  setTimeout(() => void growAskIfNeeded(true), 160);
 }
 
 let askedId = '';
@@ -688,10 +694,10 @@ let lastAskGrowAt = 0;
  * 结果卡一直有 `growIfNeeded()`，询问卡没有：声明高度刚好卡在边界上，谁也没注意。
  * 500ms 节流与"宿主拒绝就保持声明高度"的取舍都照抄结果卡——同一种失败模式该有同一种处理。
  */
-async function growAskIfNeeded() {
+async function growAskIfNeeded(force = false) {
   if (!can(PERM.surface)) return;
   const nowMs = now();
-  if (nowMs - lastAskGrowAt < 500) return;
+  if (!force && nowMs - lastAskGrowAt < 500) return;
   lastAskGrowAt = nowMs;
   const card = el('ask');
   if (!card) return;
@@ -744,10 +750,10 @@ let lastGrowAt = 0;
  * 只有结果帧发这个请求（"同一时刻只有一个写者"），且 500ms 节流——更频繁的调用
  * 会被宿主合并，没有意义。
  */
-async function growIfNeeded() {
+async function growIfNeeded(force = false) {
   if (!can(PERM.surface)) return;
   const nowMs = now();
-  if (nowMs - lastGrowAt < 500) return;
+  if (!force && nowMs - lastGrowAt < 500) return;
   lastGrowAt = nowMs;
   const card = document.querySelector('.result-card');
   if (!card) return;
@@ -783,7 +789,9 @@ async function pollAnswer() {
   el('result-status').textContent = err ? '' : (v.status || (v.done ? '' : '…'));
   el('result-body').textContent = err ? `出了点问题：${err}` : String(v.text || '…');
   if (v.done) answerDoneShown = true;
-  void growIfNeeded();
+  // 同询问卡：正文是在挂载之后才到的，节流会把这次测量吞掉，卡片就停在旧高度。
+  void growIfNeeded(true);
+  setTimeout(() => void growIfNeeded(true), 160);
 }
 
 let answerDoneShown = false;
