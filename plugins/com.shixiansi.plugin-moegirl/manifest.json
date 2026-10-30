@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "id": "com.shixiansi.plugin-moegirl",
+  "name": "萌娘百科",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
+  "entry": "panel.html",
+  "background": true,
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "plugin.call"
+  ],
+  "serves": [
+    "slang",
+    "wiki"
+  ],
+  "netHosts": [
+    "zh.moegirl.org.cn"
+  ],
+  "config": [
+    {
+      "key": "enabled",
+      "label": "启用（关掉后别的插件问不到）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "maxChars",
+      "label": "一次给多少字（摘要长度）",
+      "type": "number",
+      "default": "600"
+    },
+    {
+      "key": "cacheTtlMin",
+      "label": "同一词条缓存多少分钟",
+      "type": "number",
+      "default": "720"
+    }
+  ],
+  "assets": [
+    "app.js",
+    "style.css",
+    "ui.css",
+    "lib/api.js"
+  ]
+}

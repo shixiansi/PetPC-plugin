@@ -64,6 +64,8 @@ export const METHODS = {
   'share.get': { perm: 'plugin.share', where: 'both' },
   'share.remove': { perm: 'plugin.share', where: 'both' },
   'plugin.call': { perm: 'plugin.call', where: 'pet' },
+  // 能力发现：问宿主「谁能干什么」。宿主按安装状态回答（`serves` 是插件的承诺）。
+  'plugins.services': { perm: 'plugin.call', where: 'both' },
   'audio.save': { perm: 'audio', where: 'both' },
   'audio.import': { perm: 'audio', where: 'both' },
   'audio.list': { perm: 'audio', where: 'both' },

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<!--
+  萌娘百科 —— 入口文档。
+
+  两种身份：
+    · 桌宠的常驻帧（slot=background）：整页被 `.view-background` 收起，只等 plugin.call；
+    · 控制中心的插件页（slot=workshop）：试查一个词，看它取到什么。
+-->
+<head>
+  <meta charset="utf-8" />
+  <title>萌娘百科</title>
+  <script>
+    document.documentElement.dataset.theme =
+      new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark';
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body id="root" class="view-workshop">
+  <main id="workshop" class="page">
+    <header class="head">
+      <div>
+        <h1>萌娘百科</h1>
+        <p class="hint">
+          查「这个词 / 这个梗 / 这个角色是什么」。对外提供 <code>slang</code> 与 <code>wiki</code> 两个
+          <code>plugin.call</code> 方法——记忆核心在本地词库查不到时会来问这里。
+        </p>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <div>
+          <div class="label">状态</div>
+          <div class="value" id="ws-status">…</div>
+        </div>
+      </div>
+      <p class="hint tiny">
+        取的是条目的**序言**（<code>prop=extracts&amp;exintro</code>），带来源链接与许可标注。
+        搜索接口 <code>list=search</code> 被站点关了匿名调用，所以这里先用
+        <code>opensearch</code> 把说法解析成条目名，再取正文——两步都必要。
+      </p>
+      <p class="hint" id="ws-note"></p>
+    </section>
+
+    <section class="card">
+      <div class="label">试查</div>
+      <div class="row">
+        <input id="try-input" class="input" type="text" placeholder="区 / 破防 / 原神" />
+        <button id="try-go" class="btn primary" type="button">查一下</button>
+      </div>
+      <div id="try-out" class="out muted">还没有查过。</div>
+    </section>
+  </main>
+
+  <script src="lib/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
