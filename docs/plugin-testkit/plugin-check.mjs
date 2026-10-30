@@ -441,6 +441,58 @@ function checkSource(report, dir, info) {
   }
   if (known > 0) add('commands-known', 'PASS', `${known} 个方法都在契约表里，且权限都已声明`);
 
+  // 3.1.1 存储键的字面量必须是宿主认得的形状
+  //
+  // 这一条是踩出来的，而且踩了三次：三个不同的插件（pet-sense / media-sync / clipask）都写了
+  // `outbox/system.json` 这种"文件名式"的键，宿主一段只收 `[A-Za-z0-9_-]`，于是
+  // **整个 storage.get 不执行**（手册 §6.3）。表现是最难查的那种：插件装了、启用了、没有报错，
+  // 就是什么都不做——真机上 471 行 `storage key 非法` 全在宿主日志里，界面一片安静。
+  //
+  // 只查**字面量**：`key: 'outbox/system'` 查得到，`` `s/${hash}/meta` `` 查不到。查不到就说
+  // 查不到（这一类交给插件自己的协议测试，比如 qqbot 的 tests/plugin-qqbot-keys.test.js）。
+  const KEY_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
+  const keyProblem = (key) => {
+    if (!key) return '空键';
+    if (key.length > 200) return `太长（${key.length} 字符，上限 200）`;
+    const segments = key.split('/');
+    if (segments.length > 4) return `太深（${segments.length} 段，上限 4）`;
+    for (const segment of segments) {
+      if (!KEY_SEGMENT.test(segment)) {
+        return `第 ${segments.indexOf(segment) + 1} 段 ${JSON.stringify(segment)} 含非法字符`;
+      }
+    }
+    return '';
+  };
+  const KEY_FIELDS = {
+    'storage.get': ['key'], 'storage.set': ['key'], 'storage.remove': ['key'], 'storage.stat': ['key'],
+    'storage.dir': ['sub'], 'storage.list': ['sub'], 'storage.move': ['from', 'to'],
+  };
+  const storageCallRe = /(?:request|call|host\s*\.\s*request)\s*\(\s*['"`](storage\.(?:get|set|remove|stat|dir|list|move))['"`]\s*,\s*\{([\s\S]{0,400}?)\}\s*\)/g;
+  const keySources = jsFiles.map((f) => [f, stripComments(safeRead(f))]);
+  if (info?.entry) keySources.push([join(dir, info.entry), stripComments(html)]);
+  let keysChecked = 0;
+  let badKeys = 0;
+  for (const [file, text] of keySources) {
+    for (const call of text.matchAll(storageCallRe)) {
+      for (const field of KEY_FIELDS[call[1]] ?? []) {
+        // 只认完整的字面量：带 `${` 的模板串是动态的，静态查不了。
+        const found = call[2].match(new RegExp(`${field}\\s*:\\s*['"\`]([^'"\`$]+)['"\`]`));
+        if (!found) continue;
+        keysChecked += 1;
+        const problem = keyProblem(found[1]);
+        if (problem) {
+          badKeys += 1;
+          add('storage-key', 'FAIL',
+            `${short(dir, file)} 里 ${call[1]} 的 ${field} ${JSON.stringify(found[1])} 不合法：${problem}`,
+            '存储键用 / 分隔、每段只能是字母数字下划线连字符，**不能带扩展名**（手册 §6.3）。不合法时宿主整个请求都不执行：插件会看起来"什么都不做"，只有宿主日志里有一行 WARN');
+        }
+      }
+    }
+  }
+  // 一条 PASS 只在**没有** FAIL 时打：上面每发现一个非法键就 FAIL 一次，再打一行"都合法"
+  // 会让汇总数字读起来像"只有 3 个问题"而 PASS 也有一份，正好把要紧的那行冲淡。
+  if (keysChecked > 0 && badKeys === 0) add('storage-key-legal', 'PASS', `${keysChecked} 个字面量存储键都合法`);
+
   // 3.2 不该碰的浏览器能力
   const banned = [
     [/\blocalStorage\b/, 'localStorage', '帧是 opaque origin，访问会抛 SecurityError；要存东西用 storage.*'],
@@ -669,6 +721,8 @@ async function checkProtocol(report, dir, info) {
   }
 
   const moduleNotes = new Set();
+  // 一个方法只报一次：同一个 workshop 面在 ok / deny 两轮里都会发它，而那是同一个事实。
+  const unsupportedSeen = new Set();
 
   for (const mount of mounts) {
     // 两遍：宿主全部答应、宿主全部拒绝。后者是这套工具最有价值的一条——
@@ -688,6 +742,15 @@ async function checkProtocol(report, dir, info) {
       }
       for (const err of run.errors) add('runtime-error', 'FAIL', `[${tag}] 未捕获错误：${err}`, '宿主拒绝一切时也必须不崩');
       for (const m of run.unknownMethods) add('unknown-method', 'FAIL', `[${tag}] 请求了契约里没有的方法 ${m}`, '宿主会回「本程序不支持该方法」');
+      // 「这个窗口没有这个方法」和「契约里没有这个方法」是两件事，而前者以前完全查不出来：
+      // 方法表里写着 `where: 'pet'`，却没有任何一处读过它。真机上这一类占了全部 WARN 的一半。
+      for (const m of run.unsupported) {
+        if (unsupportedSeen.has(m)) continue;
+        unsupportedSeen.add(m);
+        add('unsupported-here', 'FAIL',
+          `[${tag}] 请求了只有桌宠才服务的方法 ${m}`,
+          '控制中心给的是 slot:"workshop"，它没有宠物窗口、没有计时器、没有模型预算。按 slot 判断后**不要发这个请求**（手册 §9）：发出去必被拒，而那次拒绝会以一行 WARN 写进宿主日志——每 5 秒一次');
+      }
       if (run.badIds.length) add('request-id', 'FAIL', `[${tag}] 有 ${run.badIds.length} 个 request 的 id 不是唯一非空字符串：${run.badIds.slice(0, 3).join(', ')}`, '同一个 id 用两次，第二个 response 会被你当成第一个');
       if (mode === 'ok') {
         if (run.requests.length === 0) add('no-requests', 'WARN', `[${tag}] 握手之后一个 request 都没发`, '纯展示型插件可以忽略；否则说明接线没跑起来');
@@ -728,7 +791,7 @@ async function checkProtocol(report, dir, info) {
 /** 把文档跑起来，用假宿主驱动一轮。返回观测到的消息与错误。 */
 async function driveOnce({ html, dir, entryPath, mount, mode, granted, info }) {
   const { JSDOM } = loadJsdom(dir);
-  const result = { ready: false, gotInit: false, requests: [], errors: [], badIds: [], unknownMethods: [], error: null };
+  const result = { ready: false, gotInit: false, requests: [], errors: [], badIds: [], unknownMethods: [], unsupported: [], error: null };
 
   // 用 file:// 的 URL 让相对路径的 <script src>/<link> 能被解析（jsdom 会去读盘）。
   let dom;
@@ -815,6 +878,7 @@ async function driveOnce({ html, dir, entryPath, mount, mode, granted, info }) {
   result.requests = host.requests;
   result.badIds = host.badIds;
   result.unknownMethods = host.unknownMethods;
+  result.unsupported = host.unsupported;
   result.errors.push(...host.errors);
   return result;
 }

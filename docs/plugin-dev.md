@@ -426,7 +426,7 @@ body[data-surface='boot'] { background: transparent; }
 | 方向 | `type` | 其它字段 | 什么时候 |
 | --- | --- | --- | --- |
 | 插件 → 宿主 | `ready` | — | 你的文档脚本就绪时，**发一次**。必须是监听器装好之后 |
-| 宿主 → 插件 | `init` | `pluginId` `permissions` `granted` `surface` `theme` | 收到 `ready` 后**恰好一次**。之前别发请求 |
+| 宿主 → 插件 | `init` | `pluginId` `permissions` `granted` `surface` `theme` `host?` | 收到 `ready` 后**恰好一次**。之前别发请求。授权变更时宿主会**重挂帧**，于是你会再收到一次 `ready → init`（§9.1） |
 | 插件 → 宿主 | `request` | `id`（非空字符串）`method` `payload`（对象） | 任意次 |
 | 宿主 → 插件 | `response` | `id` `ok` `result` \| `error` | 每个 `request` 一次 |
 | 宿主 → 插件 | `event` | `name` `payload` | 你订阅且帧在的情况下 |
@@ -461,6 +461,32 @@ body[data-surface='boot'] { background: transparent; }
 
 `init.theme` 只在控制中心里有（桌宠是纯深色窗口，不发主题）。
 **别用 `kind` 判断自己在哪个窗口**：常驻帧与面板的 `kind` 都是 `panel`——用 `slot`。
+
+### 5.2.1 `init` 的 `host` — 这个窗口到底服务哪些方法
+
+```jsonc
+"host": {
+  "program": "workshop",              // "pet" | "workshop"，与 surface.slot 用同一套词
+  "methods": ["audio.list", "config.get", "llm.channels.get", "net.fetch", …]
+}
+```
+
+**有它就别再背 §9 那张表。** 一个窗口服务哪些方法，是这个宿主自己的答案，不是你的知识：
+
+```js
+const serves = (m) => !host || host.methods.includes(m);   // host 缺省 = 老宿主，按 slot 判断
+if (serves('llm.profile')) { /* 桌宠：问模型从哪来 */ }
+else { /* 这一面没有这件事，说明它在哪 */ }
+```
+
+- **字段是可选的**：没有 `host` 就退回 `surface.slot`（§9）。旧宿主、旧版本一律照旧工作。
+- `methods` 就是宿主的能力表本身（Go 侧同一张表，`internal/plugins.HostInfo`），所以它和
+  "发出去会不会被拒"永远一致。
+- 自检工具的假宿主也会给这个字段，而且是从它自己那张表算出来的——所以
+  `plugin-check.mjs` 的 `unsupported-here` 检查与你在本地看到的行为是同一件事。
+
+> 为什么值得加：2026-10-30 的真机日志里 `本程序不支持该方法` 571 行，占全部 WARN 的一半，
+> 全部来自"按 slot 硬编码一张表"或"干脆不问直接发"。见 §9 的那段引文。
 
 ### 5.3 铁律
 
@@ -520,6 +546,25 @@ body[data-surface='boot'] { background: transparent; }
 
 键是**相对路径**：`/` 分隔，最多 4 段，总长 ≤200，每段 ≤64 且只能是
 `A-Za-z0-9_-`（不能是 `.` / `..`，不能有 `\`）。例如 `stickers/bytes/790ed6cc`。
+
+> **键不是文件名：不要带扩展名。** `outbox/system.json` 会被判为非法键，而失败的样子是
+> **整个请求不执行**——不是"读不到"，是"没发生"，只有宿主日志里一行 WARN。这条踩过三次
+> （pet-sense / media-sync / clipask 各一个），因为"存一个文件"和"存一个键"在心里是同一件事。
+> 写 `outbox/system`。`plugin-check.mjs` 的 `storage-key` 检查会拦**字面量**键；拼出来的键
+> （`` `s/${hash}` ``）静态查不到，得自己写测试。
+>
+> **需要 `.ps1` 的地方有个坑**：`powershell -File` 明确要求 `.ps1` 扩展名（实测报
+> 「does not have a '.ps1' extension」），而存储键写不出带扩展名的文件。所以"把脚本写进私有目录
+> 再 `-File` 跑"这条路走不通。改写成不挑扩展名的启动方式：
+>
+> ```powershell
+> # process.launch 的 args：两条路径塞得进 512 字符一参的上限
+> -NoProfile -ExecutionPolicy Bypass -Command
+>   "& { $sb = [scriptblock]::Create((Get-Content -LiteralPath '<脚本路径>' -Raw)); & $sb -OutDir '<out>' }"
+> ```
+>
+> 另一条路是像 pet-sense / media-sync 那样**让用户填包内脚本的绝对路径**（脚本随包、不必落进
+> 私有目录），代价是安装后要点一下配置。
 
 | 方法 | payload | 返回 | 备注 |
 | --- | --- | --- | --- |
@@ -1069,13 +1114,26 @@ Esc 关闭；焦点留在触发按钮上。
 
 | 能力 | 桌宠 | 控制中心（`slot:"workshop"`） |
 | --- | --- | --- |
-| `storage.*` `config.*` `audio.*` `net.fetch` `plugin.share.*` | ✅ | ✅ |
-| `bubble.say` / `surface.*` | ✅ | ❌ |
-| `llm.chat` / `llm.profile` | ✅ | ❌ |
+| `storage.*` `config.*` `audio.*` `share.*` `net.fetch` | ✅ | ✅ |
+| `llm.channels.get` / `llm.channels.set` | ✅ | ✅（渠道编辑器就住在这一页） |
+| `bubble.say` / `surface.*` / `pet.badge` | ✅ | ❌ |
+| `llm.chat` / `llm.profile` / `llm.providers` | ✅ | ❌ |
+| `memory.read` / `memory.append` | ✅ | ❌ |
 | `events.subscribe` | ✅ | ❌ |
 | `ws.*` / `process.launch` / `process.state` | ✅ | ❌ |
 | `plugin.call` | ✅ | ❌（只挂一页、没有常驻帧，另一端没人答） |
 | 主题 | 只有深色 | `?theme=` + `theme` 消息 |
+
+这张表有**机器可读的第二份**：`docs/plugin-testkit/fake-host.mjs` 里 `METHODS` 的 `where`
+字段（`'pet'` / `'both'`）。自检工具会按你声明的 `surface.slot` 挂三次（`panel/workshop`、
+`panel/background`、`surface#0`），**在 workshop 那一次按这张表拒绝**，报 `unsupported-here`。
+所以"在控制中心调了只有桌宠才服务的方法"现在是一条 FAIL，而不是等你装到真机上才由宿主日志
+告诉你。
+
+> 为什么这条检查值得存在：2026-10-30 的真机日志里 `本程序不支持该方法` 一共 571 行，占全部
+> WARN 的一半——其中 445 行来自一个在 workshop 里每 5 秒问一次 `llm.profile` 的插件，37 行
+> 来自另一个每次握手问一次的。两边的界面都"看起来正常"（它们 `catch` 了），只有宿主的日志在
+> 记账。**"问一次、被拒、兜底"不是降级，是把噪音换成了好看。**
 
 未被服务的能力**不是"没授予"**，而是 `response.error = "本程序不支持该方法 X"`。
 好的插件在这里降级而不是崩：`slot === 'workshop'` 时
@@ -1085,6 +1143,22 @@ Esc 关闭；焦点留在触发按钮上。
 - 但**继续显示只读的部分**（列表、记录、历史）——那正是用户打开这一页的原因。
 
 一个现成的判据：控制中心给的是 `surface.slot === 'workshop'`，其余都是桌宠。
+
+### 9.1 授权变了，宿主会重新挂载你
+
+`init.granted` 只送**一次**（见第 5 节的消息表）。用户在控制中心改了授权之后，**两个宿主都会
+把帧拆掉重挂**，于是你会收到一次新的 `ready → init`，`granted` 是新的那一份。
+
+这件事对写法有直接影响：`granted.has(...)` 只在**收到 init 的那一刻**是权威的。
+
+- ✅ 在 `init` 里按 `granted` 决定"画什么、禁用哪些控件、要不要起轮询"——重挂会重新走一遍。
+- ❌ 不要把 `granted` 缓存到 `localStorage`（拿不到）或写进 `storage` 再当权威读回来。
+- ❌ 不要"先发出去，被拒了再兜底"——那正是 571 行 WARN 的写法。要么按 `granted` 先判断，
+  要么按 `slot` 判断这个窗口有没有这个能力（§9 的表）。
+
+> 这一条是踩出来的：桌宠原来只在**版本变了**才重挂帧，于是"用户补授 `pet.surface`"这件事
+> 插件永远不知道——它手里那份 `granted` 一直是旧的，徽标一次都没出现，也没有任何错误。
+> 现在两边的重挂判据都是 `id | version | 排序后的 granted`。
 
 ---
 

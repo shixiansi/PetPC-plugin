@@ -82,6 +82,24 @@ export const METHODS = {
 export const LLM_TOOL_NAMES = ['pet_say', 'memory_read', 'memory_append'];
 
 /**
+ * 这个「宿主」服务不服务某个方法。
+ *
+ * 手册 §9 有一张两宿主差异表，`METHODS` 的 `where` 就是那张表的机器可读版本。以前它只被写着、
+ * 从没被读过——于是「在控制中心的那一面调只有桌宠才服务的方法」在自检里**永远是 ok**，而真机上
+ * 这是最常见的一类失败（2026-10-30 的真机日志里 571 行 `本程序不支持该方法`，其中 445 行来自
+ * 一个在 workshop 里每 5 秒调一次 `llm.profile` 的插件）。声明了却不检查的契约比没有契约更坏：
+ * 它让人以为查过了。
+ *
+ * 判据只有一个，就是手册写的那个：`surface.slot === 'workshop'` 是控制中心，其余都是桌宠。
+ * `kind` 不能拿来判——常驻帧的 kind 也是 'panel'。
+ */
+export function hostServes(method, surface) {
+  const where = METHODS[method]?.where;
+  if (where !== 'pet') return true;           // 'both'，或者根本不是契约里的方法（另有一条检查管）
+  return (surface?.slot ?? '') !== 'workshop';
+}
+
+/**
  * 每类方法给一个"看起来成功"的答案，让插件能继续往下走。
  *
  * 它故意**不含任何插件特有的数据**：自检工具不知道、也不该假装知道番茄钟的 state 长什么样。
@@ -173,6 +191,7 @@ export function createFakeHost({
     errors: [],
     badIds: [],
     unknownMethods: [],
+    unsupported: [],
     log: [],
   };
 
@@ -188,14 +207,34 @@ export function createFakeHost({
   }
 
   function initMessage() {
+    // `host` is DERIVED from the same table `respond()` gates on, so the two can never disagree:
+    // the program name comes from the slot the way the real hosts define it, and the method list
+    // is exactly what this mount would accept. A hand-written list here would be a second answer
+    // to "does this window serve X", which is the thing `init.host` exists to stop.
+    const program = surface?.slot === 'workshop' ? 'workshop' : 'pet';
+    const methods = Object.keys(METHODS)
+      .filter((name) => hostServes(name, surface))
+      .sort();
     return {
       v: 1, type: 'init', pluginId: manifest.id || '', permissions: [...declared],
       granted: [...granted], theme, surface,
+      host: { program, methods },
     };
   }
 
   /** 对一条 request 造 response 并送回去。`mode:'silent'` 时调用方不该走到这里。 */
   function respond(msg) {
+    // 「这个宿主没有这个方法」先于「没授权」判断，而且两种 mode 都给同一个答案：它不是权限
+    // 问题，是插件选错了窗口。真宿主的文案逐字如此（`dispatchPluginRequest` /
+    // `marketRegistry` 之外的那条「本程序不支持该方法」），照抄是为了让作者在日志里搜得到。
+    if (!hostServes(msg.method, surface)) {
+      if (!host.unsupported.includes(msg.method)) host.unsupported.push(msg.method);
+      send({
+        v: 1, type: 'response', id: msg.id, ok: false,
+        error: `插件 ${manifest.id || '（本插件）'} 调用了本程序不支持的方法 ${msg.method}`,
+      });
+      return;
+    }
     if (mode === 'deny') {
       send({ v: 1, type: 'response', id: msg.id, ok: false, error: `模拟拒绝：未获权限 ${METHODS[msg.method]?.perm ?? '（未知）'}` });
       return;
@@ -240,6 +279,7 @@ export function createFakeHost({
     get errors() { return host.errors; },
     get badIds() { return host.badIds; },
     get unknownMethods() { return host.unknownMethods; },
+    get unsupported() { return host.unsupported; },
     get pending() { return host.pending; },
     get ready() { return host.ready; },
     onMessage,
