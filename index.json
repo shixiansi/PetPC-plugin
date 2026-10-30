@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T12:06:07Z",
+  "updatedAt": "2026-10-30T12:16:57Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -120,12 +120,12 @@
     {
       "id": "com.shixiansi.plugin-slang",
       "name": "网络词词典",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": "shixiansi",
       "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
       "permissions": ["storage", "plugin.config", "plugin.call"],
-      "download": "dist/com.shixiansi.plugin-slang-0.1.0.zip",
-      "sha256": "159f6a7092d7f650f03b908974bad6d85c4aacb86a43f240861859dc1da68be6"
+      "download": "dist/com.shixiansi.plugin-slang-0.1.1.zip",
+      "sha256": "cad0eb4115b1d64cf4a5e017d96147da5c0979d206325bd269cd36908fe0bf51"
     },
     {
       "id": "com.shixiansi.plugin-todo",
