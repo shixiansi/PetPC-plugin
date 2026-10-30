@@ -23,7 +23,7 @@
 // protocol（把文档真的跑起来，用一个照抄宿主的假宿主驱动）。
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, resolve, relative, extname, sep } from 'node:path';
+import { basename, dirname, join, resolve, relative, extname, sep } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -316,6 +316,26 @@ function checkPackage(report, dir, info) {
     add('referenced-file', 'FAIL', `${info.entry} 引用了不存在的文件：${ref}`, '相对路径按 entry 所在目录解析');
   }
   if (refs.length > 0 && missing.length === 0) add('referenced-files-ok', 'PASS', `${refs.length} 个本地引用都能找到`);
+
+  // 「引用了」不等于「会发货」。
+  //
+  // 打包器只发 panel.html / app.js / style.css 加 manifest.assets。于是"页面引用了、文件也在、
+  // 却没写进 assets"这一种资源，在**仓库里一切正常、在装好的插件里不存在**——症状是"页面能开，
+  // 样式或脚本没了"，而作者本地永远复现不出来（测试也是按目录读文件的）。
+  //
+  // 2026-10-30 就是这么漏的：pet-sense / media-sync / weather-env 三个的 panel.html 引用
+  // `ui.css`、磁盘上也有 `ui.css`，assets 里却没有它 → 发出去的包里没有那份文件，而三个插件的
+  // style.css 里 0 个十六进制色值、9 处 `var(--…)` 全都没有 fallback，于是配色整个空掉。
+  const shipped = new Set([
+    'panel.html', 'app.js', 'style.css',
+    ...(Array.isArray(info.assets) ? info.assets : []).map((a) => String(a).replace(/^\.\//, '')),
+  ]);
+  const undeclared = refs.filter((ref) => existsSync(join(dir, ref)) && !shipped.has(ref));
+  for (const ref of undeclared) {
+    add('asset-undeclared', 'FAIL', `${info.entry} 引用了 ${ref}，但 manifest 的 assets 没列它`,
+      '打包器只发 panel.html / app.js / style.css 加 assets，其余文件进不了包：装好之后是"页面在、样式没了"。把它加进 assets');
+  }
+  if (refs.length > 0 && undeclared.length === 0) add('asset-declared-ok', 'PASS', `${refs.length} 个本地引用都会进包`);
 }
 
 /** 抽出 HTML 里指向本地的 src/href（跳过 http(s)、data:、#、//）。 */
@@ -547,6 +567,34 @@ function checkSource(report, dir, info) {
   }
   if (/html\[data-theme=["']light["']\]/.test(allCss) && !/get\(\s*['"]theme['"]\s*\)/.test(html)) {
     add('theme-consistency', 'WARN', '样式里有浅色主题，但 entry 没有读地址栏上的 ?theme=', '控制中心首帧会闪一下深色（只影响控制中心；桌宠永远是深色）');
+  }
+
+  // 色值只许出现在「调色板」里。
+  //
+  // 手册 §8.6 的原话是「style.css 里不许出现十六进制色值」。这条对**引了 ui.css 的插件**是硬规则
+  // （那个文件就是调色板）。但对**声明了浮层面**的插件，§8.4 又不许它继承 kit 的装饰（阴影/hover
+  // 位移会被矩形裁掉），于是它只能自带一份调色板——那种情况下色值出现在 `:root` / `[data-theme]`
+  // 块里是**正确**做法，散落在规则里才是错的（同一种颜色会在五处各写一遍，换配色必然漏一处）。
+  //
+  // 所以这里只报警散落的那一类，而且只 WARN：§8.6 之前写的老插件本来就把颜色写在规则里，把它们
+  // 一次判成 FAIL 只会让人关掉这个工具。
+  const paletteBlocks = [...allCss.matchAll(/(:root[^{]*|\[data-theme[^\]]*\])\s*\{([^}]*)\}/g)].map((m) => m[2]);
+  const paletteNames = new Set(paletteBlocks.join('\n').match(/(--[a-z0-9-]+)\s*:/g) || []);
+  // 只看**你自己的**样式表：
+  //   - `ui.css` 是宿主那份 kit 的逐字副本（手册 §8.6 规定的名字），它自己的 `.btn.primary` 里就有
+  //     `color: #fff`——那正是"调色板所有者"该做的事，不算作者写死颜色；
+  //   - entry 那份 HTML 不一定有 CSS，对它报"色值都在调色板里"只是噪音。
+  for (const [file, text] of cssFiles.filter((f) => basename(f) !== 'ui.css').map((f) => [f, stripCss(safeRead(f))])) {
+    // 把调色板块整块挖掉，剩下的就是"写在规则里的色值"。
+    let rest = text;
+    for (const block of paletteBlocks) rest = rest.split(block).join('');
+    const stray = (rest.match(/#[0-9a-fA-F]{3,8}\b/g) || []).length;
+    if (stray > 0) {
+      add('style-hex', 'WARN', `${short(dir, file)} 里有 ${stray} 个十六进制色值写在调色板之外`,
+        '色值只该出现在 :root / [data-theme] 的调色板块里（§8.6）。散落在规则里的话，同一个颜色会被写很多遍，换配色必然漏一处；给它起个 --token 名字');
+    } else if (paletteNames.size > 0) {
+      add('style-palette', 'PASS', `${short(dir, file)} 的色值都在调色板里（${paletteNames.size} 个 token）`);
+    }
   }
 
   // A surface block is sized by the MANIFEST, not by its content, so content that grows is cut off

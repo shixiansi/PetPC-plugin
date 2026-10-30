@@ -276,6 +276,16 @@ body[data-surface='boot'] { background: transparent; }
 
 **这三个文件之外**，你还需要一件事：让宿主认识这个插件（见下一节）。
 
+> **样式有两条硬规则，写代码之前就该知道**（细节在 §8.4 / §8.6）：
+>
+> 1. **颜色只能来自命名好的 token。** 引了 `ui.css` 的插件不许在 `style.css` 里写十六进制色值；
+>    自己带调色板的插件（声明了 `surface` 的都是这一类，见 §8.6 的例外）也**只许写在
+>    `:root` / `[data-theme=…]` 那两个调色板块里**，不许散落在规则里。
+> 2. **页面引用的每个本地文件都必须写进 `manifest.assets`。** 打包器只发
+>    `panel.html` / `app.js` / `style.css` 加 `assets`——漏了 `ui.css`（或任何 `lib/*.js`）的话，
+>    仓库里怎么跑都正常，装好的插件里那个文件**不存在**，症状是"页面能开、样式没了"。
+>    自检工具的两条 `asset-undeclared` / `style-hex` 就是盯这个。
+
 ---
 
 ## 3. 本地开发与手工安装（不需要任何市场界面）
@@ -1092,6 +1102,22 @@ Esc 关闭；焦点留在触发按钮上。
 
 宿主换配色时：改 `cc/src/tokens.css` → 同步 `docs/ui/petpc-ui.css` → 各插件重新打包。
 `market/tests/ui-tokens.test.js` 盯着这三步（副本分叉、或谁又写死了颜色，都会红）。
+
+> **声明了 `surface` 的插件是例外，而且这两节在它身上会打架。**
+>
+> §8.4 不许你在被裁剪的矩形里用 `box-shadow` / `transform`（画到矩形外就被切掉），而 `ui.css`
+> 的 `.card` / `.btn` **正好带着它们**（`.btn:hover` 有 `translateY(-2px)`，`.card` 有 `--sh-xs`）。
+> 所以一个声明了浮层面的插件如果整份引 `ui.css`，它会继承一堆 §8.4 禁止的装饰。
+>
+> - **`surface` 为空、只在控制中心铺满面板的插件**：照上面做，引自带的 `ui.css`，别自己调色。
+> - **声明了 `surface` 的插件**：**别整份引 `ui.css`**。改成在 `style.css` 顶部自己声明一组
+>   **命名 token**（`:root` 一份、`html[data-theme='light']` 一份），规则里只用 `var(--…)`。
+>   色值**只许出现在那两个调色板块里**——`plugin-check` 的 `style-hex` 盯的就是散落在规则里的那些。
+>
+> 这条是 2026-10-30 补的。`com.shixiansi.plugin-clipask` 的样式表开头当时就写着「浮层插件带不动
+> 共享 ui.css，Soft UI 的彩色阴影与 hover 位移在矩形裁剪下会被切掉」——它是对的，但手册只说
+> 「把 `ui.css` 打进你的包」，于是按字面看它像没守规矩。**规矩和例外要写在一起，否则下一个作者
+> 只能二选一，然后被另一节判违规。**
 
 ### 8.5 关于 `slot` 与 `background`
 
