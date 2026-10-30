@@ -135,8 +135,11 @@ async function handleChat(payload) {
 
     // auto 档的第二问：第一答是"不知道"、刚才也没搜过 → 查一次，带着结果再答。
     // 搜索挂在对话后面：搜索失败返回 null，对话按纯记忆继续，绝不因为搜索挂掉而失败。
-    if (mode === 'auto' && !searchUsed && looksLikeNoAnswer(reply)) {
-      searchUsed = await askWebSearch(line, searchCount());
+    // 模型的 `[SEARCH] 要查的话` 出口（提示词里就是这么约定的）：它比"不知道"更明确——
+    // 模型已经自己写好了查询词，用它去查，而不是拿用户原话碰运气。
+    const tagged = searchTagOf(reply);
+    if (mode === 'auto' && !searchUsed && (tagged || looksLikeNoAnswer(reply))) {
+      searchUsed = await askWebSearch(tagged || line, searchCount());
       if (searchUsed) {
         reply = tidyReply(await askModel({
           text: `${line}\n\n（第一遍你答不上；已经替你查过网页，结果在系统提示里）`,
@@ -145,6 +148,10 @@ async function handleChat(payload) {
         }));
       }
     }
+
+    // 兜底：无论搜没搜成、哪一档，`[SEARCH]` 标记都不能出现在用户看到的回答里。
+    // （搜索成功时 reply 已经被第二答替换掉了，这里只管"标记活下来"的那些路径。）
+    if (searchTagOf(reply)) reply = tidyReply(stripSearchTag(reply)) || '这句我查不到具体内容，你换个说法？';
 
     const at = now();
     const turns = state.turns

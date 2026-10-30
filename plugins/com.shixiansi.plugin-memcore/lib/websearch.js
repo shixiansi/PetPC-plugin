@@ -50,6 +50,27 @@ function wantsSearchFor(line) {
   return USER_SEARCH_RE.test(body) || SEARCH_TAG_RE.test(body);
 }
 
+/**
+ * 模型按提示词约定给出的 `[SEARCH] 要查的话`：取出那句查询（没有就是空串）。
+ *
+ * 这个出口以前**只有写进提示词、没有解析**（`SEARCH_TAG_RE` 只在 `wantsSearchFor(line)` 里用过，
+ * 而那是**用户**那句话）。于是模型老老实实回了 `[SEARCH] …`，这边既不搜、也不认，还把这个标记
+ * 原样发给了用户。2026-10-30 用户报"记忆插件不会调用插件"，日志里就是这条：
+ *
+ *     llm.chat 收到（25 字）：[SEARCH] “区”在网络用语中是什么意思
+ *
+ * 之后没有任何 plugin.call。
+ */
+function searchTagOf(reply) {
+  const matched = SEARCH_TAG_RE.exec(String(reply || ''));
+  return matched ? text(matched[1], 300).trim() : '';
+}
+
+/** 把 `[SEARCH]` 那一行从回答里去掉：用户不该看到这个标记。 */
+function stripSearchTag(reply) {
+  return String(reply || '').replace(SEARCH_TAG_RE, '').trim();
+}
+
 /** 一次模型的回答算不算"没答上"（auto 档的第二条触发线）。 */
 function looksLikeNoAnswer(reply) {
   return NO_ANSWER_RE.test(String(reply || ''));

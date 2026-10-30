@@ -367,3 +367,42 @@ describe('the search plugin is not there', () => {
     expect(packet.result.text).toBe('这个我不知道。');
   });
 });
+
+// 模型自己给出的 `[SEARCH] 要查的话`（提示词里约定的出口）。
+//
+// 2026-10-30 真机日志：模型如实回了 `[SEARCH] "区"在网络用语中是什么意思`，而核心这一侧
+// 从来没解析它——`SEARCH_TAG_RE` 只用在 `wantsSearchFor(用户那句话)` 里。于是既不搜，还把这个
+// 标记原样发给了用户。用户的原话："记忆插件不会调用插件"。
+describe('模型的 [SEARCH] 出口', () => {
+  test('第一答是 [SEARCH] 查询词：用它去搜，再带着结果答第二遍', async () => {
+    bootDocs();
+    llmReplies.push('[SEARCH] 区 网络用语 意思', '「区」是「区区」的简写，自谦的说法。');
+    engineReplies.push({
+      status: 200,
+      body: JSON.stringify({ results: [{ title: '网络用语词典', url: 'https://slang.example.com/qu', content: '区=区区' }] }),
+    });
+    const packet = await chat('让你搜区的网络意思');
+    expect(packet.ok).toBe(true);
+    // 关键：查的是**模型给的查询词**，不是用户原话
+    expect(searchFetches).toHaveLength(1);
+    const asked = searchFetches[0];
+    const query = decodeURIComponent(String(asked.url || '').replace(/^.*[?&]q=([^&]*).*$/, '$1'));
+    expect(query, '没有用模型给的查询词去搜').toContain('网络用语');
+    // 两次模型调用：第一次是标记，第二次是带结果的正式回答
+    expect(llmCalls).toHaveLength(2);
+    expect(llmCalls[1].system).toContain('【网页搜索结果】');
+    expect(packet.result.text).not.toContain('[SEARCH]');
+    expect(packet.result.text).toContain('区区');
+  });
+
+  test('搜不到时：标记不许出现在用户看到的回答里', async () => {
+    bootDocs();
+    llmReplies.push('[SEARCH] 某个查不到的东西');
+    engineReplies.push({ status: 500, body: 'boom' });
+    const packet = await chat('让你搜某个查不到的东西');
+    expect(packet.ok).toBe(true);
+    expect(packet.result.text, '把 [SEARCH] 标记发给用户了').not.toContain('[SEARCH]');
+    expect(packet.result.text.trim().length, '回答变成空的了').toBeGreaterThan(0);
+    expect(packet.result.meta.webSearch).toBeNull();
+  });
+});
