@@ -4,6 +4,11 @@
 `plugin.call` 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。
 装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档）。
 
+**0.6.0 新增：点歌。** 用户说「点歌 晴天」时，核心用 `plugin.call` 问「点歌」插件
+（`com.shixiansi.plugin-diange`）要一首歌，把歌名、歌手与一条**当场取的**直链拼进 system，
+再让模型照着说（auto / off 两档）。直链带签名、会过期，所以它**从不进记忆**——
+进 `meta.music` 的只有歌名与歌手。
+
 **0.3.0 新增：定时记忆压缩。** 每天凌晨，把前一天在 L1/L2 里的往来压成一段
 **≤200 字**的 L3 长期摘要，按天存档进长期记忆库——情节（L3）从此有了**叙事**，
 不只是散点事实。
@@ -54,6 +59,34 @@ plugin.call { method: "compact", payload: { "day": "2026-10-29" } }
 设置里的 `compactEnabled` 开关（默认开）关掉后不启动定时器；`plugin.call compact`
 仍可用。
 
+## 点歌（0.6.0）
+
+```
+用户：「点歌 晴天」
+  ├── 触发线 1：这句话命中点歌动作 → 先问 <diange>/song { query: "晴天" }
+  ├── 返回：{ text, results: [{ title, singer, album, url, probe }] }
+  ├── 拼进 system：【点歌结果】… 直链：http://…
+  └── 模型照着说（提示词要求"直链原样发出来，不要改写、不要截断"）
+
+用户：「随便放首歌」→ 模型第一答写「[SONG] 晴天 - 周杰伦」
+  └── 触发线 2：拆成 song / singer → 问 <diange>/song_link { song, singer, fresh: true } → 再答一次
+```
+
+四条值得记住的：
+
+- **两个方法名对应两种输入**：`song` 收一句人话（它去猜），`song_link` 收结构化字段
+  （歌名 + 歌手）。名字里没有 `search`——那是「网页搜索」的能力名，而核心按**能力名**
+  发现提供方；混用会让"搜一下今天天气"被问成"没找到这首歌"。
+- **直链从不进记忆**：`meta.music` 只有 `{title, singer, provider}`。把一条签名链接写进
+  L1/L3，下次拿出来就是死链，而且没有任何地方能看得出为什么。
+- **问不到就不问第二遍**：点歌插件没装 / 没启用时，第一次拿到的是一句"问不到"；这一轮
+  不再为模型的 `[SONG]` 重试——两次 8 秒预算串起来会撞上宿主 `plugin.call` 的 30 秒上限。
+- **点歌失败不影响对话**：和联网搜索一样，它是增强不是依赖。
+
+设置里 `music`（默认 auto）：`off` 时一次都不问，`[SONG]` 标记仍然会被从回答里去掉
+（用户不该看见这个标记）。点歌插件自己的设置（接口地址、音质、要不要探测链接、缓存）在
+它那一页。
+
 ## `plugin.call` 的方法
 
 | 方法 | 谁调用 | 说明 |
@@ -67,6 +100,7 @@ plugin.call { method: "compact", payload: { "day": "2026-10-29" } }
 ```bash
 npx vitest run tests/plugin-memcore.test.js          # 28 条：分层隔离 / 晋升 / 协议
 npx vitest run tests/plugin-memcore-compact.test.js  # 13 条：压缩判定 / 幂等 / 100 轮压力测试
+npx vitest run tests/plugin-diange.test.js           # 27 条：点歌插件本身 + 核心→点歌那条链
 ```
 
 压力测试模拟 100 轮对话（10 天 × 每天轮次）后逐日压缩，验证：

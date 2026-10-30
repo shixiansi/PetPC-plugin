@@ -111,13 +111,22 @@ async function handleChat(payload) {
     const state = await loadRole(roleKey);
     const profile = await loadProfile(userKey);
 
-    // --- 联网：off / auto / always 三档（见 lib/websearch.js）--------------------
+    // --- 联网 / 点歌：这一轮要不要先去问别人 --------------------------------------
     //
-    // off：与 0.1.x 完全一致，一次搜索都不发。
-    // always：每一轮先查再答（时效性问题不该赌记忆）。
-    // auto：先凭记忆答；答不上（"不知道"类回答）才查一次、带着结果再答一次。
+    // 两个能力形态一样：先问（plugin.call）、把结果拼进 system、再问模型。任何一个失败都
+    // 只是少了那一段资料，对话照常——它们是增强，不是依赖。
+    //
+    // 联网有 off / auto / always 三档（时效性问题不该赌记忆，见 lib/websearch.js）；点歌
+    // 只有 off / auto（没人点歌时每轮都查一首只会烧往返，见 lib/music.js）。
     const mode = searchMode();
+    const songMode = musicMode();
     let searchUsed = null;
+    let musicUsed = null;
+
+    // 触发线 1：用户这一轮明确要歌（「点歌 …」「来一首 …」）→ 先问「点歌」插件再答。
+    if (songMode === 'auto' && wantsMusic(line)) {
+      musicUsed = await withinSongBudget(askMusic(musicQueryOf(line)));
+    }
 
     if (mode !== 'off' && (mode === 'always' || wantsSearchFor(line))) {
       searchUsed = await askWebSearch(line, searchCount());
@@ -130,35 +139,68 @@ async function handleChat(payload) {
     // 查不到就是 null，下面什么都不加（见 lib/slang.js）。
     const slang = await askSlang(line);
 
-    let system = buildSystem(state, profile, payload && payload.hint,
-      mode !== 'off' && !searchUsed ? searchInstruction() : '');
+    // 两个出口（`[SEARCH]` / `[SONG]`）都是"这一轮怎么答"的约定，只活在这一轮；
+    // 已经问到的那一个就不必再给出口了。
+    const rules = [
+      songMode === 'auto' && !musicUsed ? musicInstruction() : '',
+      mode !== 'off' && !searchUsed ? searchInstruction() : '',
+    ].filter(Boolean).join('\n\n');
+
+    let system = buildSystem(state, profile, payload && payload.hint, rules);
     if (slang) system = `${system}\n\n${slang.text}`;
     const history = buildHistory(state.turns);
 
+    /** 已经拿到的资料块（点歌在前：它通常是用户这一句的正题）。 */
+    const contextBlocks = () => [musicUsed ? musicBlock(musicUsed) : '', searchUsed ? searchBlock(searchUsed) : '']
+      .filter(Boolean)
+      .join('\n\n');
+    /** 第一问的正文：把"已经替你问过了"写进去，模型才不会以为自己在猜。 */
+    const askedNote = () => {
+      const notes = [];
+      if (musicUsed) notes.push('已经替你查到这首歌，结果在系统提示里');
+      if (searchUsed) notes.push('已经替你查过网页，结果在系统提示里');
+      return notes.length ? `${line}\n\n（${notes.join('；')}）` : line;
+    };
+
     let reply = tidyReply(await askModel({
-      text: searchUsed ? `${line}\n\n（已经替你查过网页，结果在系统提示里）` : line,
-      system: searchUsed ? `${system}\n\n${searchBlock(searchUsed)}` : system,
+      text: askedNote(),
+      system: [system, contextBlocks()].filter(Boolean).join('\n\n'),
       history,
     }));
 
-    // auto 档的第二问：第一答是"不知道"、刚才也没搜过 → 查一次，带着结果再答。
-    // 搜索挂在对话后面：搜索失败返回 null，对话按纯记忆继续，绝不因为搜索挂掉而失败。
-    // 模型的 `[SEARCH] 要查的话` 出口（提示词里就是这么约定的）：它比"不知道"更明确——
-    // 模型已经自己写好了查询词，用它去查，而不是拿用户原话碰运气。
-    const tagged = searchTagOf(reply);
-    if (mode === 'auto' && !searchUsed && (tagged || looksLikeNoAnswer(reply))) {
-      searchUsed = await askWebSearch(tagged || line, searchCount());
-      if (searchUsed) {
+    // auto 档的第二问：第一答没答上（或模型自己写了 `[SEARCH]` / `[SONG]`）→ 补一次资料或
+    // 一首歌，带着结果再答一遍。两种能力各自判断，命中的**一起**拼进去（只多问一次模型）。
+    //
+    // 模型的 `[SEARCH] 要查的话` 出口比"不知道"更明确——它已经自己写好了查询词，用它去查，
+    // 而不是拿用户原话碰运气。`[SONG] 歌名 - 歌手` 同理。
+    const taggedSong = songTagOf(reply);
+    const taggedSearch = searchTagOf(reply);
+    const needMusic = songMode === 'auto' && !musicUsed && Boolean(taggedSong) && !musicIsUnreachable();
+    const needSearch = mode === 'auto' && !searchUsed && Boolean(taggedSearch || looksLikeNoAnswer(reply));
+
+    if (needMusic || needSearch) {
+      if (needMusic) {
+        // 模型给的是 `歌名 - 歌手`：拆开走**结构化**的那条路（song_link），而不是把整串
+        // 当成一句人话去搜。猜出来的歌手比不猜的好，但比"用户本来就说清楚了"的差。
+        const want = splitSongTag(taggedSong);
+        musicUsed = await withinSongBudget(askMusicLink(want.song, want.singer));
+      }
+      if (needSearch) searchUsed = await askWebSearch(taggedSearch || line, searchCount());
+      if (musicUsed || searchUsed) {
+        const notes = [];
+        if (musicUsed) notes.push('第一遍你还没给出链接；已经替你查到这首歌，结果在系统提示里');
+        if (searchUsed) notes.push('已经替你查过网页，结果在系统提示里');
         reply = tidyReply(await askModel({
-          text: `${line}\n\n（第一遍你答不上；已经替你查过网页，结果在系统提示里）`,
-          system: `${system}\n\n${searchBlock(searchUsed)}`,
+          text: `${line}\n\n（${notes.join('；')}）`,
+          system: [system, contextBlocks()].filter(Boolean).join('\n\n'),
           history,
         }));
       }
     }
 
-    // 兜底：无论搜没搜成、哪一档，`[SEARCH]` 标记都不能出现在用户看到的回答里。
-    // （搜索成功时 reply 已经被第二答替换掉了，这里只管"标记活下来"的那些路径。）
+    // 兜底：无论问没问成、哪一档，`[SEARCH]` / `[SONG]` 标记都不能出现在用户看到的回答里。
+    // （问成功时 reply 已经被第二答替换掉了，这里只管"标记活下来"的那些路径。）
+    if (songTagOf(reply)) reply = tidyReply(stripSongTag(reply)) || MUSIC_MISS_REPLY;
     if (searchTagOf(reply)) reply = tidyReply(stripSearchTag(reply)) || '这句我查不到具体内容，你换个说法？';
 
     const at = now();
@@ -189,6 +231,15 @@ async function handleChat(payload) {
         summarised: Boolean(state.summary && state.summary.text),
         webSearch: searchUsed
           ? { engine: searchUsed.engine, results: searchUsed.results.length }
+          : null,
+        // 点歌命中：给插件页与接入端留一个"这一轮为什么带了一条链接"的凭据。
+        // 只记歌名与歌手，**不记直链**：它带签名，存下来只会变成一句未来的死链。
+        music: musicUsed
+          ? {
+            title: text(musicUsed.song && musicUsed.song.title, 60),
+            singer: text(musicUsed.song && musicUsed.song.singer, 40),
+            provider: musicUsed.provider,
+          }
           : null,
         // 词库命中：一轮对话到底靠什么答的，事后要能看出来。
         slang: slang && slang.matched ? slang.matched : null,

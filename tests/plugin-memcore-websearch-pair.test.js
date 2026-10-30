@@ -21,6 +21,7 @@ const SEARCH_DIR = path.join(here, '..', 'plugins', 'com.shixiansi.plugin-websea
 const CORE_ID = 'com.shixiansi.plugin-memcore';
 const SEARCH_ID = 'com.shixiansi.plugin-websearch';
 const SLANG_ID = 'com.shixiansi.plugin-slang';
+const MOEGIRL_ID = 'com.shixiansi.plugin-moegirl';
 
 const coreManifest = JSON.parse(readFileSync(path.join(CORE_DIR, 'manifest.json'), 'utf8'));
 const searchManifest = JSON.parse(readFileSync(path.join(SEARCH_DIR, 'manifest.json'), 'utf8'));
@@ -161,6 +162,19 @@ function answerRequest(doc, req) {
       searchFetches.push(payload);
       doc.send({ v: 1, type: 'response', id: req.id, ok: true, result: engineReplyFor(payload) });
       return;
+    case 'plugins.services':
+      // 能力发现：宿主告诉调用方"谁能干什么"（真宿主 0.6.0 起提供）。
+      doc.send({
+        v: 1, type: 'response', id: req.id, ok: true,
+        result: {
+          services: [
+            { id: SLANG_ID, name: '网络词词典', description: '本地词库', serves: ['slang'] },
+            { id: MOEGIRL_ID, name: '萌娘百科', description: '百科条目', serves: ['slang', 'wiki'] },
+            { id: SEARCH_ID, name: '联网搜索', description: '整网搜索', serves: ['search'] },
+          ],
+        },
+      });
+      return;
     case 'plugin.call': {
       const target = String(payload.target || '');
       callTargets.push(`${target}/${String(payload.method || '')}`);
@@ -171,6 +185,24 @@ function answerRequest(doc, req) {
         doc.send({
           v: 1, type: 'response', id: req.id, ok: false,
           error: `插件 ${CORE_ID} 没有声明要调用 ${target}/${method}：manifest 的 callTargets 里没有这一项`,
+        });
+        return;
+      }
+      if (target === MOEGIRL_ID) {
+        const asked2 = String((payload.payload && payload.payload.query) || '');
+        if (!asked2.includes('区')) {
+          doc.send({ v: 1, type: 'response', id: req.id, ok: true, result: { query: asked2, title: '', text: '', entry: null } });
+          return;
+        }
+        doc.send({
+          v: 1, type: 'response', id: req.id, ok: true,
+          result: {
+            query: asked2,
+            title: '区',
+            text: '【萌娘百科】区\n区可以指：区(网络用语)——一种网络用语。\n（来源：萌娘百科，CC BY-NC-SA 3.0 CN）',
+            entry: { title: '区', extract: '区可以指：区(网络用语)——一种网络用语。' },
+            source: 'moegirl',
+          },
         });
         return;
       }
@@ -450,7 +482,10 @@ describe('后备链：搜索引擎搜不到就用 B 站', () => {
     const packet = await chat('区在网络用语中是什么意思');
     expect(packet.ok).toBe(true);
     expect(callTargets[0], '第一顺位应当是本地词库（免费）').toBe('com.shixiansi.plugin-slang/slang');
-    expect(callTargets[1], '词库没查到，第二顺位应当是搜索引擎').toBe('com.shixiansi.plugin-websearch/search');
+    // 释义提供方（词库 → 百科）都问完之后，才轮到搜索：搜索是最后一道，不是第一道。
+    const webAt = callTargets.indexOf('com.shixiansi.plugin-websearch/search');
+    expect(webAt, '没有问搜索引擎').toBeGreaterThanOrEqual(0);
+    expect(webAt, '搜索排在了释义提供方之前').toBeGreaterThan(callTargets.indexOf('com.shixiansi.plugin-slang/slang'));
     expect(callTargets, '搜索引擎没结果时没有去问 B 站').toContain(BILI);
     // 这一轮里 B 站在 harness 中不存在 → 问不到 → 仍然按记忆回答，不失败
     expect(packet.result.text.trim().length).toBeGreaterThan(0);
@@ -490,7 +525,10 @@ describe('B 站意图：先问 B 站', () => {
     const packet = await chat('看一下b站原神现在的最新pv叫啥，链接发来');
     expect(packet.ok).toBe(true);
     expect(callTargets[0], '第一顺位应当是本地词库').toBe('com.shixiansi.plugin-slang/slang');
-    expect(callTargets[1], '词库没查到，B 站意图应当排第二（在整网搜索之前）').toBe(BILI);
+    const biliAt = callTargets.indexOf(BILI);
+    const webIdx = callTargets.indexOf(WEB);
+    expect(biliAt, 'B 站意图却没有问 B 站').toBeGreaterThanOrEqual(0);
+    expect(biliAt, 'B 站意图应当排在整网搜索之前').toBeLessThan(webIdx < 0 ? Number.MAX_SAFE_INTEGER : webIdx);
     // harness 里 B 站不存在 → 问不到 → 仍然会退回整网搜索（后备链不能因此断掉）
     expect(callTargets).toContain(WEB);
     expect(packet.result.text).toContain('BV');
@@ -505,7 +543,8 @@ describe('B 站意图：先问 B 站', () => {
     });
     const packet = await chat('今天天气怎么样');
     expect(packet.ok).toBe(true);
-    expect(callTargets[1], '普通问题：词库之后应当整网搜索，不是 B 站').toBe(WEB);
+    expect(callTargets, '普通问题：应当整网搜索').toContain(WEB);
+    expect(callTargets, '普通问题不该去问 B 站').not.toContain(BILI);
     expect(callTargets).not.toContain(BILI);
   });
 });
@@ -561,5 +600,24 @@ describe('网络词：先查词库', () => {
     expect(packet.result.meta.slang, '这轮不该记下任何命中').toBeNull();
     expect(llmCalls[0].system).not.toContain('【网络词】');
     expect(callTargets.length).toBeGreaterThanOrEqual(before);
+  });
+});
+
+
+// 能力发现 + 释义补位：本地词库没有的词，去问**发现了的**提供方（这里是萌娘百科）。
+//
+// 这条是"功能类插件主动暴露能力"的落点：核心不再写死某个插件 id，而是问宿主"谁提供 slang/wiki"，
+// 再按顺序问过去。新装一个提供 slang 的插件，不需要改核心就能被用上。
+describe('能力发现：词库没有就问百科', () => {
+  test('slang 提供方都没有 → 问 wiki 提供方（萌娘百科），释义进了 prompt', async () => {
+    bootDocs();
+    llmReplies.push('「区」在网络用语里就是「区区」的自谦说法。');
+    const packet = await chat('区在网络用语中是什么意思');
+    expect(packet.ok).toBe(true);
+    // 先问本地词库（它答不上来这个），再问萌娘百科
+    expect(callTargets[0], '第一顺位应当是本地词库').toBe('com.shixiansi.plugin-slang/slang');
+    expect(callTargets, '没有去问发现了的百科提供方').toContain('com.shixiansi.plugin-moegirl/slang');
+    expect(llmCalls[0].system, '百科给的释义没有进 prompt').toContain('萌娘百科');
+    expect(packet.result.meta.slang, 'meta 里没有记下命中的条目').toBe('区');
   });
 });

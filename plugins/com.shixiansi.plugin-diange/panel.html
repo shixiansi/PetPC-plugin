@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>点歌</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：什么都不画，只负责答 plugin.call 的 song / song_link。
+                   用户在群里点歌时就是这一份在干活——没有任何界面是开着的。
+      workshop     控制中心插件页：手动点一首、看最近点过什么。能不能真跑看宿主服务不服务
+                   net.fetch（init.host），不看 slot 叫什么。
+
+    两段都写在标记里；常驻帧里 workshop 那段整体隐藏。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">点歌</span>
+          <span class="chip" id="chip-api">接口：读取中…</span>
+        </div>
+        <p class="lede">
+          把「点歌 晴天」变成一首歌：歌名、歌手、专辑、封面，和一条能直接播的直链。
+          别的插件用 <code>plugin.call</code> 问它 <code>song</code>（一句话找歌）或
+          <code>song_link</code>（已知歌名要链接）；记忆核心在用户点歌时调它，把直链原样给出来。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>点一首</h2>
+        <div class="search-row">
+          <input id="query" class="input" type="text" placeholder="歌名，最好带上歌手，例如：晴天 周杰伦" maxlength="200" />
+          <button id="go" class="btn primary" type="button" disabled>点歌</button>
+        </div>
+        <p class="hint desktop-only" hidden>
+          这一页搜不动：当前宿主不服务网络请求。点歌本身照常在桌宠那边工作——用户在群里点歌时，
+          记忆核心会问这个插件的 <code>song</code>，与这里开没开着无关。
+        </p>
+        <div id="results" class="results"></div>
+        <p id="results-empty" class="muted">还没有点过。输入一首歌试试，或等记忆核心自己来问。</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>最近点过</h2>
+          <button id="history-clear" class="btn soft" type="button">清空记录</button>
+        </div>
+        <table class="history">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>点的那句话</th>
+              <th>找到的歌</th>
+              <th>链接</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+        <p id="history-empty" class="muted">还没有记录。</p>
+        <p class="hint">
+          同一首歌在缓存时间内直接用上一次的结果（缓存时长在设置里调）。直链带签名，放久了会失效——
+          缓存时间设得太长的症状是"昨天能播，今天 404"。
+        </p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/kuwo.js"></script>
+  <script src="lib/search.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

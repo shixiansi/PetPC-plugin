@@ -328,13 +328,15 @@ node node_modules\vitest\vitest.mjs run
 | `com.shixiansi.plugin-qq` **1.13.0+** | **Milky 接入端**（Yogurt 那套）。打开插件页的「把回答交给记忆核心」之后，群里每一句问答都走 `plugin.call`，本插件不再自己拼 prompt。 | 原有 + `plugin.call`；`callTargets: ["…memcore/chat", "…memcore/seed"]` |
 | `com.shixiansi.plugin-onebot` | **OneBot v11 接入端**（NapCat / Lagrange，正向 WS）。从第一天起就是薄的：只做"谁在哪个会话说了什么"和发回去。 | `net.ws` `plugin.call` `storage` `plugin.config`；`callTargets: ["…memcore/chat"]` |
 | `com.shixiansi.plugin-websearch` **1.0.0+** | **联网搜索**（核心 0.2.0 起被它点名）：SearXNG / Tavily / Bing 三选一，常驻帧答 `plugin.call` 的 `search`。 | `net.fetch` `plugin.call` `storage` `plugin.config`；`serves: ["search"]` |
+| `com.shixiansi.plugin-diange` **0.1.0+** | **点歌**（核心 0.6.0 起被它点名）：酷我搜索 + 直链，常驻帧答 `plugin.call` 的 `song`（一句话找歌）与 `song_link`（歌名 + 歌手要链接）。 | `net.fetch` `plugin.call` `storage` `plugin.config`；`serves: ["song", "song_link"]` |
 
 ```
 协议端 ──ws──▶ 宿主(net.ws) ──event──▶ 接入端 ──plugin.call──▶ 记忆核心 ──llm.chat──▶ 模型
                     ▲                      │                    │
                     └── 发回平台 ◀── 回答 ──┘        四层记忆写在自己的 storage
                                                │
-                                               └─plugin.call(search)─▶ 联网搜索 ─net.fetch─▶ SearXNG/Tavily/Bing
+                                               ├─plugin.call(search)─▶ 联网搜索 ─net.fetch─▶ SearXNG/Tavily/Bing
+                                               └─plugin.call(song)───▶ 点歌 ────net.fetch─▶ 酷我（经 oiapi.net）
 ```
 
 于是：**换接入端不丢记忆**（新接入端点名 `memcore/chat` 即可）；**改一次人设全端生效**；**两个接入端
@@ -390,6 +392,37 @@ chat 的流程按设置里的 `webSearch` 三档走：
 1. **搜索是增强，不是依赖**：搜索插件没装、没启用、没配好、超时，核心一律当作"没有搜索"，
    对话按纯记忆继续——用户看到的回答不会因为联网这一层而失败。
 2. **同一句话有缓存**（默认 30 分钟）：群聊里同一句"今天天气"反复被问，不会反复打引擎。
+
+### 点歌：核心 0.6.0 起「用户点歌 → 当场取一条直链」
+
+`com.shixiansi.plugin-diange`（0.1.0）是这一条链上的**被问方**：常驻帧 + `net.fetch`，
+`serves: ["song", "song_link"]`。核心 0.6.0 的 manifest 用
+`callTargets: ["…diange/song", "…diange/song_link"]` 点名它，chat 的流程按设置里的 `music` 走：
+
+| 档 | 行为 | 模型请求 |
+|---|---|---|
+| `auto`（默认） | 用户这一轮明确要歌（「点歌 …」「来一首 …」「想听一首 …」）就先问 `song`；或模型按 prompt 约定输出 `[SONG] 歌名 - 歌手` 时问 `song_link`，都带着结果再答一次 | 1–2 次 + 0–1 次点歌 |
+| `off` | 一次都不问（`[SONG]` 标记仍会被去掉） | 1 次 |
+
+名字为什么不叫 `search`：**能力名就是发现依据**（宿主 `plugins.services` 按 `serves` 报"谁能
+干什么"），而 `search` 已经是"网页搜索"。一个叫 `search` 的点歌插件会让"搜一下今天天气"被问成
+"没找到这首歌"。
+
+点歌插件自己那一侧：
+
+- **来源**是酷我（经公开接口 `oiapi.net`，`apiBase` 可改成自己的镜像，`hostWhitelist` 会把它
+  加进网络白名单）。接口只回**一条**最匹配的结果——`n` 参数无效，所以 `song` 的能力边界是
+  "把一句话解析成一首歌"，不是"列出一堆候选"。
+- **链接按码率逐档回退**（320 → 192 → 128，从首选往上/下就近换档）：不是为了音质，而是为了
+  换一条签名不同的链接——某一条播不通时，换一档常常就通了。
+- **能探就探一次能不能播**：`net.fetch` 的请求头白名单里没有 `Range`，所以"试播"只能是一次
+  完整 GET。因此它**只对白名单里的音频域名探**（`KNOWN_CDN_HOSTS` + 设置里填的 `probeHosts`），
+  域名叫不上就标"未验证"而不是发一次注定被拒的请求。默认开，可以在设置里关掉。
+- **缓存 15 分钟**：直链带签名，放一整天就失效；缓存太久的"成功"是最糟的那种结果——
+  它看起来没问题。
+
+两条边界与联网搜索一致：**点歌是增强不是依赖**（问不到时对话照常），而且**直链从不进记忆**
+（`meta.music` 只有歌名与歌手；把签名链接写进 L1/L3，下次拿出来就是死链）。
 
 ### 0.3.0 起的生态扩展（2026-10-30）：感知三件套 + 定时压缩
 

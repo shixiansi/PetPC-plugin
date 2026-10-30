@@ -1,0 +1,64 @@
+{
+  "id": "com.shixiansi.plugin-diange",
+  "name": "点歌（酷我搜索 + 直链）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "把「点歌 晴天」变成一首歌：歌名、歌手、专辑、封面，和一条能直接播的直链。搜索走酷我（替它查的是 oiapi 那个公开接口），链接按码率逐档回退，并在域名可探测时验证一次能不能播。别的插件用 plugin.call 问它 song（按一句话找歌）或 song_link（已知歌名，要一条当下的链接）；记忆核心在用户点歌时调它，把直链原样给出来。插件页可以手动点一首。",
+  "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
+  "background": true,
+  "serves": ["song", "song_link"],
+  "netHosts": ["oiapi.net", "kw-er.kuwo.cn", "kw-lv.kuwo.cn"],
+  "config": [
+    {
+      "key": "apiBase",
+      "label": "搜索接口地址（默认 http://oiapi.net，它替你查酷我；填别的镜像也行，这个地址会按你填的值加进网络白名单）",
+      "type": "text",
+      "default": "http://oiapi.net",
+      "hostWhitelist": true
+    },
+    {
+      "key": "br",
+      "label": "首选音质（接口不认的档会自动退到最近的下一档）",
+      "type": "select",
+      "default": "128",
+      "options": [
+        { "value": "320", "label": "320 kbps（文件大，换来的是好听一点）" },
+        { "value": "192", "label": "192 kbps" },
+        { "value": "128", "label": "128 kbps（省流量，最稳）" }
+      ]
+    },
+    {
+      "key": "probe",
+      "label": "拿到链接后验证一次能不能播（只对白名单里的音频域名发请求；关掉就只给链接不验证）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "probeHosts",
+      "label": "额外要探测的音频域名（逗号分隔；填错了只是不探测，不会让点歌失败）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "cacheTtlMin",
+      "label": "同一首歌缓存几分钟（0=不缓存；直链带签名，放太久会失效）",
+      "type": "number",
+      "default": "15"
+    },
+    {
+      "key": "maxHistory",
+      "label": "插件页留几首最近点过的（0=不记录）",
+      "type": "number",
+      "default": "30"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/kuwo.js",
+    "lib/search.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}
