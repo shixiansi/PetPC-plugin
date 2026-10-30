@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T11:29:35Z",
+  "updatedAt": "2026-10-30T12:06:07Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -57,12 +57,12 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.4.2.zip",
-      "sha256": "6616cbcd1c935dbd6d0413d819d2709364192183c1c020c0c30d0ce0cfdf67a7"
+      "download": "dist/com.shixiansi.plugin-memcore-0.5.0.zip",
+      "sha256": "1b8e40e7aab1ba20168575e6690baae6904f48ed729a62cf85ee9a08de6cb3fd"
     },
     {
       "id": "com.shixiansi.plugin-onebot",
@@ -116,6 +116,16 @@
       "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.3.zip",
       "sha256": "be314383702e732f5373b9b43492b48f184908123cec5c71993b1cd780d11a4c"
+    },
+    {
+      "id": "com.shixiansi.plugin-slang",
+      "name": "网络词词典",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
+      "permissions": ["storage", "plugin.config", "plugin.call"],
+      "download": "dist/com.shixiansi.plugin-slang-0.1.0.zip",
+      "sha256": "159f6a7092d7f650f03b908974bad6d85c4aacb86a43f240861859dc1da68be6"
     },
     {
       "id": "com.shixiansi.plugin-todo",

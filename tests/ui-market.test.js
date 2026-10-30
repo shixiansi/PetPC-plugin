@@ -114,7 +114,7 @@ describe('docs/ui/market.css 设计令牌', () => {
     expect([...tokens.matchAll(/@keyframes\s+([a-z-]+)/g)].map((m) => m[1])).toEqual(['pulse']);
   });
 
-  test('15 个插件渐变一条不少（含三个新插件）', () => {
+  test('16 个插件渐变一条不少（含四个新插件）', () => {
     for (const g of [
       'g-chat', 'g-mem', 'g-todo', 'g-pomodoro', 'g-voice', 'g-qq', 'g-qqbot',
       'g-onebot', 'g-websearch', 'g-bilibili', 'g-llmchannel', 'g-clipask',
@@ -175,12 +175,12 @@ describe('index.html 市场页', () => {
       expect(svg.getAttribute('fill')).toBe('currentColor');
       expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
     }
-    expect(icons).toBe(15);
+    expect(icons).toBe(16);
   });
 
   test('图标渐变类都有对应规则，没有拼错的名字', () => {
     const used = [...indexHtml.matchAll(/class="icon (g-[a-z]+)"/g)].map((m) => m[1]);
-    expect(used.length).toBe(15);
+    expect(used.length).toBe(16);
     for (const g of used) {
       expect(tokens).toMatch(new RegExp(`\\.${g}\\s*\\{`), `.${g} 在令牌文件里没有定义`);
     }
@@ -195,7 +195,7 @@ describe('index.html 市场页', () => {
   test('已打包插件的下载链接都指向 dist/ 里真实存在的包', () => {
     // 三个新插件的包在阶段二收尾统一生成；这里只对已经打包的 12 个严格要求。
     const links = [...doc.querySelectorAll('a[href^="dist/"]')].map((a) => a.getAttribute('href'));
-    expect(links.length).toBe(15);
+    expect(links.length).toBe(16);
     const missing = links
       .filter((href) => !href.includes('pet-sense') && !href.includes('media-sync') && !href.includes('weather-env'))
       .filter((href) => !existsSync(path.join(marketRoot, href)));
@@ -225,10 +225,10 @@ describe('manage.html 管理页', () => {
 
   test('插件行：图标 + 双状态胶囊 + 开关，一行不缺', () => {
     const rows = [...doc.querySelectorAll('section.plugin')];
-    expect(rows.length).toBe(15);
-    // 目录里的 15 个全部在列；三个新插件以停用态出现（装完先看清权限再启用）。
+    expect(rows.length).toBe(16);
+    // 目录里的 16 个全部在列；四个新插件以停用态出现（装完先看清权限再启用）。
     expect(rows.filter((r) => r.dataset.state === 'running').length).toBe(12);
-    expect(rows.filter((r) => r.dataset.state === 'disabled').length).toBe(3);
+    expect(rows.filter((r) => r.dataset.state === 'disabled').length).toBe(4);
     for (const row of rows) {
       expect(row.querySelector('.icon svg'), '行里没有图标 SVG').not.toBeNull();
       expect(row.querySelector('.st-running'), '缺运行中胶囊').not.toBeNull();
