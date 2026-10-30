@@ -3556,8 +3556,10 @@ async function onCall(data) {
   }
   try {
     const payload = (data && data.payload) || {};
-    const query = String(payload.query || '').trim().slice(0, 120);
-    if (!query) throw new Error('search 需要 query：要查的那句话');
+    const asked = String(payload.query || '').trim().slice(0, 120);
+    if (!asked) throw new Error('search 需要 query：要查的那句话');
+    // 站内搜索只认真实体：把"B站/链接/名称"这类元话语洗掉（见 biliSearchKeyword）。
+    const query = biliSearchKeyword(asked);
     const count = Math.min(10, Math.max(1, Number(payload.count) || 5));
     const started = Date.now();
     const dataOut = await biliGet('search', {
@@ -3594,6 +3596,25 @@ async function onCall(data) {
   }
 }
 
+/**
+ * 把关键词里"问 B 站的元话语"去掉，只留实体。
+ *
+ * 为什么必须洗：模型给的查询常常跟着用户的原话，比如
+ * `B站 原神 最新PV 名称 链接`。这些词在 B 站站内是**废话**（谁都知道自己在 B 站），却会实打实
+ * 稀释相关性——2026-10-30 实测同一句话搜索返回的是「7.1版本 up主激励计划」「央视频」「7.2新地图」，
+ * 而把"B站/名称/链接"洗掉、只搜 `原神 PV`，头两条就是「「原神」新角色PV」「小剧场·薇斯妲pv」。
+ *
+ * 只洗"站名/要链接/要名字"这类**动作性**的词；`是什么`、`怎么` 这些不动——它们往往是问题本身。
+ */
+const SEARCH_KEYWORD_NOISE = /(b\s*站|哔哩哔哩|bilibili|哔哩|站内|链接|地址|官网|名称|名字|叫啥|叫什么|视频|看一下|看看|帮我|帮忙|查一下|搜一下|找一下|搜索)/gi;
+
+function biliSearchKeyword(raw) {
+  const source = String(raw || '');
+  const cleaned = source.replace(SEARCH_KEYWORD_NOISE, ' ').replace(/\s+/g, ' ').trim();
+  // 洗完空了（比如用户只说了"b站"）就退回原话：宁可带噪音，也不能搜空。
+  return (cleaned || source.trim()).slice(0, 80);
+}
+
 /** 给模型读的结果文本：与「联网搜索」插件同一版式，调用方拼 prompt 时不必区分来源。 */
 function renderSearchText(query, results, tookMs) {
   if (!results.length) return `没有搜到「${query}」相关的视频。`;
@@ -3628,6 +3649,7 @@ window.__bili = Object.freeze({
   encWbi,
   queryString,
   stripTags,
+  biliSearchKeyword,
   mergeSegments,
   chunkSegments,
   chunkNote,

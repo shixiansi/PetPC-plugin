@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-bilibili",
   "name": "B 站刷视频插件",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "shixiansi",
   "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
   "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share",

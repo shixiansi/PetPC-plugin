@@ -1569,3 +1569,29 @@ describe('对外提供 search', () => {
     expect(manifest.permissions, '宿主要求被调方也持有 plugin.call，否则调用会被拒').toContain('plugin.call');
   });
 });
+
+// 站内搜索的关键词必须洗掉"问 B 站的元话语"。
+//
+// 真机事故（2026-10-30）：模型给的查询是 `B站 原神 最新PV 名称 链接`，原样打给 B 站站内搜索，
+// 回来的是「7.1版本 up主激励计划」「央视频」「7.2新地图」——一条 PV 都没有。而把 B站/名称/链接
+// 洗掉、只搜 `原神 PV`，头两条就是「「原神」新角色PV」「小剧场·薇斯妲pv」（真机实测）。
+describe('search 的关键词清洗', () => {
+  const clean = (q) => window.__bili.biliSearchKeyword(q);
+
+  test('去掉站名/要链接/要名字这类元话语', () => {
+    expect(clean('B站 原神 最新PV 名称 链接')).toBe('原神 最新PV');
+    expect(clean('看一下b站原神现在的最新pv叫啥')).toBe('原神现在的最新pv');
+    expect(clean('帮我搜一下原神 7.3 新角色')).toBe('原神 7.3 新角色');
+  });
+
+  test('问题本身的词不动（是什么/怎么），洗空了退回原话', () => {
+    expect(clean('原神的PV是什么')).toBe('原神的PV是什么');
+    expect(clean('b站')).toBe('b站');
+  });
+
+  test('bilibili 的 search 用的是洗过的关键词', () => {
+    const src = readFileSync(appPath, 'utf8');
+    expect(src, 'onCall 里没有调用 biliSearchKeyword').toMatch(/const query = biliSearchKeyword\(asked\)/);
+    expect(src, 'keyword 没有用洗过的那一份').toMatch(/keyword: query,/);
+  });
+});
