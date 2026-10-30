@@ -209,22 +209,24 @@ function setStatus(text) {
  * happened to answer.
  */
 function refreshEngineState() {
-  if (!els.engineState) return;
   if (!granted.has('net.fetch')) {
-    els.engineState.textContent = '没有联网权限，无法生成';
+    if (els.engineState) els.engineState.textContent = '没有联网权限，无法生成';
     engineUp = false;
+    speakEngineUp = false;
     return;
   }
   const url = configuredValue('ttsBaseUrl');
   if (!url) {
-    els.engineState.textContent = '没有配置语音服务地址';
+    if (els.engineState) els.engineState.textContent = '没有配置语音服务地址';
     engineUp = false;
+    speakEngineUp = false;
     return;
   }
   // The engine's health endpoint is the root; the reply's status is all that is
   // read, so a plain GET is enough.
   engineUp = null;
-  els.engineState.textContent = '正在检查语音服务…';
+  speakEngineUp = null;
+  if (els.engineState) els.engineState.textContent = '正在检查语音服务…';
   request('net.fetch', { url, method: 'GET' }, 'engine');
 }
 
@@ -349,6 +351,178 @@ function playLine(lineID, notice) {
   // produce. See resolveClipFor: the packaged clip is the fallback whenever the
   // user's own render is absent OR no longer on disk.
   request('audio.play', { name: resolveClipFor(lineID) });
+}
+
+// --- `speak`：plugin.call 的方法 ---------------------------------------------
+//
+// 别的插件（晨报、日记、任何"桌宠该开口说一段新话"的地方）用它把**任意一段文本**转成
+// 语音播放。它不是五条固定台词的第七个变体——那五条走 playLine 的"选一个已存在的片段"
+// 路线；speak 走的是工作室"生成"按钮的同一条引擎链：
+//
+//   net.fetch /set_gpt_weights → /set_sovits_weights → POST /tts（base64 的 WAV）
+//     → audio.save → audio.play
+//
+// 与试听的区别只有两处：文本来自调用方而不是 LINES 表；整条链包在一个 promise 里，
+// 调用方等的是"播放已经发生"而不是"请求已发出"。
+//
+// 权限语义：调用不转移权限（手册 §6.8）——语音引擎的地址在**这个插件**的 hostWhitelist
+// 里，audio 也是**这个插件**的授权；调用方只需要 plugin.call 这一条。
+
+/** speak 的入参清洗：text 必填、≤500 字（一次 TTS 的合理长度）；noCache 只是测试接缝。 */
+function cleanSpeakPayload(payload) {
+  const text = String((payload && payload.text) || '').trim();
+  if (!text) throw new Error('speak 需要 text：要念的那句话');
+  if (text.length > 500) throw new Error('speak 的 text 太长（≤500 字）：晨报请拆成多条');
+  return { text: text.slice(0, 500) };
+}
+
+/** speak 正在等待的保存：slot 名 → {resolve, reject}。 */
+const speakWaiting = new Map();
+/** speak 的条数（slot 名去重用）。 */
+let speakSeq = 0;
+/** 上一次 speak 的引擎探测结论（false = 明确没在运行；null/true 不拦）。 */
+let speakEngineUp = null;
+
+/**
+ * `speak` 方法本体：一段新文本 → 引擎合成 → 保存 → 播放。
+ *
+ * @param {object} payload {text}
+ * @returns {Promise<object>} {played: true, clip: "<slot 名>"}
+ */
+async function handleSpeak(payload) {
+  const { text } = cleanSpeakPayload(payload);
+  if (!granted.has('net.fetch')) throw new Error('语音插件没有联网权限，无法生成语音');
+  if (!granted.has('audio')) throw new Error('语音插件没有 audio 权限，无法保存与播放');
+  if (!configuredValue('ttsBaseUrl')) throw new Error('没有配置语音服务地址（语音插件的设置）');
+  if (!configuredValue('refPath')) throw new Error('没有配置参考音频路径（语音插件的设置）');
+  if (speakEngineUp === false) throw new Error('语音服务未运行，请先自行启动');
+
+  const base = configuredValue('ttsBaseUrl').replace(/\/+$/, '');
+  speakSeq += 1;
+  const slot = `speak-${Date.now().toString(36)}-${speakSeq}`;
+
+  return new Promise((resolve, reject) => {
+    speakWaiting.set(slot, { resolve, reject });
+    // 三步链与试听完全同型（weights → weights → tts），只是起点直接从 weights 开始、
+    // 结尾多一个"保存后播放"。text 走的是同一条 request() 路由（purpose 带 slot）。
+    speakBase.set(slot, base);
+    speakText.set(slot, text);
+    const id = request('net.fetch', {
+      url: `${base}/set_gpt_weights?weights_path=${encodeURIComponent(configuredValue('gptPath'))}`,
+      method: 'GET',
+    }, `speak-weights-gpt:${slot}`);
+    if (!id) {
+      speakWaiting.delete(slot);
+      speakBase.delete(slot);
+      speakText.delete(slot);
+      reject(new Error('语音插件还没有初始化完成（request 被拒绝）'));
+    }
+  });
+}
+
+/** speak 每一步的 base / 文本，按 slot 记（与试听的 generateBase 同型）。 */
+const speakBase = new Map();
+const speakText = new Map();
+
+/** speak 链的第二步：sovits 权重。 */
+function speakContinue(afterID, slot) {
+  const base = speakBase.get(slot) || '';
+  if (!base) return;
+  request('net.fetch', {
+    url: `${base}/set_sovits_weights?weights_path=${encodeURIComponent(configuredValue('sovitsPath'))}`,
+    method: 'GET',
+  }, `speak-weights-sovits:${slot}`);
+}
+
+/** speak 链的第三步：POST /tts（base64 回来的 WAV）。 */
+function speakRender(slot) {
+  const base = speakBase.get(slot) || '';
+  const text = speakText.get(slot) || '';
+  if (!base || !text) return;
+  request('net.fetch', {
+    url: `${base}/tts`,
+    method: 'POST',
+    encoding: 'base64',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      text_lang: 'zh',
+      ref_audio_path: configuredValue('refPath'),
+      prompt_text: configuredValue('promptText'),
+      prompt_lang: configuredValue('promptLang') || 'zh',
+      speed_factor: Number(configuredValue('speed')) || 1,
+      temperature: Number(configuredValue('temperature')) || 1,
+      top_k: Number(configuredValue('topK')) || 15,
+      top_p: Number(configuredValue('topP')) || 1,
+      repetition_penalty: Number(configuredValue('repetitionPenalty')) || 1.35,
+      seed: Number(configuredValue('seed')),
+      streaming_mode: false,
+    }),
+  }, `speak-generate:${slot}`);
+}
+
+/**
+ * speak 链的应答路由。returns true = 这条应答是 speak 链的，onResponse 不用再管。
+ *
+ * 引擎探测（probe）的结论也在这里记：和 generate 的探测同一个语义——"明确没在运行"
+ * 才拦下一次 speak，未知不拦。
+ */
+function onSpeakReply(data, purpose) {
+  if (typeof purpose !== 'string' || !purpose.startsWith('speak-')) return false;
+  const slot = purpose.split(':').slice(1).join(':');
+
+  if (purpose.startsWith('speak-weights-gpt:')) {
+    if (!data.ok || (data.result && data.result.status >= 400)) {
+      speakFail(slot, `语音服务没有接受 GPT 权重切换（${(data.result && data.result.status) || '请求失败'}）`);
+      return true;
+    }
+    speakContinue(data.id, slot);
+    return true;
+  }
+  if (purpose.startsWith('speak-weights-sovits:')) {
+    if (!data.ok || (data.result && data.result.status >= 400)) {
+      speakFail(slot, `语音服务没有接受 SoVITS 权重切换（${(data.result && data.result.status) || '请求失败'}）`);
+      return true;
+    }
+    speakRender(slot);
+    return true;
+  }
+  if (purpose.startsWith('speak-generate:')) {
+    const body = data.ok ? data.result && data.result.body : '';
+    const status = data.ok ? data.result && data.result.status : 0;
+    if (status !== 200 || !body) {
+      speakFail(slot, `语音服务返回 ${status || '错误'}，无法生成这一段`);
+      return true;
+    }
+    // 引擎答了 → 它活着（与 refreshEngineState 的判定一致）。
+    speakEngineUp = true;
+    request('audio.save', { name: slot, data: body }, `speak-saved:${slot}`);
+    return true;
+  }
+  if (purpose.startsWith('speak-saved:')) {
+    const waiter = speakWaiting.get(slot);
+    speakWaiting.delete(slot);
+    speakBase.delete(slot);
+    speakText.delete(slot);
+    if (!waiter) return true;
+    if (!data.ok) {
+      waiter.reject(new Error(`语音已生成但保存失败：${data.error || '宿主拒绝了这次写入'}`));
+      return true;
+    }
+    request('audio.play', { name: slot }, `speak-played:${slot}`);
+    waiter.resolve({ played: true, clip: slot });
+    return true;
+  }
+  return false;
+}
+
+/** speak 链的统一失败出口：清理三张表，把原因原样交给调用方。 */
+function speakFail(slot, message) {
+  const waiter = speakWaiting.get(slot);
+  speakWaiting.delete(slot);
+  speakBase.delete(slot);
+  speakText.delete(slot);
+  if (waiter) waiter.reject(new Error(message));
 }
 
 // --- the workshop appearance ------------------------------------------------
@@ -800,6 +974,14 @@ function onResponse(data) {
     return;
   }
 
+  // The speak chain (plugin.call 的 speak 方法) rides the SAME purpose map; its replies
+  // resolve or reject the caller's promise, so they must not fall through to the
+  // status-line handling below. purpose 在上面已经被 delete，必须作为参数传下去。
+  if (typeof purpose === 'string' && purpose.startsWith('speak-')) {
+    onSpeakReply(data, purpose);
+    return;
+  }
+
   if (!data.ok) {
     // A refusal is a NORMAL answer here, not an exception: this program does not
     // implement every capability the other one does, so a plugin that ran in the
@@ -828,6 +1010,7 @@ function onResponse(data) {
     // "unknown" and must not block anything.
     if (purpose === 'engine') {
       engineUp = false;
+      speakEngineUp = false;
       if (els.engineState) els.engineState.textContent = '语音服务未运行，请先自行启动';
       renderEngineHelp();
     }
@@ -1011,9 +1194,41 @@ function onMessage(event) {
     case 'event':
       onEvent(data);
       break;
+    case 'call':
+      void onCall(data);
+      break;
     default:
       break;
   }
+}
+
+/**
+ * 答一次 plugin.call（`speak`）。
+ *
+ * 三种结局都要回一条 call-result——包括「我不认识这个方法」：不回包的话调用方只能等到
+ * 30 秒超时，而它永远等不到原因（手册 §6.8）。
+ */
+async function onCall(data) {
+  const ticket = typeof data.ticket === 'string' ? data.ticket : '';
+  if (!ticket) return;
+  const method = typeof data.method === 'string' ? data.method : '';
+  if (method !== 'speak') {
+    postCallResult(ticket, false, new Error(`语音插件只回答 speak，不认识方法 ${method || '(空)'}`));
+    return;
+  }
+  try {
+    postCallResult(ticket, true, await handleSpeak(data.payload === undefined ? {} : data.payload));
+  } catch (err) {
+    postCallResult(ticket, false, err);
+  }
+}
+
+/** 一次 plugin.call 的回包：ticket 原样带回——带错了宿主不认。 */
+function postCallResult(ticket, ok, value) {
+  const message = { v: 1, type: 'call-result', ticket, ok: Boolean(ok) };
+  if (ok) message.result = value === undefined ? null : value;
+  else message.error = String(value && value.message ? value.message : value);
+  postToHost(message);
 }
 
 /**
@@ -1057,3 +1272,14 @@ wireWorkshop();
 // control stays disabled and no request is sent.
 applyView({ slot: 'workshop' });
 postToHost({ v: 1, type: 'ready' });
+
+/**
+ * 测试接缝：speak 是一条跨五次请求/应答的链，测试要么驱动真实链路，要么只能读源码。
+ * 这里暴露链本身与它的状态表；能力调用仍然全部走 request()，仍然过宿主的闸门。
+ */
+window.__voiceSpeak = Object.freeze({
+  speak: handleSpeak,
+  onReply: onSpeakReply,
+  cleanPayload: cleanSpeakPayload,
+  waiting: () => speakWaiting.size,
+});

@@ -1,0 +1,90 @@
+{
+  "id": "com.shixiansi.plugin-rss-reader",
+  "name": "晨报（RSS 订阅与语音播报）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "订阅 RSS/Atom 源，每 2 小时在后台抓一次新文章；把新内容交给记忆核心的模型总结成 3 句话（语气符合桌宠人设），再用语音插件的 speak 念出来。面板里可以添加/删除订阅源、立刻抓一次、看每条源的状态与最近摘要。",
+  "permissions": [
+    "net.fetch",
+    "plugin.call",
+    "plugin.share",
+    "storage",
+    "plugin.config",
+    "events",
+    "pet.bubble"
+  ],
+  "serves": ["fetch_now"],
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat",
+    "com.shixiansi.plugin-voice/speak"
+  ],
+  "shareRead": [],
+  "background": true,
+  "netHosts": [
+    "example.com",
+    "www.example.com",
+    "feed.example.com",
+    "rsshub.app"
+  ],
+  "config": [
+    {
+      "key": "feedUrls",
+      "label": "订阅源（每行一个 RSS/Atom 地址；这里填的域也会加进网络白名单）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "extraHosts",
+      "label": "额外的源域名（逗号分隔的裸域名，会加进网络白名单；自建 RSSHub 用得上）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "intervalMin",
+      "label": "抓取间隔（分钟，最小 15；默认 120=2 小时）",
+      "type": "number",
+      "default": "120"
+    },
+    {
+      "key": "maxItems",
+      "label": "每次晨报最多总结几条（1–10）",
+      "type": "number",
+      "default": "5"
+    },
+    {
+      "key": "digestChars",
+      "label": "每条正文最多取多少字发给模型（超长截断，省上下文）",
+      "type": "number",
+      "default": "600"
+    },
+    {
+      "key": "speakDigest",
+      "label": "总结后用语音念出来（需要安装并配置「语音插件」）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "bubbleDigest",
+      "label": "总结后弹一个气泡（桌宠在场时才显示）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "timeoutSec",
+      "label": "单次抓取/总结超时（秒，10–120）",
+      "type": "number",
+      "default": "30"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/xml.js",
+    "lib/feeds.js",
+    "lib/digest.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

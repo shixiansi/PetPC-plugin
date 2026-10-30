@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>晨报</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：什么都不画，每 2 小时抓一次、总结、播报，答 fetch_now。
+      workshop     控制中心插件页：源管理 + 立刻抓一次（桌宠那面才跑）+ 最近晨报。
+
+    两段都写在标记里；workshop 面在常驻帧里整体隐藏。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">晨报</span>
+        </div>
+        <p class="lede">
+          订阅 RSS/Atom 源，每 2 小时抓一次新文章，总结成 3 句话并语音播报。
+          总结走记忆核心（它会记得你问过什么），播报走语音插件。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>最近晨报</h2>
+        <p id="digest" class="digest">还没有生成过晨报。</p>
+        <p id="digest-time" class="hint"></p>
+        <div class="search-row">
+          <input id="feed-url" class="input" type="text" placeholder="https://example.com/feed.xml" maxlength="300" />
+          <button id="feed-add" class="btn" type="button">添加源</button>
+        </div>
+        <button id="fetch-now" class="btn primary" type="button" disabled>立刻抓一次</button>
+        <p class="hint desktop-only hidden">
+          「立刻抓一次」要在桌宠那边的常驻帧里才能跑（控制中心不服务网络请求与插件调用）。
+          别的插件 <code>plugin.call</code> 这个插件的 <code>fetch_now</code> 就能触发同一份晨报。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>订阅源</h2>
+        </div>
+        <div id="feed-list" class="feed-list"></div>
+        <p class="hint">
+          间隔、条数与正文截断在设置里调；配置里每行一个地址也可以，这里填的域会加进网络白名单。
+        </p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/xml.js"></script>
+  <script src="lib/feeds.js"></script>
+  <script src="lib/digest.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

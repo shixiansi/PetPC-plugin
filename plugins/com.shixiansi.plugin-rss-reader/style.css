@@ -1,0 +1,92 @@
+/*
+ * 晨报：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写布局：摘要区、订阅源列表。
+ *
+ * 纪律：这个文件里不许出现 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.digest {
+  margin: 0 0 var(--space-2);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.digest-time {
+  margin: 0 0 var(--space-4);
+  color: var(--text-dim);
+}
+
+.search-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.search-row .input {
+  flex: 1;
+}
+
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.feed {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.feed-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.feed-title {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.feed-remove {
+  height: 28px;
+  padding: 0 var(--space-3);
+}
+
+.feed-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--text-dim);
+}
