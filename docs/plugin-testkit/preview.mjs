@@ -138,7 +138,7 @@ function startServer(pluginDir, port, galleryBox = null) {
 // ---------------------------------------------------------------------------
 // Driving the browser.
 // ---------------------------------------------------------------------------
-function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, theme, click, frame, bare }) {
+function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, theme, click, frame, bare, nogrow }) {
   const u = new URL(`http://127.0.0.1:${port}/`);
   u.searchParams.set('plugin', plugin);
   u.searchParams.set('rect', String(rect));
@@ -146,6 +146,8 @@ function previewURL({ port, plugin, rect, slot, kind, granted, deny, state, them
   u.searchParams.set('kind', kind);
   if (granted) u.searchParams.set('granted', granted);
   if (deny) u.searchParams.set('deny', '1');
+  // Do NOT follow surface.blocks growth requests: measures "does the DECLARED size hold it".
+  if (nogrow) u.searchParams.set('nogrow', '1');
   if (theme) u.searchParams.set('theme', theme);
   if (click) u.searchParams.set('click', click);
   // 显式的框（--frame）与裸模式（--bare）：一个没有 surface 的插件需要真实的框才看得出布局。
@@ -531,6 +533,18 @@ async function main() {
         const label = `${manifest.id} rect ${index}（${Math.round(rect.w)}×${Math.round(rect.h)}，state=${opts.state}）`;
         if (problems.length === 0) {
           console.log(`PASS  ${label}：全部元素在卡片之内`);
+          // 第二趟：**不**跟随长高请求，按声明尺寸再量一次。
+          //
+          // 补的是一个具体事故（2026-10-30）：询问卡挂载时量到的是占位文本，真内容在 500ms
+          // 内到达又被插件自己的节流吞掉，块停在旧高度、按钮被切掉一半。而只跑"宿主配合"的
+          // 第一趟永远 PASS——因为**第一趟的宿主就是本工具**，它立刻同意、从不节流。
+          // 所以把"只有宿主同意长高才装得下"显式报出来，让人知道自己依赖的是哪一环。
+          const strict = await check(browser, url(index) + '&nogrow=1');
+          if (strict.length > 0) {
+            console.log(`WARN  ${manifest.id} rect ${index}：按声明尺寸装不下（${strict.length} 处），只有宿主同意长高才显示得全`);
+            for (const one of strict.slice(0, 3)) console.log('  · ' + one);
+            console.log('      真宿主那边长高要过 500ms 节流并重裁窗口：内容到达后必须**强制重量一次**，否则块停在挂载时那个高度（按钮被切掉一半）。');
+          }
         } else {
           bad += 1;
           console.log(`FAIL  ${label}：${problems.length} 处越界`);

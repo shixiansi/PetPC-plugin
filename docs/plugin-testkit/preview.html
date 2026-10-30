@@ -124,6 +124,7 @@ const params = {
   frameH: Number(q.get('h') || 0),
   // `--bare`：去掉虚线框、右栏与留白，截图就是插件页面本身。
   bare: q.get('bare') === '1',
+  nogrow: q.get('nogrow') === '1',
 };
 
 if (params.bare) {
@@ -308,7 +309,10 @@ function makeFrame(el, label, surface) {
     mode: params.deny ? 'deny' : 'ok',
     answers: (method, payload) => {
       // 插件请求长高时先把框改了，再回答——顺序和真宿主一致（先重排，再回 ok）。
-      if (method === 'surface.blocks') applyBlocksRequest(payload);
+      // `?nogrow=1` 时**不跟随**：那是"按声明尺寸量一遍"的第二趟，用来查"这一块是不是只有宿主
+      // 同意长高才装得下"。真宿主那边长高要过 500ms 节流、还要重裁窗口，中间任何一环掉了，
+      // 用户看到的就是被切掉一半的按钮——而只跑"配合"的那一趟永远发现不了。
+      if (method === 'surface.blocks' && !params.nogrow) applyBlocksRequest(payload);
       return previewAnswers(method, payload, { state: params.state, manifest, store, share: tray });
     },
     deliver: (msg) => el.contentWindow.postMessage(msg, '*'),
