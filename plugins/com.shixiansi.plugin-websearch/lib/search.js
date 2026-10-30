@@ -17,7 +17,12 @@ function cleanSearchPayload(payload) {
   const query = text(payload && payload.query, 300).trim();
   if (!query) throw new Error('search 需要 query：要查的那句话');
   const count = clampInt(payload && payload.count, 1, 10, num('resultCount', 1, 10, 5));
-  return { query, count };
+  // 调用方可以给更小的预算（宿主 plugin.call 只有 30 秒，而"搜索 + 两轮模型"要挤在里面）。
+  // 夹在 1..25 秒：低于 1 秒等于不搜，高于 25 秒就超过宿主 net.fetch 的 30 秒余量了。
+  const timeoutMs = payload && payload.timeoutMs
+    ? clampInt(payload.timeoutMs, 1000, 25000, 25000)
+    : 0;
+  return { query, count, timeoutMs };
 }
 
 /** 同一个查询在 TTL 内直接用上一次的结果：省钱、省次数，也省那 12 秒。 */
@@ -77,7 +82,7 @@ function renderResults(query, engine, results, tookMs) {
  * @returns {Promise<object>} {query, engine, count, tookMs, text, results}
  */
 async function handleSearch(payload) {
-  const { query, count } = cleanSearchPayload(payload);
+  const { query, count, timeoutMs } = cleanSearchPayload(payload);
   await refreshConfig();
 
   const cached = await readCache(query);
@@ -89,7 +94,7 @@ async function handleSearch(payload) {
   const status = engineStatus();
   if (!status.ready) throw new Error(status.reason);
 
-  const { results, tookMs } = await runEngine(query, count);
+  const { results, tookMs } = await runEngine(query, count, timeoutMs);
   await writeCache(query, results);
   void appendHistory(query, status.engine, results.length, tookMs);
 

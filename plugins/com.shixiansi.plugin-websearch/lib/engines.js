@@ -83,14 +83,14 @@ function parseJSONBody(out, what) {
 // GET <base>/search?q=…&format=json&language=…&safesearch=1
 // 实例必须在 settings.yml 里开 json format（默认关着），403 是最常见的一手症状。
 
-async function searchSearxng(query, count) {
+async function searchSearxng(query, count, timeoutMs) {
   const base = String(cfg.searxngUrl || '').trim().replace(/\/+$/, '');
   const url = `${base}/search?q=${encodeURIComponent(query)}&format=json&language=zh-CN&safesearch=1`;
   const out = await fetchWithTimeout(url, {
     method: 'GET',
     url,
     headers: { accept: 'application/json' },
-  }, SEARXNG_TIMEOUT_MS, 'SearXNG');
+  }, timeoutMs || SEARXNG_TIMEOUT_MS, 'SearXNG');
   if (out.status === 403) {
     throw new Error('SearXNG 拒绝了 JSON 输出（HTTP 403）：在实例的 settings.yml 里把 search.formats 加上 json');
   }
@@ -113,14 +113,14 @@ async function searchSearxng(query, count) {
 // POST https://api.tavily.com/search  {"api_key":"…","query":"…","max_results":N}
 // 401 时把原因说清楚：多半是 key 抄错了。
 
-async function searchTavily(query, count) {
+async function searchTavily(query, count, timeoutMs) {
   const key = String(cfg.tavilyApiKey || '').trim();
   const out = await fetchWithTimeout(TAVILY_URL, {
     method: 'POST',
     url: TAVILY_URL,
     body: JSON.stringify({ api_key: key, query, max_results: count, search_depth: 'basic' }),
     headers: { 'content-type': 'application/json', accept: 'application/json' },
-  }, API_TIMEOUT_MS, 'Tavily');
+  }, timeoutMs || API_TIMEOUT_MS, 'Tavily');
   if (out.status === 401 || out.status === 403) {
     throw new Error('Tavily 拒绝了这个 Key（HTTP ' + out.status + '）：检查 API Key 是否抄全');
   }
@@ -146,14 +146,14 @@ async function searchTavily(query, count) {
 // GET /v7.0/search?q=…&mkt=zh-CN&count=N&subscription-key=…
 // 密钥走查询参数（见文件头）；响应里的 webPages.value 是结果列表。
 
-async function searchBing(query, count) {
+async function searchBing(query, count, timeoutMs) {
   const key = String(cfg.bingKey || '').trim();
   const url = `${BING_URL}?q=${encodeURIComponent(query)}&mkt=zh-CN&count=${count}&responseFilter=Webpages&subscription-key=${encodeURIComponent(key)}`;
   const out = await fetchWithTimeout(url, {
     method: 'GET',
     url,
     headers: { accept: 'application/json' },
-  }, API_TIMEOUT_MS, 'Bing');
+  }, timeoutMs || API_TIMEOUT_MS, 'Bing');
   if (out.status === 401) {
     throw new Error('Bing 拒绝了这个订阅密钥（HTTP 401）：检查 Key 与资源区域');
   }
@@ -192,13 +192,17 @@ function normalizeRow(row, fallbackSnippet) {
 }
 
 /** 一次查询，按当前设置选引擎。失败抛出的错误都是「能拿去修」的那句中文。 */
-async function runEngine(query, count) {
+/**
+ * `timeoutMs` 可选：调用方（比如记忆核心）要在一句话里凑出"搜索 + 两轮模型"，而宿主 `plugin.call`
+ * 只有 30 秒——它能给的预算比本插件的默认 25 秒小得多。不给就按各引擎的默认值。
+ */
+async function runEngine(query, count, timeoutMs) {
   const status = engineStatus();
   if (!status.ready) throw new Error(status.reason);
   const started = now();
   let results;
-  if (status.engine === 'tavily') results = await searchTavily(query, count);
-  else if (status.engine === 'bing') results = await searchBing(query, count);
-  else results = await searchSearxng(query, count);
+  if (status.engine === 'tavily') results = await searchTavily(query, count, timeoutMs);
+  else if (status.engine === 'bing') results = await searchBing(query, count, timeoutMs);
+  else results = await searchSearxng(query, count, timeoutMs);
   return { results, tookMs: now() - started };
 }

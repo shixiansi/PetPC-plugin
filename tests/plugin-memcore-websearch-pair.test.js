@@ -91,6 +91,8 @@ let llmReplies;
 let searchFetches;
 /** 每次 plugin.call 的目标（`<id>/<method>`），按调用顺序——后备链的用例靠它断言。 */
 let callTargets;
+/** 每次 plugin.call 的 payload，按调用顺序。 */
+let callPayloads;
 /** 搜索引擎应答（按队列；函数形式按请求算）。 */
 let engineReplies;
 let answered;
@@ -161,6 +163,7 @@ function answerRequest(doc, req) {
     case 'plugin.call': {
       const target = String(payload.target || '');
       callTargets.push(`${target}/${String(payload.method || '')}`);
+      callPayloads.push(payload.payload || {});
       const method = String(payload.method || '');
       const declared = Array.isArray(coreManifest.callTargets) ? coreManifest.callTargets : [];
       if (!declared.includes(`${target}/${method}`)) {
@@ -253,7 +256,7 @@ beforeEach(() => {
   llmReplies = [];
   searchFetches = [];
   callTargets = [];
-  callTargets = [];
+  callPayloads = [];
   engineReplies = [];
   answered = { requests: new Set(), calls: new Map() };
 });
@@ -482,5 +485,23 @@ describe('B 站意图：先问 B 站', () => {
     expect(packet.ok).toBe(true);
     expect(callTargets[0], '普通问题不该先问 B 站').toBe(WEB);
     expect(callTargets).not.toContain(BILI);
+  });
+});
+
+// 搜索这一步必须在自己的预算内收手。
+//
+// 真机事故（2026-10-30）：`plugin.call 等 com.shixiansi.plugin-memcore/chat 的回答超时（30 秒）`。
+// 那台 SearXNG 单次 20 秒，加上两轮模型就把宿主给的 30 秒花光了。修复有两半：本插件把时长
+// （timeoutMs）透给搜索插件，让它提前放弃；同时自己再 race 一道兜底（老版本插件不认这个字段）。
+describe('搜索有时间预算', () => {
+  test('把 timeoutMs 透给搜索插件', async () => {
+    bootDocs();
+    llmReplies.push('这个我不清楚。', '好。');
+    engineReplies.push({ status: 200, body: JSON.stringify({ results: [{ title: 't', url: 'https://x.example', content: 'c' }] }) });
+    await chat('今天天气怎么样');
+    expect(callPayloads.length, '没有发出 plugin.call').toBeGreaterThan(0);
+    expect(typeof callPayloads[0].timeoutMs, 'payload 里没有 timeoutMs：搜索方只能跑满 25 秒').toBe('number');
+    expect(callPayloads[0].timeoutMs).toBeGreaterThan(1000);
+    expect(callPayloads[0].timeoutMs, '预算比宿主的 30 秒还宽就没意义了').toBeLessThan(30000);
   });
 });

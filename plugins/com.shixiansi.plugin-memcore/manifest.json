@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-memcore",
   "name": "记忆核心（人设 + 分层记忆）",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "author": "shixiansi",
   "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
   "permissions": [

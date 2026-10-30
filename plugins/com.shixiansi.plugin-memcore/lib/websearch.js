@@ -33,6 +33,20 @@
  * 顺序是"全网优先"：一般问题搜索引擎更快更准，B 站是**补位**。只有前一家**一条结果都没有**
  * （或者它自己失败/没装/没配好）才问下一家——不是每次都问两遍，那要多花一次往返。
  */
+/**
+ * 整个搜索步骤的时间上限（毫秒）。
+ *
+ * 宿主 `plugin.call` 是 30 秒，而一句话里还要塞两轮模型调用（实测各 1.5–2.5 秒）。2026-10-30
+ * 真机就撞了线：`plugin.call 等 com.shixiansi.plugin-memcore/chat 的回答超时（30 秒）`——因为
+ * 那台 SearXNG 单次要 20 秒，加上第二轮模型就把额度花光了。
+ *
+ * 所以搜索这一步自己封顶 12 秒，并且给"后面那一家"留 3 秒（B 站约 0.2 秒，够用）。到点就带着
+ * 已有信息回答，绝不让调用方干等超时。
+ */
+const SEARCH_BUDGET_MS = 12000;
+/** 后面还有别的搜索目标时，给它们留的余量（毫秒）。 */
+const SEARCH_RESERVE_MS = 3000;
+
 const SEARCH_TARGETS = [
   { id: 'com.shixiansi.plugin-websearch', method: 'search' },
   { id: 'com.shixiansi.plugin-bilibili', method: 'search' },
@@ -117,12 +131,14 @@ function looksLikeNoAnswer(reply) {
  *
  * @returns {Promise<{text:string, engine:string, results:Array}|null>}
  */
-async function askOne(target, query, count) {
+async function askOne(target, query, count, timeoutMs) {
   try {
     const out = await request('plugin.call', {
       target: target.id,
       method: target.method,
-      payload: { query, count },
+      // `timeoutMs` 是可选的：联网搜索插件据此提前放弃，于是我们能赶在预算内换下一家。
+      // 老版本的插件会忽略这个字段，所以外面还要有一道 race（见 askWebSearch）。
+      payload: timeoutMs ? { query, count, timeoutMs } : { query, count },
     });
     if (!out || typeof out.text !== 'string' || !out.text.trim()) return null;
     const results = Array.isArray(out.results) ? out.results : [];
@@ -143,8 +159,18 @@ async function askOne(target, query, count) {
 async function askWebSearch(query, count) {
   const trimmed = text(query, 300).trim();
   if (!trimmed) return null;
-  for (const target of searchOrder(trimmed)) {
-    const hit = await askOne(target, trimmed, count);
+  const targets = searchOrder(trimmed);
+  const deadline = Date.now() + SEARCH_BUDGET_MS;
+  for (let i = 0; i < targets.length; i += 1) {
+    const left = deadline - Date.now();
+    const reserve = i === targets.length - 1 ? 0 : SEARCH_RESERVE_MS;
+    const budget = left - reserve;
+    if (budget < 1500) continue; // 剩下的时间不够问这一家，直接看下一家
+    const hit = await Promise.race([
+      askOne(targets[i], trimmed, count, budget - 500),
+      // 兜底：目标插件可能不认识 timeoutMs（老版本），到点就不再等它。
+      new Promise((resolve) => setTimeout(() => resolve(null), budget)),
+    ]);
     if (hit) return hit;
   }
   return null;
