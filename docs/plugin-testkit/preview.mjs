@@ -525,6 +525,26 @@ async function main() {
       }
       // No `--rect` means "every declared rect": a card that fits at 380x260 can still clip at the
       // 320x120 one, and checking only rect 0 was how a whole rect used to go unlooked-at.
+      // 窗口的天花板：块**向上长**，所以一块能长多高取决于它的下边缘离窗口上沿有多远。
+      //
+      // 宿主那边宠物是垂直居中的（`petY = (totalH - petH)/2`），`totalH = max(520, petH)`，
+      // 默认宠物 150x200、缩放 1 → petY = 160。于是 `dy=-148, h=44` 的块下边缘在 56，
+      // **再往上只有 56px**，而它声明了 `maxH: 180`——那条上限永远兑现不了，宿主只会夹回去并留一条
+      // WARN，界面上就是被切掉的按钮（2026-10-30 真机）。
+      //
+      // 这段是纯算术，不需要浏览器，所以放在这里：`--check` 连"声明本身有没有可能"都一起看。
+      const PET = { w: 150, h: 200 };
+      const WINDOW_H = 520;
+      const petY = Math.round((Math.max(WINDOW_H, PET.h) - PET.h) / 2);
+      for (const [i, r] of rects.entries()) {
+        if (!r || !r.maxH) continue;
+        const bottom = petY + Number(r.dy || 0) + Number(r.h || 0); // anchor: top（默认）
+        if (r.maxH > bottom) {
+          console.log(`WARN  ${manifest.id} rect ${i}：maxH=${r.maxH} 超过窗口能给的 ${bottom}px（宠物头顶到窗口上沿的距离）`);
+          console.log(`      块向上长，天花板就是它的下边缘这里（dy=${r.dy} + h=${r.h} + petY=${petY}）。超出的部分永远长不出来：把 dy 往 0 挪（贴着头顶）或把 maxH 改成 ≤ ${bottom}。`);
+        }
+      }
+
       const targets = opts.rectGiven ? [opts.rect] : rects.map((_, i) => i);
       let bad = 0;
       for (const index of targets) {
