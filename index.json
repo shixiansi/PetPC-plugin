@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T10:19:50Z",
+  "updatedAt": "2026-10-30T10:30:49Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -152,13 +152,13 @@
     {
       "id": "com.shixiansi.plugin-websearch",
       "name": "联网搜索",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
       "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
-      "download": "dist/com.shixiansi.plugin-websearch-1.0.1.zip",
-      "sha256": "dd9b4c069264f0e71d1ed6207894ca83267c40930c3e177463e20a6e14128150"
+      "download": "dist/com.shixiansi.plugin-websearch-1.0.2.zip",
+      "sha256": "ba6b8ad67831bbc148f6cdbeb879c81c820dbdd0acb02ce14e566ea5ba780f4a"
     }
   ]
 }
