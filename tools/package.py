@@ -114,7 +114,11 @@ def main() -> int:
     # indent=2 但把数组压成一行（Python 没有 json.dumps 的这个开关，手动收）：
     # 与仓库既有 index.json 的排版一致——数组一行、对象多行。
     text = reformat(index) + '\n'
-    INDEX.write_text(text, encoding='utf-8')
+    # newline='' —— 不要跟着平台翻译行尾。`Path.write_text` 在 Windows 上把 \n 写成 \r\n，
+    # 于是 index.json 每次打包都变成"整文件 164 行全变"，真正的内容改动（几个版本号）淹没在
+    # 里面；仓库里这份是 Linux 上写的（\n），两边轮流发布就会来回翻一次。显式写死 \n。
+    with open(INDEX, 'w', encoding='utf-8', newline='') as fh:
+        fh.write(text)
     print(f'index.json 已重写：{len(entries)} 个插件')
     return 0
 
