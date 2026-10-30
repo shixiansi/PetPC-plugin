@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>后台任务执行器</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：断点恢复 + 5 分钟一次的队列检查，答 add_background_task。
+      workshop     控制中心插件页：提交任务 + 队列一览 + 立刻跑一轮（桌宠那面才跑）。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">后台任务</span>
+        </div>
+        <p class="lede">
+          把复杂长指令交进来，它被拆进一个串行队列：每 5 分钟执行一个，执行时桌宠会显示
+          「搬砖」，失败自动重试一次，完成后经记忆核心播报。重启后未完成的任务继续跑。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>新任务</h2>
+        <div class="search-row">
+          <input id="task-text" class="input" type="text"
+                 placeholder="要做的事，例如：整理一下今天群里的链接并总结" maxlength="2000" />
+          <button id="submit" class="btn" type="button">入队</button>
+        </div>
+        <button id="run-once" class="btn primary" type="button" disabled>立刻跑一轮</button>
+        <p class="hint desktop-only hidden">
+          「立刻跑一轮」要在桌宠那边的常驻帧里才能跑（控制中心不服务 plugin.call）。
+          别的插件 <code>plugin.call</code> 这个插件的 <code>add_background_task</code> 就能入队，
+          <code>queue_status</code> 可以看进度。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>队列</h2></div>
+        <div id="queue-list" class="queue-list"></div>
+        <p id="queue-empty" class="muted">队列是空的。</p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!-- 经典 script；加载顺序 = 依赖顺序。 -->
+  <script src="lib/core.js"></script>
+  <script src="lib/queue.js"></script>
+  <script src="lib/runner.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
