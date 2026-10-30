@@ -576,3 +576,45 @@ test('辅助脚本落盘的名字与插件轮询的键一致（latest，不带�
   expect(src, "脚本没有写 'latest'").toContain("(Join-Path $OutDir 'latest')");
   expect(src, '插件轮询的键变了，脚本侧要跟着改').toContain("request('storage.get', { key: 'clip/inbox/latest' })");
 });
+
+// 这一组守的是"出来了没弹"：辅助脚本起来了、样本也处理了，但界面什么也没有。
+// 原因是 `surface.blocks` **只对已经打开的浮层面生效**，而 offerSample 写完信箱就结束了——
+// 没有 `surface.show`，询问卡那一帧永远不会挂载，也就没有任何一帧去读 inbox。
+describe('浮层面生命周期：有东西要看才打开', () => {
+  test('样本进信箱后请求 surface.show（否则那一帧不会挂载）', async () => {
+    harness = makeHarness();
+    await harness.settle();
+    harness.store.set('clip/inbox/latest', JSON.stringify({
+      at: Date.now(),
+      text: 'function add(a, b) {  // 一段足够长的代码，用来让分类器认定它是代码而不是一句话\n  return a + b;\n}\nconst x = add(1, 2);',
+    }));
+    await harness.tick();
+    const shows = harness.requests('surface.show');
+    expect(shows.length, '没有请求 surface.show：块不会挂载，界面就永远没反应').toBeGreaterThan(0);
+  });
+
+  test('点「不用」收起浮层面；点「好的」把询问卡让位给结果卡', async () => {
+    harness = makeHarness({ surface: { kind: 'surface', rectIndex: 0, rectCount: 2 } });
+    await harness.settle();
+
+    const put = (id) => harness.share.set('com.shixiansi.plugin-clipask/inbox', {
+      value: JSON.stringify({ id, kind: 'code', label: '这段代码', actions: ['解释'], text: 'x', at: Date.now() }),
+      at: Date.now(),
+    });
+
+    put('s1');
+    await harness.poll();
+    harness.window.document.getElementById('ask-no').click();
+    await harness.poll();
+    expect(harness.requests('surface.hide').length, '点「不用」没有收起浮层面').toBeGreaterThan(0);
+
+    put('s2');
+    await harness.poll();
+    harness.window.document.getElementById('ask-yes').click();
+    await harness.poll();
+    const blocks = harness.requests('surface.blocks');
+    expect(blocks.length).toBeGreaterThan(0);
+    // hidden 是"整份替换"：只留块 1（结果卡），询问卡必须被藏起来
+    expect(blocks[blocks.length - 1].payload.hidden).toEqual([0]);
+  });
+});

@@ -277,6 +277,35 @@ async function readShare(name, owner) {
   }
 }
 
+/**
+ * 浮层面的三个动作。**`surface.show` 是这里最容易漏的一步**：`surface.blocks` 只对"已经打开的
+ * 浮层面"生效（宿主侧 pluginSurfaceBlocks 的注释写着），所以不先 show，块就永远不会挂载——
+ * 症状是"辅助脚本起来了、样本也处理了、share/inbox 里躺着待问的那条，界面什么也没有"。
+ * 2026-10-30 用户报的就是这个：日志里能看见 `share.set`（806 B 写入了样本），但 `share.get`
+ * 只在轮询 clicks，没有任何一帧在读 inbox（询问卡那一帧根本没挂载）。
+ *
+ * `hidden` 是**整份替换**语义（宿主侧注释同样写了），所以这里记住当前隐藏集合；grow 那两处也
+ * 必须带着它——否则"结果卡长高"的请求会把隐藏集合清空，询问卡又冒出来。
+ */
+let hiddenBlocks = [];
+
+async function showSurface() {
+  if (!can(PERM.surface)) return;
+  await request('surface.show', {}).catch(() => {});
+}
+
+async function hideSurface() {
+  if (!can(PERM.surface)) return;
+  await request('surface.hide', {}).catch(() => {});
+}
+
+/** 只留这些块可见：`hidden` 是声明下标数组。 */
+async function focusBlocks(hidden) {
+  hiddenBlocks = hidden.slice();
+  if (!can(PERM.surface)) return;
+  await request('surface.blocks', { hidden: hiddenBlocks, sizes: {} }).catch(() => {});
+}
+
 /** 写一行状态给工坊页。 */
 async function pushState(note) {
   helperNote = note || helperNote;
@@ -425,6 +454,9 @@ async function offerSample(text) {
     text: clamp(text, 8000),
     at: now(),
   });
+  // 先把样本放进信箱，再开浮层面：块一挂载就立刻读信箱，顺序反了会漏掉这一条。
+  await showSurface();
+  await focusBlocks([1]); // 只留询问卡（块 0）；结果卡此刻没内容，白占一块矩形
 }
 
 function actionsFor(kind) {
@@ -667,7 +699,7 @@ async function growAskIfNeeded() {
   if (!card) return;
   const want = Math.min(180, Math.max(44, Math.ceil(card.scrollHeight) + 12));
   try {
-    await request('surface.blocks', { hidden: [], sizes: { 0: want } });
+    await request('surface.blocks', { hidden: hiddenBlocks, sizes: { 0: want } });
   } catch {
     // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
   }
@@ -686,6 +718,8 @@ async function sendClick(action) {
   // 点完即清空自己的画面：回答出现在另一块浮层里。
   el('ask-kind').textContent = '这段内容';
   el('ask-text').textContent = action === 'yes' ? '好，想想…' : '好的，先不问。';
+  if (action === 'yes') await focusBlocks([0]); // 询问卡让位给结果卡
+  else await hideSurface();                     // 不问就没有第二块要显示
 }
 
 // ---------------------------------------------------------------------------
@@ -695,6 +729,9 @@ async function sendClick(action) {
 function initResultFrame() {
   el('result-close').addEventListener('click', () => {
     show(el('result'), false);
+    // 关掉就得把浮层面也收起来：块只是"不再显示"，它那块矩形还在，仍然会吞掉桌面点击
+    // （宿主侧 pluginSurfaceBlocks 的注释写着这件事）。
+    void hideSurface();
   });
   void pollAnswer();
   setInterval(() => void pollAnswer(), 700);
@@ -718,7 +755,7 @@ async function growIfNeeded() {
   if (!card) return;
   const want = Math.min(156, Math.max(60, Math.ceil(card.scrollHeight) + 12));
   try {
-    await request('surface.blocks', { hidden: [], sizes: { 1: want } });
+    await request('surface.blocks', { hidden: hiddenBlocks, sizes: { 1: want } });
   } catch {
     // 宿主拒绝（比如没授予）就让它保持声明高度：内容会被裁，但界面不崩。
   }
