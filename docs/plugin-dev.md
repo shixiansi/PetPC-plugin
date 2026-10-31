@@ -361,8 +361,54 @@ body[data-surface='boot'] { background: transparent; }
 | `serves` | | ≤8 项 | 你**会回答**哪些方法名（`^[A-Za-z0-9_.-]{1,64}$`），别的插件用 `plugin.call` 问你时用得上；要求申请了 `plugin.call` |
 | `callTargets` | | ≤8 项 | 你**能问**谁，格式 `<对方的插件id>/<方法名>`；要求申请了 `plugin.call`，不能写自己，没有通配 |
 | `assets` | | ≤32 项 | 包里除入口与固定资源之外、需要按相对路径取用的文件（例如内置音频） |
+| `sidecar` | | 对象 | 你要宿主帮你启动的**辅助脚本**：`{script, args?}`。见本节末尾 |
 
 **至少要有一种界面落点**：`panel:true`、非空 `surface`、`background:true` 三者之一。
+
+#### `sidecar` —— 让宿主托管你的辅助脚本
+
+有些活儿 JavaScript 干不了：读剪贴板、读 SMTC 的当前曲目、截图、枚举进程。这类插件的形状都一样：
+**一个本机脚本负责采集，常驻帧负责解释**。
+
+以前每个插件都自己搭这套：把 `helperPath`（powershell.exe 的绝对路径）和 `helperScript`（脚本的绝对
+路径）做成两个设置项，用户在插件页里手填，插件再经 `process.launch` 启动它。2026-10-31 的实测是：
+**五个这样写的插件里，四个从来没跑起来过**——用户没填那两个路径，而界面上除了"没数据"什么也看不出来。
+
+现在把它声明出来，剩下的交给宿主：
+
+```json
+{
+  "permissions": ["process", "events"],
+  "background": true,
+  "assets": ["helper.ps1"],
+  "sidecar": { "script": "helper.ps1", "args": ["--interval", "1000"] }
+}
+```
+
+| 规则 | 为什么 |
+| --- | --- |
+| `script` 是**插件目录内的相对路径**，`.ps1` 或 `.exe` | 绝对路径会让含义取决于桌宠从哪儿启动；`.ps1` 由宿主用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 拉起，`.exe` 直接跑 |
+| `script` **必须同时写进 `assets`** | 打包器只发 manifest + 入口 + 三个固定资源 + `assets`。不写进 assets 的脚本不会进包，装好之后"找不到文件" |
+| 必须申请 `process` | 它就是一个本机程序。用户装插件时看到的那一项，必须真的覆盖这件事 |
+| 必须声明 `background` | 常驻帧才是读它输出的那一半。没有读者的进程不该被启动 |
+| `args` ≤8 个、每个 ≤256 字符、不含换行 | 这是辅助脚本，不是清单能拼的命令行 |
+
+**宿主提供什么**（你不需要再问用户要路径）：
+
+| 环境变量 | 值 |
+| --- | --- |
+| `PETPC_PLUGIN_ID` | 你的插件 id |
+| `PETPC_PLUGIN_DATA` | 你的私有目录（`storage.*` 看到的那个目录的绝对路径）。脚本往这里写，插件用 `storage.get` 读 |
+
+**生命周期**（由宿主负责，你不用写一行启动代码）：
+
+- 插件**已启用**且用户**授予了 `process`** 时启动，一次；
+- 插件**停用 / 卸载 / 换版本**时停掉；
+- 桌宠退出时**不停**（与 `process.launch` 的契约一致，协议端要跨重启活着），但会在日志里点名；
+- **崩了不自动重启**：宿主每 5 秒扫一次，若"退出就重启"就成了后台崩溃循环。要更顽强请脚本自己重试。
+
+> 迁移提示：声明了 `sidecar` 的插件应当**删掉** `helperPath` / `helperScript` 这两个设置项，改读
+> `PETPC_PLUGIN_DATA`。留着它们只会让用户以为还得手填。
 
 ### 4.1 权限（14 项，全表）
 
