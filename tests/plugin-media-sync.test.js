@@ -162,6 +162,7 @@ describe('app.js 行为（jsdom）', () => {
     const responses = {
       'config.get': () => ({ values: configValues || {} }),
       'storage.get': ({ key }) => ({ value: storage.get(key) || '' }),
+      'plugin.log': () => ({ ok: true }),
       'storage.set': ({ key, value }) => { storage.set(key, value); return { ok: true }; },
       'storage.dir': () => ({ dir: 'C:\\fake\\dir' }),
       'share.set': ({ name, value }) => { shares.push({ name, value }); return { ok: true }; },
@@ -313,4 +314,36 @@ describe('app.js 行为（jsdom）', () => {
     expect(bad.ok).toBe(false);
     expect(bad.error).toContain('volume_up');
   });
+
+// --- 静默失败时说话（plugin.log） -------------------------------------------
+//
+// 辅助脚本一句话都不说的时候，界面上什么都看不出来：徽标不动、没有分享值，用户的结论是
+// "这功能坏了"。以前插件也一句话不说（console.error 只进用户打不开的 devtools），所以这条
+// 症状在日志里没有痕迹——2026-11-01 给宿主加了 plugin.log，这里用它说一句。
+
+test('辅助脚本一直没数据时，插件写一条 WARN，而且只写一次', async () => {
+  boot({ grantedNames: ['storage', 'plugin.share', 'pet.surface'] });
+  const logs = () => outbound.filter((m) => m.type === 'request' && m.method === 'plugin.log');
+
+  // 前三次空读还不到阈值：不能一挂载就喊。
+  for (let i = 0; i < 3; i += 1) await window.__media.pollOnce();
+  expect(logs()).toHaveLength(0);
+
+  await window.__media.pollOnce();
+  expect(logs()).toHaveLength(1);
+  expect(logs()[0].payload.level).toBe('warn');
+  expect(String(logs()[0].payload.message)).toContain('辅助脚本');
+
+  // 同一次"一直没数据"只吵一次。
+  await window.__media.pollOnce();
+  await window.__media.pollOnce();
+  expect(logs()).toHaveLength(1);
+
+  // 数据回来 → 计数重置；再坏掉时**会**重新提醒（不是永久闭嘴）。
+  storage.set('outbox/media', JSON.stringify({ status: 'playing', title: 't', artist: 'a', at: 1 }));
+  await window.__media.pollOnce();
+  storage.delete('outbox/media');
+  for (let i = 0; i < 4; i += 1) await window.__media.pollOnce();
+  expect(logs()).toHaveLength(2);
+});
 });

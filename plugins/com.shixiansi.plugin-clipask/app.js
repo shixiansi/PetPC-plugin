@@ -441,10 +441,22 @@ function helperCandidates() {
  * 入口路径见 `helperCandidates`：**留空就用系统自带的 PowerShell**。以前是"留空=不启动"，
  * 于是这个插件在真机上从来没工作过（默认值就是空，没人会去手敲那个路径）。
  */
+/**
+ * 往宿主的日志里写一行（plugin.log，手册 §6.13）。
+ *
+ * 为什么需要它：这个插件的失败以前只写进 `pushState`（界面上一行小字），而用户报障时贴的永远
+ * 是日志——日志里一次都没有"辅助脚本没起来"，于是排查只能靠猜。plugin.log 借 storage 授权。
+ */
+function logLine(level, message) {
+  if (!can(PERM.storage)) return Promise.resolve();
+  return request('plugin.log', { level, message }).catch(() => {});
+}
+
 async function ensureHelper() {
   if (helperLaunched) return;
   if (!can(PERM.storage) || !can(PERM.process)) {
     await pushState('缺权限：安装时需要授予 storage 与 process，监听才可用');
+    void logLine('warn', '辅助脚本没有启动：缺 storage 或 process 授权（安装时没勾，或后来取消了）');
     return;
   }
   try {
@@ -497,12 +509,14 @@ async function ensureHelper() {
     }
     if (!launched) {
       await pushState(`启动剪贴板监听失败：没有可用的 PowerShell。试过 ${tried.join('；')}`);
+      void logLine('warn', `辅助脚本启动失败：没有可用的 PowerShell。试过 ${tried.join('；')}`);
       return;
     }
     helperLaunched = true;
     await pushState(`已启动剪贴板监听（${launched}）`);
   } catch (err) {
     await pushState(`辅助脚本没启动：${String(err && err.message ? err.message : err)}`);
+    void logLine('warn', `辅助脚本没启动：${String(err && err.message ? err.message : err)}`);
   }
 }
 

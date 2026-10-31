@@ -372,3 +372,14 @@ test('every request has a unique non-empty id; says ready first', async () => {
   const first = posted()[0];
   expect(first && first.type).toBe('ready');
 });
+
+// --- 静默失败时说话（plugin.log，手册 §6.13） ---------------------------------
+//
+// 截图失败时界面会显示原因，但用户报障贴的是日志——以前日志里只有"调了一次 analyze_screen"，
+// 没有那次失败。这条钉住失败路径上确实记了一条。
+
+test('截图失败时往日志里写一行（plugin.log）', () => {
+  const src = readFileSync(path.join(pluginDir, 'lib', 'vision.js'), 'utf8');
+  expect(src).toContain('plugin.log');
+  expect(src).toContain('截图失败：');
+});

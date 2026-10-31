@@ -89,7 +89,22 @@ async function handleAnalyzeScreen(payload) {
 
   const region = cleanRegion(cfg.region);
   const url = uploadUrl();
-  const meta = await captureOnce({ uploadUrl: url, region });
+  // 截图失败在这一层最值得记一条：界面上会显示原因，但用户报障时贴的是日志，而日志里以前
+  // 只有"一次 plugin.call analyze_screen"——没有那一次失败。plugin.log 借 storage 授权
+  // （手册 §6.13），所以先看有没有它。
+  let meta;
+  try {
+    meta = await captureOnce({ uploadUrl: url, region });
+  } catch (err) {
+    if (granted.has('storage')) {
+      const why = String(err && err.message ? err.message : err);
+      void request('plugin.log', {
+        level: 'warn',
+        message: `截图失败：${why}（辅助脚本由宿主托管，桌宠日志里的 sidecar 行会写明原因）`,
+      }).catch(() => {});
+    }
+    throw err;
+  }
 
   // 截图完成 → 拿 URL。约定：上传服务把图回挂到与上传端点**同一个 host**（本地服务存图
   // 并按 /shots/… 回拉）。URL 不在白名单（不同 host、非 http(s)）时降级成纯文字提问，

@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-pet-sense",
   "name": "系统与 DSH 感知",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "author": "shixiansi",
   "description": "桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。采样与监听走本机辅助脚本（process.launch）。",
   "permissions": [

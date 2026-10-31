@@ -143,12 +143,34 @@ function highStreak() {
 let lastDshAt = 0;
 let lastLoad = null;
 
+// 辅助脚本一句话都不说的时候，这个插件在界面上完全没有痕迹：没有徽标、没有分享值，用户只会说
+// "感知功能没用"。宿主给了 plugin.log（手册 §6.13），所以连续几次全空之后写一条 WARN——
+// 4 次 ≈ 60 秒（兜底一拍 15 秒）。只在"一直没数据"的那一段里说一次，数据回来就重置。
+const EMPTY_POLLS_BEFORE_WARNING = 4;
+let emptyPolls = 0;
+
+/** 往宿主的日志里写一行。plugin.log 借 storage 授权（手册 §6.13），所以先看有没有。 */
+function logLine(level, message) {
+  if (!granted.has(PERM.storage)) return Promise.resolve();
+  return request('plugin.log', { level, message }).catch(() => {});
+}
+
 async function pollOnce() {
   const [sysRaw, loadRaw, dshRaw] = await Promise.all([
     request('storage.get', { key: 'outbox/system' }).catch(() => ({ value: '' })),
     request('storage.get', { key: 'outbox/load' }).catch(() => ({ value: '' })),
     request('storage.get', { key: 'outbox/dsh' }).catch(() => ({ value: '' })),
   ]);
+  const anyData = [sysRaw, loadRaw, dshRaw].some((r) => String((r && r.value) || '').trim());
+  if (!anyData) {
+    emptyPolls += 1;
+    if (emptyPolls === EMPTY_POLLS_BEFORE_WARNING) {
+      void logLine('warn',
+        'outbox/system、outbox/load、outbox/dsh 一直是空的：辅助脚本可能没起来。它由宿主托管（manifest 的 sidecar 字段），桌宠日志里的 sidecar 行会写明原因');
+    }
+  } else {
+    emptyPolls = 0;
+  }
 
   const system = parseSnapshot(sysRaw && sysRaw.value, now());
   const load = parseSnapshot(loadRaw && loadRaw.value, now());

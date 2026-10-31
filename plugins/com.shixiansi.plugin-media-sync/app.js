@@ -100,9 +100,31 @@ async function refreshConfig() {
 let lastBadge = null;      // 上一条徽标（同样的曲目不重挂）
 let recent = [];           // 最近听过的曲目（工坊页显示；上限 10）
 
+// 辅助脚本一句话都不说的时候，这个插件看起来"就是没用"：徽标不动、没有分享值，而用户的结论
+// 是"这功能坏了"。宿主给了 plugin.log（手册 §6.13），所以在连续几次空读之后写一条 WARN——
+// 4 次空读 ≈ 60 秒（兜底一拍 15 秒）。只在"一直没数据"的那一段里说一次；数据回来就重置，
+// 所以它坏了两次会提醒两次。
+const EMPTY_POLLS_BEFORE_WARNING = 4;
+let emptyPolls = 0;
+
+/** 往宿主的日志里写一行。plugin.log 借 storage 授权（手册 §6.13），所以先看有没有。 */
+function logLine(level, message) {
+  if (!granted.has(PERM.storage)) return Promise.resolve();
+  return request('plugin.log', { level, message }).catch(() => {});
+}
+
 async function pollOnce() {
   const out = await request('storage.get', { key: 'outbox/media' }).catch(() => ({ value: '' }));
   const track = parseTrack(out && out.value, now());
+  if (!String((out && out.value) || '').trim()) {
+    emptyPolls += 1;
+    if (emptyPolls === EMPTY_POLLS_BEFORE_WARNING) {
+      void logLine('warn',
+        'SMTC 一直没有数据（outbox/media 是空的）：辅助脚本可能没起来。它由宿主托管（manifest 的 sidecar 字段），桌宠日志里的 sidecar 行会写明原因');
+    }
+  } else {
+    emptyPolls = 0;
+  }
 
   const actions = [];
   if (track && !track.error) {

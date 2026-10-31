@@ -409,3 +409,14 @@ describe('app.js 行为（jsdom）', () => {
     expect(badges).toEqual([]);
   });
 });
+
+// --- 静默失败时说话（plugin.log，手册 §6.13） ---------------------------------
+//
+// 辅助脚本没起来的时候，界面上只有一行小字（pushState / setNote），而用户报障时贴的是日志。
+// 以前日志里一次都没有这件事，排查只能靠猜。这条钉住"失败路径上确实调了 plugin.log"。
+
+test('辅助脚本失败时往日志里写一行（plugin.log）', () => {
+  const src = readFileSync(path.join(pluginDir, 'app.js'), 'utf8');
+  expect(src).toContain('plugin.log');
+  expect(src).toMatch(/function logLine\(level, message\)/);
+});
