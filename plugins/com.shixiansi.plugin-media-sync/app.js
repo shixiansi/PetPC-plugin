@@ -8,7 +8,7 @@
 //
 // 数据流（每个键只有一个写者）：
 //
-//   辅助脚本(SMTC) ──写──> outbox/media ──本文件轮询──> share.set media/now
+//   辅助脚本(SMTC) ──写──> outbox/media ──本文件轮询──> share.set media-now
 //                                                └──────> pet.badge ♪ 曲目
 //   别的插件/模型 ──plugin.call now_playing──> { playing, title, artist, text }
 //

@@ -2,10 +2,10 @@
 #
 # 两件事，一个进程（pet-sense 同款流水线：本机做采集，插件只轮询文件）：
 #
-#   1. 剪贴板：每秒读一次，内容变了就写 outbox/clipboard.json
+#   1. 剪贴板：每秒读一次，内容变了就写 outbox/clipboard
 #      { at, hash, text } —— text 只保留前 4000 字符（大粘贴不膨胀）。
 #   2. 文件：监视 WatchDir（默认用户目录）下的 .env / *.txt / *.json，
-#      变更后写 outbox/file.json { at, path, hash, text }（同样截断）。
+#      变更后写 outbox/file { at, path, hash, text }（同样截断）。
 #
 # hash 是内容的前 64 位 SHA256（去重用：插件侧只处理 hash 变了的条目）。
 #
@@ -47,7 +47,7 @@ try {
   $watcher.IncludeSubdirectories = $false   # 只看顶层：递归太吵
   $watcher.EnableRaisingEvents = $true
 } catch {
-  Write-Json (Join-Path $outbox 'error.json') @{ at = (Get-Date -UFormat %s); note = "watcher: $($_.Exception.Message)" }
+  Write-Json (Join-Path $outbox 'error') @{ at = (Get-Date -UFormat %s); note = "watcher: $($_.Exception.Message)" }
 }
 $script:lastFileHash = @{}
 
@@ -78,7 +78,7 @@ while ($true) {
       $h = Get-TextHash $text
       if ($h -ne $script:lastClipHash) {
         $script:lastClipHash = $h
-        Write-Json (Join-Path $outbox 'clipboard.json') @{ at = [DateTimeOffset]::Now.ToUnixTimeMilliseconds(); hash = $h; text = $text }
+        Write-Json (Join-Path $outbox 'clipboard') @{ at = [DateTimeOffset]::Now.ToUnixTimeMilliseconds(); hash = $h; text = $text }
       }
     }
   } catch {
@@ -96,7 +96,7 @@ while ($true) {
         $known = $script:lastFileHash[$f.FullName]
         if ($known -ne $fh) {
           $script:lastFileHash[$f.FullName] = $fh
-          Write-Json (Join-Path $outbox 'file.json') @{ at = [DateTimeOffset]::Now.ToUnixTimeMilliseconds(); path = $f.FullName; hash = $fh; text = $content }
+          Write-Json (Join-Path $outbox 'file') @{ at = [DateTimeOffset]::Now.ToUnixTimeMilliseconds(); path = $f.FullName; hash = $fh; text = $content }
         }
       }
     }

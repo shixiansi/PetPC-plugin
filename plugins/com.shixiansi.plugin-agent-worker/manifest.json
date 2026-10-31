@@ -1,9 +1,9 @@
 {
   "id": "com.shixiansi.plugin-agent-worker",
   "name": "后台任务执行器",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
-  "description": "接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent/status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。",
+  "description": "接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent-status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。",
   "permissions": [
     "plugin.call",
     "plugin.share",

@@ -7,16 +7,16 @@ Controls）里——网易云、QQ 音乐、Spotify、浏览器播放器都会�
 - 模型可用的 **Tool**：`now_playing` —— 用户问「我在听什么」，接入了大模型的插件把它
   转发过来，答案直接可放进模型上下文；
 - 宠物头顶的**徽标**：`♪ 晴天 - 周杰伦`（暂停时 `⏸`，≤16 字符）；
-- 共享键 `media/now`：完整曲目快照，工坊页与其它插件只读。
+- 共享键 `media-now`：完整曲目快照，工坊页与其它插件只读。
 
 ## 数据流
 
 ```
 media-helper.ps1（process.launch 启动，读 WinRT SMTC）
-  └── 每 2s 原子写 outbox/media.json {title, artist, album, status, at}
+  └── 每 2s 原子写 outbox/media {title, artist, album, status, at}
                  常驻帧每 1s 轮询
                         │
-                        ├── share.set        media/now
+                        ├── share.set        media-now
                         ├── pet.badge        ♪ 曲目（变化才重挂）
                         └── storage.set      最近听过（≤10 条）
 别的插件 ──plugin.call now_playing──> {playing, title?, artist?, album?, status?, text}

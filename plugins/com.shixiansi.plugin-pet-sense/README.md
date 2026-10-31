@@ -12,10 +12,11 @@
 
 ```
 本机辅助脚本（pet-sense-helper.ps1，process.launch 启动）
-  ├── 每 5s 采样 CPU/内存 ──写──> outbox/system.json
-  ├── 连续 N 次超阈值     ──写──> outbox/load.json
-  ├── HTTP :3210 ← DSH    ──写──> outbox/dsh.json
-  └── GET /health         ──写──> outbox/health.json
+  ├── 每 5s 采样 CPU/内存 ──写──> outbox/system
+  ├── 连续 N 次超阈值     ──写──> outbox/load
+  ├── HTTP :3210 ← DSH    ──写──> outbox/dsh
+  └── GET /health         ──写──> outbox/health
+                （文件名没有扩展名：存储键不是文件名，带 .json 会被宿主判非法）
                  常驻帧每 1s 轮询
                         │
                         ├── share.set  sense/system · sense/load · sense/dsh

@@ -13,7 +13,7 @@ Open-Meteo（默认）/ 和风天气（配 Key 后）
                  常驻帧每 60min 拉一次默认城市
                         │
                         ├── storage.set   weather/last（快照，每次都存）
-                        ├── share.set     weather/now + weather/condition（3h 节流）
+                        ├── share.set     weather-now + weather-condition（3h 节流）
                         └── pet.badge     ☂ 出门带伞 / ⚡ 有雷雨 / ❄ 下雪路滑 / ☀ 注意防晒
 模型/别的插件 ──plugin.call get_weather {city}──> {city, condition, tempC, text}
 ```

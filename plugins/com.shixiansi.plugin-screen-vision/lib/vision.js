@@ -20,7 +20,8 @@
 
 'use strict';
 
-const SHARE_KEY = 'vision/last';
+// 扁平名（`[A-Za-z0-9_-]`）：share 名里不能带斜杠，否则 share.set 被拒。
+const SHARE_KEY = 'vision-last';
 const HISTORY_KEY = 'history/recent';
 const HISTORY_CAP = 100;
 
@@ -113,7 +114,7 @@ async function handleAnalyzeScreen(payload) {
 
   const snapshot = { ...record, at: lastAnalyzeAt };
   try {
-    await request('share.set', { name: 'vision-last', value: JSON.stringify(snapshot) });
+    await request('share.set', { name: SHARE_KEY, value: JSON.stringify(snapshot) });
   } catch {
     // 牌盘写不进去不影响结果：读这一键的是工坊页，它自己会重读 storage。
   }

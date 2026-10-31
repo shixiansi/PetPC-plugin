@@ -100,8 +100,8 @@ async function pump(maxRounds = 100) {
           break;
         case 'storage.get':
           if (payload.key === 'alerts-v1') answer(req.id, { value: store.get('alerts-v1') || '' });
-          else if (payload.key === 'outbox/clipboard.json') answer(req.id, { value: outbox.clipboard || '' });
-          else if (payload.key === 'outbox/file.json') answer(req.id, { value: outbox.file || '' });
+          else if (payload.key === 'outbox/clipboard') answer(req.id, { value: outbox.clipboard || '' });
+          else if (payload.key === 'outbox/file') answer(req.id, { value: outbox.file || '' });
           else answer(req.id, { value: '' });
           break;
         case 'storage.set':

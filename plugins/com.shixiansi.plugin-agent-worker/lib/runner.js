@@ -4,13 +4,13 @@
 //
 //   1. recoverOrphans 已经在启动时做过（断点恢复）；
 //   2. pickNextTask 取第一个 pending → markRunning（写盘）；
-//   3. 发布 agent/status {status:'working', progress}（桌宠显示「搬砖」）；
+//   3. 发布 agent-status {status:'working', progress}（桌宠显示「搬砖」）；
 //   4. 执行：把任务描述交给记忆核心的 chat，让它给出"执行结果"——这是沙箱插件
 //      唯一诚实的执行模型：宿主不认识任意进程，模型驱动的"查资料/写总结/整理清单"
 //      才是能落地的任务本体（真正动本机的活儿有 process 权限的专职插件）；
 //   5. 成功 → markDone；失败/超时 → markFailed（自动重试一次）；
 //   6. announce 开着时经 memcore/chat 播报一句结果；
-//   7. 清掉 agent/status。
+//   7. 清掉 agent-status。
 //
 // 并发纪律：**单飞**。pollTick 上一轮没跑完就不再进入（pollBusy 标志）——
 // 5 分钟的检查间隔只是兜底，任务真正是背靠背串行的。
@@ -21,8 +21,13 @@ const MEMCORE_TARGET = 'com.shixiansi.plugin-memcore';
 const MEMCORE_METHOD = 'chat';
 const AGENT_ROLE = 'agent-worker';
 
-/** 共享键：桌宠读这个显示「搬砖」。 */
-const SHARE_STATUS = 'agent/status';
+/** 共享键：桌宠读这个显示「搬砖」。
+ *
+ * 名字必须是**扁平名**（宿主的 shareNamePattern 只认 `[A-Za-z0-9_-]`）：写成
+ * `agent/status` 会被 `share.set` 直接拒绝，而且发布失败是静默的（这里本来就 catch 掉）。
+ * 「谁/什么」那种命名走的是 shareRead 里的 `<插件id>/<名字>` 两段式，不是名字里带斜杠。
+ */
+const SHARE_STATUS = 'agent-status';
 
 /** 执行一个任务：问记忆核心，拿一段"执行结果"文本。 */
 async function executeTask(task, timeoutSec) {

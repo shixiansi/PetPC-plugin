@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 // 媒体同步插件的行为测试。harness 与 pet-sense 同型。
 //
 //   1. 判定纯函数：解析/过期/Tool 答案形状/徽标截断；
-//   2. 轮询：share.set media/now、徽标随曲目变化、暂停/恢复不重挂同一徽标；
+//   2. 轮询：share.set media-now、徽标随曲目变化、暂停/恢复不重挂同一徽标；
 //   3. plugin.call now_playing 有问必答；不认识的方法给一句中文错误；
 //   4. manifest：serves 与代码逐字一致、assets 齐全、不申请多余权限；
 //   5. 辅助脚本：SMTC 会话选择（优先 Playing）、四状态、原子写。
@@ -202,13 +202,13 @@ describe('app.js 行为（jsdom）', () => {
     expect(outbound.filter((m) => m.type === 'ready')).toHaveLength(1);
   });
 
-  test('轮询：播放中 → share media/now + 徽标；没数据 → 什么都不发', async () => {
+  test('轮询：播放中 → share media-now + 徽标；没数据 → 什么都不发', async () => {
     boot({ grantedNames: ['plugin.share', 'pet.surface', 'storage', 'plugin.config'] });
     expect(await until(() => badges.length > 0)).toBe(false); // 先确认没乱发
 
     playTrack('晴天', '周杰伦');
     expect(await until(() => shares.length > 0)).toBe(true);
-    const nowShare = shares.find((s) => s.name === 'media/now');
+    const nowShare = shares.find((s) => s.name === 'media-now');
     expect(JSON.parse(nowShare.value).title).toBe('晴天');
     expect(badges.some((b) => b.startsWith('♪ ') && b.includes('晴天'))).toBe(true);
     expect(await until(() => storage.has('recent'))).toBe(true);

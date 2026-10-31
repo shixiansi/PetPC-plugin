@@ -11,8 +11,11 @@
 
 'use strict';
 
-const POLL_KEY = 'outbox/clipboard.json';
-const POLL_FILE_KEY = 'outbox/file.json';
+// 存储键**不是文件名**（手册 §6.3）：写成 outbox/clipboard.json 会被判非法，整个
+// storage.get 不执行——2026-10-31 的真机上就是这么刷了 110 条 WARN。辅助脚本写的
+// 也是这两个无扩展名的文件，两边必须同时改。
+const POLL_KEY = 'outbox/clipboard';
+const POLL_FILE_KEY = 'outbox/file';
 const ALERTS_KEY = 'alerts-v1';
 const ALERTS_MAX = 50;
 

@@ -12,7 +12,7 @@ import { JSDOM } from 'jsdom';
 //      任何时刻最多一个 running；
 //   2. 失败重试：第一次失败回 pending（attempts=1），第二次失败终态 failed；
 //   3. 断点恢复：盘上的 running 在启动时被判死，按剩余重试次数回 pending / failed；
-//   4. 状态发布：执行中 share.set agent/status {status:'working', progress,...}，结束清掉；
+//   4. 状态发布：执行中 share.set agent-status {status:'working', progress,...}，结束清掉；
 //   5. 播报：完成后经 memcore/chat 说一句；add_background_task / queue_status 的回包形状。
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -375,14 +375,14 @@ describe('the runner', () => {
     void originalAnswer;
     REPLY_TABLE.execute.push(() => {
       // 这一刻：任务正在执行（chat 回包之前）。
-      const sets = requests().filter((r) => r.method === 'share.set' && r.payload.name === 'agent/status');
+      const sets = requests().filter((r) => r.method === 'share.set' && r.payload.name === 'agent-status');
       const last = JSON.parse(sets[sets.length - 1].payload.value);
       shareTimeline.push(last.status);
       return { text: '结果一份。' };
     });
     await runDrain();
 
-    const sets = requests().filter((r) => r.method === 'share.set' && r.payload.name === 'agent/status');
+    const sets = requests().filter((r) => r.method === 'share.set' && r.payload.name === 'agent-status');
     const values = sets.map((r) => JSON.parse(r.payload.value));
     // 第一条是 working（带 taskId 与 progress），最后一条是 idle。
     expect(values[0].status).toBe('working');

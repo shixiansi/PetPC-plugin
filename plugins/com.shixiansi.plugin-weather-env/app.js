@@ -8,15 +8,19 @@
 //
 // 数据流：
 //
-//   Open-Meteo / 和风 ──net.fetch──> 本文件 ──> share weather/now + weather/condition
+//   Open-Meteo / 和风 ──net.fetch──> 本文件 ──> share weather-now + weather-condition
 //                                  └──────> pet.badge（雨/雪/高温才挂，3 小时节流）
 //   模型/别的插件 ──plugin.call get_weather {city}──> {city, condition, tempC, text}
 //
 // 状态事件（任务书里的"根据下雨/晴天推送不同的状态事件"）：
 //
-//   weather/now        完整快照 {city, tempC, windKmh, condition, at}
-//   weather/condition  只有 {condition, tip, at}——订阅方按 condition 分支：
+//   weather-now        完整快照 {city, tempC, windKmh, condition, at}
+//   weather-condition  只有 {condition, tip, at}——订阅方按 condition 分支：
 //                      rain/thunder → 提醒伞、snow → 路滑、sunny+高温 → 防晒
+//
+// 两个名字都是**扁平名**（宿主的 shareNamePattern 只认 `[A-Za-z0-9_-]`）。写成
+// `weather/now` 会被 share.set 直接拒掉——2026-10-30 的真机上刷了 18 条 WARN，
+// 而订阅方本来要用 shareRead 的两段式 `com.shixiansi.plugin-weather-env/now`。
 //
 // 免 Key 的 Open-Meteo 是默认源；和风要 Key（config: qweatherKey + qweatherHost），
 // 配了就用和风（城市先过 geoapi 拿 location id）。
@@ -161,9 +165,9 @@ async function publishWeather(weather) {
   const verdict = shouldNotify(napState, weather, now());
   if (verdict.ok) {
     napState = verdict.next;
-    actions.push({ share: 'weather/now', value: weather });
+    actions.push({ share: 'weather-now', value: weather });
     actions.push({
-      share: 'weather/condition',
+      share: 'weather-condition',
       value: { condition: weather.condition, tip: adviceFor(weather), at: weather.at },
     });
     const badge = badgeFor(weather);

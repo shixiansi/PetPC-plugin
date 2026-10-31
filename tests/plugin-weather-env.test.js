@@ -272,8 +272,8 @@ describe('app.js 行为（jsdom）', () => {
 
     const weather = { city: '杭州', tempC: 18, windKmh: 11, condition: 'rain', at: Date.now() }; // 与 push loop 的上海错开，验证的是节流本身
     const first = await window.__weather.publishWeather(weather);
-    expect(first.some((a) => a.share === 'weather/now')).toBe(true);
-    expect(first.some((a) => a.share === 'weather/condition')).toBe(true);
+    expect(first.some((a) => a.share === 'weather-now')).toBe(true);
+    expect(first.some((a) => a.share === 'weather-condition')).toBe(true);
     // badge 与 push loop 竞速：如果上海的雨已经挂过同样的"☂ 出门带伞"，这里就不重复。
     // 用 snapshot 里的 lastBadge 验证"徽标最终挂的是这个文案"。
     expect(['☂ 出门带伞', undefined]).toContain(first.find((a) => a.badge !== undefined)?.badge);
@@ -288,7 +288,7 @@ describe('app.js 行为（jsdom）', () => {
     boot({ grantedNames: ['net.fetch', 'plugin.share', 'pet.surface', 'storage', 'plugin.config'] });
     await until(() => outbound.some((m) => m.type === 'response'));
     const actions = await window.__weather.publishWeather({ city: '北京', tempC: 22, windKmh: 5, condition: 'sunny', at: Date.now() });
-    expect(actions.some((a) => a.share === 'weather/now')).toBe(true);
+    expect(actions.some((a) => a.share === 'weather-now')).toBe(true);
     expect(actions.some((a) => a.badge === '')).toBe(true); // 空串 = 清除（无提醒）
   });
 
