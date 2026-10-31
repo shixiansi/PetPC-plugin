@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 //
 // 这里钉五件事：
 //   1. `docs/ui/petpc-ui.css` 与宿主共享**词表**（token 名字），值可以是 Soft UI 的；
-//   2. 它是 Soft UI：24px 卡片圆角、16px 控件圆角、indigo 主色、带色透明阴影、无纯黑、
+//   2. 它是 Soft UI：24px 卡片圆角、16px 控件圆角、violet 主色、带色透明阴影、无纯黑、
 //      不用 Inter/Roboto/Geist、尊重 prefers-reduced-motion；
 //   3. 每个用它的插件，包内那份 `ui.css` 与源头**逐字节相同**，且写进 `assets`；
 //   4. 这些插件的 `style.css` 里**不许再出现十六进制色值**（颜色只能来自 token）；
@@ -73,7 +73,7 @@ describe('the shared plugin stylesheet', () => {
     const master = readFileSync(masterPath, 'utf8');
     expect(master, '卡片圆角应当是 24px（rounded-3xl）').toContain('--radius-xl: 24px');
     expect(master, '控件圆角应当是 16px（rounded-2xl）').toContain('--radius: 16px');
-    expect(master, '主色应当是 indigo-500').toContain('--accent: #6366f1');
+    expect(master, '主色应当是 violet-600（与市场页同族，2026-10 收敛）').toContain('--accent: #7c3aed');
     expect(master, '阴影必须带颜色与透明度').toMatch(/--sh-sm: 0 6px 16px -6px rgba\(/);
     expect(master, '禁止纯黑').not.toMatch(/#000\b|#000000/i);
     expect(master, '必须尊重 prefers-reduced-motion').toContain('prefers-reduced-motion');

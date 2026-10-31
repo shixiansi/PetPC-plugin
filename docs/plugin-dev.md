@@ -1122,12 +1122,12 @@ window.addEventListener('message', async (e) => {
 
 | 原语 | 规格 |
 | --- | --- |
-| `.card` | `--bg-raised` 底 + 1px `--line` + **18px** 圆角 + `--sh-xs` + **24px** 内边距 |
+| `.card` | `--bg-raised` 底、无边框（靠带色阴影分层）+ **24px** 圆角 + `--sh-sm` + 24–32px 内边距 |
 | `.field` / `.field-title` / `.field-sub` / `.field-control` | 设置项行：左文右控件、行高 ≥64px、1px 分割线、窄屏自动堆叠 |
-| `.btn` + `.primary` / `.secondary` / `.soft` / `ghost` / `danger` | 38px 高、10px 圆角；**一屏只有一个 `.primary`** |
-| `.input`（含 `select` / `textarea`） | 38px 高、10px 圆角、聚焦有 `--sh-ring` |
+| `.btn` + `.primary` / `.secondary` / `.soft` / `ghost` / `danger` / `tiny` | 40px 高（窄屏 44px，`tiny` 36px）、16px 圆角；**一屏只有一个 `.primary`** |
+| `.input`（含 `select` / `textarea`） | 40px 高、16px 圆角、聚焦有 `--sh-ring` |
 | `.switch` | 42×24 |
-| `.tag`（`.ok` / `.warn` / `.accent`） | 24px 高、全圆角 |
+| `.tag`（`.ok` / `.warn` / `.accent` / `.danger` / `.info`） | 24px 高、全圆角 |
 | `.danger-zone` | `--danger-bg` 底 + `--danger` 文字 |
 | `.hint` / `.muted` / `code` / `.divider` / `.page` / `.head` | 版式零件 |
 
