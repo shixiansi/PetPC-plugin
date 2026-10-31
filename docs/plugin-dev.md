@@ -359,7 +359,7 @@ body[data-surface='boot'] { background: transparent; }
 | `shareRead` | | ≤8 项 | 你能读**别人**的哪些共享键，格式 `<插件id>/<名字>` |
 | `shareLLM` | | bool | 允许**别人**借你的模型配置；要求同时申请 `llm.chat` |
 | `serves` | | ≤8 项 | 你**会回答**哪些方法名（`^[A-Za-z0-9_.-]{1,64}$`），别的插件用 `plugin.call` 问你时用得上；要求申请了 `plugin.call` |
-| `callTargets` | | ≤8 项 | 你**能问**谁，格式 `<对方的插件id>/<方法名>`；要求申请了 `plugin.call`，不能写自己，没有通配 |
+| `callTargets` | | ≤8 项 | 你**能问**谁，格式 `<对方的插件id>/<方法名>`，可带版本下限 `@>=1.2.3`；要求申请了 `plugin.call`，不能写自己，没有通配 |
 | `assets` | | ≤32 项 | 包里除入口与固定资源之外、需要按相对路径取用的文件（例如内置音频） |
 | `sidecar` | | 对象 | 你要宿主帮你启动的**辅助脚本**：`{script, args?}`。见本节末尾 |
 
@@ -672,7 +672,7 @@ else { /* 这一面没有这件事，说明它在哪 */ }
 | --- | --- | --- | --- |
 | `surface.show` | `{}` | `{ok:true}` | 打开你自己的浮层面（manifest 声明的那些矩形） |
 | `surface.hide` | `{}` | `{ok:true}` | 关闭 |
-| `plugins.services` | `{}` | `{services:[{id,name,description,serves}]}` | 问宿主「哪些插件对外提供方法、各自**提供什么**」。按安装状态回答（只列已启用且声明了 `serves` 的），自己不在列表里。**别再把提供方的 id 写死**：新装的插件要能被用上，靠的就是它 |
+| `plugins.services` | `{}` | `{services:[{id,name,version,description,serves}]}` | 问宿主「哪些插件对外提供方法、各自**提供什么**、是**哪个版本**」。按安装状态回答（只列已启用且声明了 `serves` 的），自己不在列表里。**别再把提供方的 id 写死**：新装的插件要能被用上，靠的就是它。`version` 是给你和 `callTargets` 的版本下限对一下用的 |
 | `surface.blocks` | `{hidden?:[索引], sizes?:{"索引": 高度}}` | `{ok:true}` | 显示/隐藏某些块，或请求某个块长高（`hidden` 省略=不动隐藏集合） |
 | `pet.badge` | `{text}`（≤16 字符，空串=清除） | `{text}` | 在**宠物自己的框内、头顶正中**画一行字（番茄钟的倒计时就是这么来的）。它不占宠物旁那个槽位，所以待办列表开着时也能显示。文字是**字符串**：宿主不解析、不知道是谁写的。**借用 `pet.surface` 的授权**（同一件事：插件可以在宠物身上画自己的像素），所以不需要额外权限 |
 
@@ -934,6 +934,24 @@ manifest 的 `config` 只能声明**一个** `llmBaseUrl`、一个 `llmModel`、
   "background": true,
   "serves": ["chat"] }
 ```
+
+**可以声明版本下限**：`"callTargets": ["com.example.memory-core/chat@>=1.2.3"]`。
+
+它的用处是一句能写进清单的承诺：「这个方法的形状我是按 1.2.3 之后那版写的」。对方版本低于它时，
+宿主**在调用那一刻**拒绝（不是安装时——对方可能还没装，而插件必须能先装后补依赖），错误里写明
+两边的版本：
+
+```
+plugin.call 的目标插件 com.example.memory-core 是 1.1.0，低于你声明的 com.example.memory-core/chat@>=1.2.3
+```
+
+这条东西是 2026-10-31 那次事故的产物：看板插件对着一个**从来没声明过 `stats`** 的待办插件调了
+一周，宿主的拒绝很准确、调用方也 catch 了——catch 进了一行没人看的日志，每 30 秒一条。写死版本
+下限不是万能药（它管不了"对方根本没这个方法"），但配合 `plugins.services` 的 `version` 和
+`serves`，调用方终于能在调用之前问清楚，而不是假设。
+
+> 不确定对方是哪个版本？**先问 `plugins.services`**，拿 `version` 和 `serves` 自己比，再决定调不调。
+> 不写下限也是合法的：大多数调用不在乎版本，硬性要求写一个只会训练作者去抄一个没核对过的数字。
 
 只有**被调用方**需要写代码——收到 `call` 就回 `call-result`：
 

@@ -205,14 +205,25 @@ function checkManifest(report, manifest) {
   {
     const seen = new Set();
     for (const item of callTargets) {
-      const parts = typeof item === 'string' ? item.split('/') : [];
+      // 可选的版本下限："<插件id>/<方法名>@>=1.2.3"（手册 §4 的 callTargets 那一行）。
+      // 有它的时候，被调用方的版本低于它，宿主会在 plugin.call 里拒绝并写明两个版本。
+      const raw = typeof item === 'string' ? item : '';
+      const at = raw.indexOf('@');
+      const pair = at >= 0 ? raw.slice(0, at) : raw;
+      const floor = at >= 0 ? raw.slice(at) : '';
+      if (floor && !/^@>=\d+\.\d+\.\d+$/.test(floor)) {
+        add('callTargets-floor', 'FAIL', `callTargets 的版本下限必须形如 "@>=1.2.3"：${JSON.stringify(item)}`);
+        continue;
+      }
+      const parts = pair.split('/');
       if (parts.length !== 2) { add('callTargets-shape', 'FAIL', `callTargets 项必须形如 "<插件id>/<方法名>"：${JSON.stringify(item)}`); continue; }
       const [target, method] = parts;
       if (!ID_PATTERN.test(target)) add('callTargets-target', 'FAIL', `callTargets 的目标不是合法插件 id：${target}`);
       if (!SERVED_METHOD_PATTERN.test(method)) add('callTargets-method', 'FAIL', `callTargets 的方法名不合法（[A-Za-z0-9_.-]{1,64}）：${method}`);
       if (target === id) add('callTargets-self', 'FAIL', 'callTargets 不该列出自己（那是循环，不是调用）');
-      if (seen.has(item)) add('callTargets-dup', 'FAIL', `callTargets 有重复项 ${item}`);
-      seen.add(item);
+      // 去重按"这一对"，和宿主一样：同一对写两遍、版本下限不同，是同一个授权的两个说法。
+      if (seen.has(pair)) add('callTargets-dup', 'FAIL', `callTargets 有重复项 ${pair}`);
+      seen.add(pair);
     }
   }
 
