@@ -16,8 +16,8 @@
 //   别的插件 ──shareRead: sense/*──> 只读快照
 //   工坊页 ──plugin.call status──> 本文件回答当前一切
 //
-// 启动辅助脚本走 process.launch（clipask 的同一条路）：把脚本写进 storage.dir 给的
-// 目录，启动用户配置的 powershell.exe 去跑它；参数里带上 outbox 的绝对路径。
+// 辅助脚本由宿主托管（manifest 的 sidecar）：脚本随包躺在 assets 里，宿主启动它并把私有目录
+// 通过 PETPC_PLUGIN_DATA 交给它。插件这一侧只读 outbox/{system,load,dsh}，一个进程都不起。
 
 'use strict';
 

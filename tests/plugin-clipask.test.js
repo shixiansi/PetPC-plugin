@@ -344,38 +344,24 @@ describe('常驻帧：流水线', () => {
     expect(answer.error).toContain('密钥不对');
   });
 
-  test('辅助脚本：写 watch 键进私有目录，用配置里的 exe 以 scriptblock 方式启动', async () => {
-    harness = makeHarness({ config: { helperPath: 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' } });
+  test('辅助脚本交给宿主托管：脚本随包、manifest 声明 sidecar、插件自己一个进程都不起', async () => {
+    harness = makeHarness({});
     await harness.settle();
-    // 键名**不带 .ps1**：宿主的存储键每段只允许 [A-Za-z0-9_-]，带点的话 storage.set 整个
-    // 不执行——脚本根本没落盘，而这条路径以前没人走过（helperPath 是空的），所以静默。
-    const script = harness.store.get('clip/watch');
-    expect(script, '没有把脚本写进私有目录的 clip/watch 键').toBeTruthy();
-    expect(harness.store.get('clip/watch.ps1'), '键名又带上扩展名了').toBeUndefined();
+    // 这条钉的是"不再自己启动"。以前这里要把脚本以字符串常量写进私有目录，再用
+    // `-Command` + scriptblock::Create 起 powershell（因为存储键不能带点，而 `-File` 要求
+    // .ps1 扩展名），于是 512 字符的单参数上限就压在两个路径中间。现在脚本随包，
+    // 宿主按 manifest 的 sidecar 启动它——插件这一侧只剩"读 outbox"。
+    expect(harness.requests('process.launch'), '插件又在自己起进程了').toHaveLength(0);
+    expect(harness.store.get('clip/watch'), '还在把脚本写进私有目录').toBeUndefined();
+
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    expect(manifest.sidecar && manifest.sidecar.script, 'manifest 没有声明 sidecar').toBe('assets/clip-watch.ps1');
+    expect(manifest.assets, 'sidecar 的脚本必须写进 assets').toContain('assets/clip-watch.ps1');
+
+    const script = readFileSync(path.join(pluginDir, 'assets', 'clip-watch.ps1'), 'utf8');
+    // 宿主启动它时不传参数（sidecar.args 没写），所以目录只能从环境变量来。
+    expect(script, '脚本没有从 PETPC_PLUGIN_DATA 取目录').toContain('PETPC_PLUGIN_DATA');
     expect(script).toContain('Clipboard');
-    expect(script).toContain('latest.txt');
-
-    const launches = harness.requests('process.launch');
-    expect(launches).toHaveLength(1);
-    expect(launches[0].payload.path).toBe('C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe');
-    // `-File` 要求 .ps1 扩展名，而键不能带点，所以启动走 -Command + scriptblock::Create。
-    const args = launches[0].payload.args;
-    expect(args).toContain('-Command');
-    expect(args).not.toContain('-File');
-    const command = String(args[args.indexOf('-Command') + 1] ?? '');
-    expect(command, '启动命令里没有指向私有目录里的脚本').toContain('watch');
-    expect(command).toContain('scriptblock');
-    // 宿主的 process.launch 每个参数上限 512 字符：两个路径必须塞得下。
-    expect(command.length).toBeLessThan(512);
-  });
-
-  // 这条原来断言的是"留空 = 不启动任何进程"——那正是用户报"完全没反应"的根因：`helperPath`
-  // 的默认值就是空，于是装好、启用、授权之后什么都没发生。现在留空走系统自带的 PowerShell，
-  // 所以改成钉**缺权限时才不启动**：那才是真正该拦住的事实，而且它发生在碰配置之前。
-  test('缺 process 权限时一个进程都不启动', async () => {
-    harness = makeHarness({ granted: ['storage', 'plugin.config', 'plugin.share'] });
-    await harness.settle();
-    expect(harness.requests('process.launch')).toHaveLength(0);
   });
 
   test('granted=[] 时一个请求都不发', async () => {
@@ -484,15 +470,15 @@ describe('工坊页（控制中心）', () => {
   }
 
   test('读出设置并显示运行状态；缺权限时明说', async () => {
-    harness = makeWorkshopHarness({ config: { helperPath: 'C:\\ps.exe' } });
+    harness = makeWorkshopHarness({ config: { provider: 'com.example.channel' } });
     await harness.settle();
     const doc = harness.window.document;
-    expect(doc.getElementById('cfg-helperPath').value).toBe('C:\\ps.exe');
+    expect(doc.getElementById('cfg-provider').value).toBe('com.example.channel');
     expect(doc.getElementById('ws-status').textContent).not.toContain('缺权限');
   });
 
   test('保存设置发 config.set，且只带声明过的键', async () => {
-    harness = makeWorkshopHarness({ config: { helperPath: '' } });
+    harness = makeWorkshopHarness({ config: {} });
     await harness.settle();
     const doc = harness.window.document;
     doc.getElementById('cfg-askCooldownSec').value = '30';
@@ -508,39 +494,22 @@ describe('工坊页（控制中心）', () => {
   });
 });
 
-describe('WATCH_SCRIPT 与包内脚本的同源守卫', () => {
-  test('app.js 的 WATCH_SCRIPT 就是唯一的脚本来源（clip-watch.ps1 不存在）', () => {
-    // 脚本以字符串常量随 app.js 走（插件读不到包内文件的内容）。这条测试钉住两件事：
-    // 常量存在、且没有第二个独立脚本文件造成"两处改了一处"的漂移。
-    expect(appSource).toMatch(/const WATCH_SCRIPT = String\.raw`/);
+describe('侧车脚本（assets/clip-watch.ps1）', () => {
+  // 脚本从 app.js 里的字符串常量搬成了一个随包文件：宿主按 manifest 的 sidecar 启动它，
+  // 插件再也读不到、也不需要它的内容。这条守的是"搬完之后那两件事仍然对"：
+  // 目录从环境变量来、落盘的名字和插件轮询的键逐字相同。
+  const script = readFileSync(path.join(pluginDir, 'assets', 'clip-watch.ps1'), 'utf8');
+
+  test('目录从 PETPC_PLUGIN_DATA 来（宿主启动它时不传参数）', () => {
+    expect(script).toContain('$env:PETPC_PLUGIN_DATA');
+    expect(script).toContain("Join-Path $data 'clip\\inbox'");
   });
 
-  test('脚本只写私有目录里的 latest.txt，不做别的 I/O', () => {
-    const script = appSource.match(/const WATCH_SCRIPT = String\.raw`([\s\S]*?)`;/)[1];
+  test('脚本只做剪贴板与落盘，不做别的 I/O', () => {
     expect(script).toContain('Clipboard');
-    expect(script).toContain('latest.txt');
     expect(script).not.toMatch(/Invoke-WebRequest|Invoke-RestMethod|Start-Process/);
   });
 });
-
-  // 这条是用户报"完全没反应"的根因：`helperPath` 默认是空，而以前"留空 = 不启动"。
-  // 于是安装、启用、授权都做了，日志里也只看得到每个挂载周期的 config.get / share.get，
-  // 一次 process.launch 都没有——插件看起来就是死的。
-  test('没配 helperPath 时自动用系统自带的 PowerShell', async () => {
-    harness = makeHarness({ config: {} });
-    await harness.settle();
-    const launches = harness.requests('process.launch');
-    expect(launches.length, '一次都没启动：留空又被当成"不启动"了').toBeGreaterThan(0);
-    expect(launches[0].payload.path.toLowerCase()).toContain('windowspowershell\\v1.0\\powershell.exe');
-  });
-
-  test('配了 helperPath 就先试它（默认值只是后备）', async () => {
-    harness = makeHarness({ config: { helperPath: 'D:\\tools\\pwsh.exe' } });
-    await harness.settle();
-    const launches = harness.requests('process.launch');
-    expect(launches.length).toBeGreaterThan(0);
-    expect(launches[0].payload.path).toBe('D:\\tools\\pwsh.exe');
-  });
 
 // 脚本落盘的名字必须与插件轮询的键**逐字**相同。
 //
@@ -548,9 +517,12 @@ describe('WATCH_SCRIPT 与包内脚本的同源守卫', () => {
 // 文件的脚本侧很容易顺手写 `.txt`。2026-10-30 两边就是这么对不上：脚本写 `latest.txt`、插件读
 // `clip/inbox/latest`，于是**即使辅助脚本启动了，也永远读不到样本**——症状和"完全没反应"一样。
 test('辅助脚本落盘的名字与插件轮询的键一致（latest，不带扩展名）', () => {
+  // 两半分开读：名字由**脚本**决定（它写什么文件），键由**插件**决定（它读哪个键）。
+  const script = readFileSync(path.join(pluginDir, 'assets', 'clip-watch.ps1'), 'utf8');
   const src = readFileSync(appPath, 'utf8');
-  expect(src, '脚本又写 latest.txt 了：插件轮询的是 clip/inbox/latest').not.toContain("'latest.txt'");
-  expect(src, "脚本没有写 'latest'").toContain("(Join-Path $OutDir 'latest')");
+  // 只看**带引号的字面量**：脚本的注释里留着 2026-10-30 那次的复盘（latest.txt vs latest）。
+  expect(script, '脚本又写 latest.txt 了：插件轮询的是 clip/inbox/latest').not.toContain("'latest.txt'");
+  expect(script, "脚本没有写 'latest'").toContain("(Join-Path $OutDir 'latest')");
   expect(src, '插件轮询的键变了，脚本侧要跟着改').toContain("request('storage.get', { key: 'clip/inbox/latest' })");
 });
 

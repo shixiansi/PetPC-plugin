@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T12:38:54Z",
+  "updatedAt": "2026-10-31T13:00:39Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -47,12 +47,12 @@
     {
       "id": "com.shixiansi.plugin-clipask",
       "name": "剪贴板助手",
-      "version": "0.1.19",
+      "version": "0.2.0",
       "author": "shixiansi",
-      "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
+      "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走随包的辅助脚本（由宿主托管，manifest 的 sidecar），模型走 llm.borrow。",
       "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-clipask-0.1.19.zip",
-      "sha256": "5c8b2e5cfffcc304c40aa59a7cc3f524a2039fc3e2d28fa9b3f09d13d9a9ba1c"
+      "download": "dist/com.shixiansi.plugin-clipask-0.2.0.zip",
+      "sha256": "aecf351dc3c11e992f7911dabb42957527e2750c3f4d4734c48ace8ebb5fb83d"
     },
     {
       "id": "com.shixiansi.plugin-desktop-wallpaper",
@@ -215,12 +215,12 @@
     {
       "id": "com.shixiansi.plugin-pet-sense",
       "name": "系统与 DSH 感知",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "author": "shixiansi",
       "description": "桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。采样与监听走本机辅助脚本（process.launch）。",
       "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-pet-sense-0.1.6.zip",
-      "sha256": "de52d70b7d50b4998198f27e2f1c4de88ebf0f4b69edcfad5b37b8f6530355ce"
+      "download": "dist/com.shixiansi.plugin-pet-sense-0.1.7.zip",
+      "sha256": "3e6e9425ae8b550e63343f8bed98d84cac06c84575469b606563aa25af8262ab"
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",

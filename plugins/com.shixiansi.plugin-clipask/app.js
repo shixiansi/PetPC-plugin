@@ -20,11 +20,15 @@
 // 每个键只有一个写者（手册 §6.3 的"一个键只有一个写者"）：inbox/answer/history/state
 // 只由常驻帧写，clicks 只由询问卡写。工坊页只读。
 //
-// 为什么监听剪贴板要 process.launch：宿主的能力表里没有剪贴板（手册 §4.1 是穷尽的），
-// 所以"系统剪贴板"只能委托给一个插件启动的本机程序——这是语音插件连本机 TTS 的
-// 同一条路。双向通信用插件私有目录里的文件：常驻帧把 clip-watch.ps1 写进
-// storage.dir 给的目录，process.launch 启动 PowerShell（默认用系统自带的那个）去跑它；
-// 脚本把新样本写进 inbox/，常驻帧轮询读取。脚本随包（assets），路径每次启动重写。
+// 为什么监听剪贴板要一个本机脚本：宿主的能力表里没有剪贴板（手册 §4.1 是穷尽的），所以"系统
+// 剪贴板"只能委托给一个随包的本机程序——这是语音插件连本机 TTS 的同一条路。双向通信走私有
+// 目录里的文件：宿主按 manifest 的 sidecar 启动 `assets/clip-watch.ps1`（目录从
+// `PETPC_PLUGIN_DATA` 来，脚本自己拼 `clip\inbox`），脚本把新样本写进 `inbox/latest`，
+// 常驻帧读那一个键。
+//
+// 2026-10-31 之前是插件自己 `process.launch`：脚本以字符串常量写进私有目录，再用
+// `-Command` + scriptblock::Create 起 PowerShell（存储键不能带点，`-File` 又要求 .ps1），
+// 于是 512 字符的单参数上限就压在两个路径中间。sidecar 把这一段整块删掉了。
 
 'use strict';
 
@@ -414,121 +418,6 @@ async function pushHistory(entry) {
   await writeShare(SHARE.history, list.slice(0, 20));
 }
 
-/**
- * 从哪个 PowerShell 起：用户填的优先，然后系统自带的那几个标准位置。
- *
- * `process.launch` **只接受绝对路径的 .exe**，而插件看不见文件系统（沙盒里没有 fs，也没有环境
- * 变量），所以这里给一串"Windows 上大概率存在"的绝对路径逐个试——宿主会替我们验证每个路径
- * 是不是真的存在（`process.launch` 的路径检查），失败的候选换下一个就行。
- *
- * 第 1 个是 Windows 10/11 一定有的 Windows PowerShell 5.1；后面两个是 PowerShell 7 的常规安装
- * 位置。用户显式配置了就只试他那个（外加这些默认值——填错时才有机会仍然跑起来，而错误信息里会
- * 带上他自己填的那个路径）。
- */
-function helperCandidates() {
-  const configured = String(cfg.helperPath || '').trim();
-  const seen = new Set();
-  return [
-    configured,
-    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
-    'C:\\Program Files\\PowerShell\\7\\pwsh.exe',
-    'C:\\Program Files (x86)\\PowerShell\\7\\pwsh.exe',
-  ].filter((p) => p && !seen.has(p) && seen.add(p));
-}
-
-/**
- * 把辅助脚本放进自己的私有目录并启动。
- *
- * 为什么每次启动都重写脚本：私有目录可能被用户"卸载并删除数据"过，包里的 assets 宿主
- * 只保证在包里、不保证已在目录里。重写一份小文本的代价可以忽略，换来的是"脚本一定在"。
- *
- * 入口路径见 `helperCandidates`：**留空就用系统自带的 PowerShell**。以前是"留空=不启动"，
- * 于是这个插件在真机上从来没工作过（默认值就是空，没人会去手敲那个路径）。
- */
-/**
- * 往宿主的日志里写一行（plugin.log，手册 §6.13）。
- *
- * 为什么需要它：这个插件的失败以前只写进 `pushState`（界面上一行小字），而用户报障时贴的永远
- * 是日志——日志里一次都没有"辅助脚本没起来"，于是排查只能靠猜。plugin.log 借 storage 授权。
- */
-function logLine(level, message) {
-  if (!can(PERM.storage)) return Promise.resolve();
-  return request('plugin.log', { level, message }).catch(() => {});
-}
-
-async function ensureHelper() {
-  if (helperLaunched) return;
-  if (!can(PERM.storage) || !can(PERM.process)) {
-    await pushState('缺权限：安装时需要授予 storage 与 process，监听才可用');
-    void logLine('warn', '辅助脚本没有启动：缺 storage 或 process 授权（安装时没勾，或后来取消了）');
-    return;
-  }
-  try {
-    const dirOut = await request('storage.dir', { sub: 'clip' });
-    const dir = String(dirOut && dirOut.dir) || '';
-    if (!dir) throw new Error('storage.dir 没有返回目录');
-
-    // 脚本本体随包（assets/clip-watch.ps1），但插件读不到包内文件的内容——所以把脚本
-    // 以字符串常量（WATCH_SCRIPT，与本文件底部定义逐字同义）写进私有目录。写小文本的
-    // 代价可以忽略，换来的是"脚本一定在"：私有目录可能被"卸载并删除数据"清空过。
-    //
-    // 键以 `clip/watch` 结尾而**不**是 `watch.ps1`：宿主的存储键每一段只允许
-    // `[A-Za-z0-9_-]`（手册 §6.3），带点的键会被判定为非法，`storage.set` 整个不执行——
-    // 于是"脚本没写进去、启动又失败"，而这个插件在真机上从来没报过错，因为没人配过
-    // helperPath：这条路一次都没走过。
-    await request('storage.set', { key: 'clip/watch', value: WATCH_SCRIPT });
-
-    // 相对目录交给脚本拼；Windows 路径里的反斜杠原样传。
-    const outDir = joinPath(dir, 'inbox');
-    const scriptPath = joinPath(dir, 'watch');
-    // 用 `[scriptblock]::Create((Get-Content …))` 而不是 `-File`：`-File` 明确要求 `.ps1`
-    // 扩展名（实测：`-File` 跑无扩展名文件直接报 "does not have a '.ps1' extension"），
-    // 而存储键里不能有点。这条路不挑扩展名，代价是启动参数从"一个路径"变成一行短命令，
-    // 仍是 512 字符一参的上限之内（只有两个路径）。
-    const runner =
-      `& { $sb = [scriptblock]::Create((Get-Content -LiteralPath '${scriptPath}' -Raw)); ` +
-      `& $sb -OutDir '${outDir}' }`;
-    const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', runner];
-
-    // 从哪个 PowerShell 起？用户填的优先，**留空就用系统自带的那个**。
-    //
-    // 以前这里"留空 = 不启动"，于是这个插件在真机上从来没工作过：`helperPath` 的默认值就是空，
-    // 而没人会为了一个剪贴板助手去手敲 `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`。
-    // 症状是"装了、启用了、什么都没发生"——日志里一次 `process.launch` 都没有，只有每个挂载周期
-    // 的 `config.get` 与 `share.get`（2026-10-30 用户报的）。
-    //
-    // 逐个试是因为插件看不见文件系统（沙盒、没有 fs）：`process.launch` 会替我们验证"这个绝对
-    // 路径是不是一个存在的 .exe"，失败的候选直接试下一个。用户显式填了却不存在时，报错里会带
-    // 上他填的那个路径——那才是他要改的东西。
-    const tried = [];
-    let launched = '';
-    for (const exe of helperCandidates()) {
-      try {
-        await request('process.launch', { path: exe, args });
-        launched = exe;
-        break;
-      } catch (err) {
-        tried.push(`${exe}（${err && err.message ? err.message : err}）`);
-      }
-    }
-    if (!launched) {
-      await pushState(`启动剪贴板监听失败：没有可用的 PowerShell。试过 ${tried.join('；')}`);
-      void logLine('warn', `辅助脚本启动失败：没有可用的 PowerShell。试过 ${tried.join('；')}`);
-      return;
-    }
-    helperLaunched = true;
-    await pushState(`已启动剪贴板监听（${launched}）`);
-  } catch (err) {
-    await pushState(`辅助脚本没启动：${String(err && err.message ? err.message : err)}`);
-    void logLine('warn', `辅助脚本没启动：${String(err && err.message ? err.message : err)}`);
-  }
-}
-
-/** 简单的 Windows 路径拼接（插件只跑在桌面宿主上）。 */
-function joinPath(dir, name) {
-  const d = String(dir || '').replace(/[\\/]+$/, '');
-  return `${d}\\${name}`;
-}
 
 /**
  * 把一个新样本变成询问。
@@ -695,7 +584,6 @@ function initBackgroundFrame() {
     await refreshConfig();
     // events 权限虽然申请了（background 的依据之一），但宿主事件里没有剪贴板——
     // 不订阅不会丢任何东西。这里仅把 llm 流式事件通道说明在状态里。
-    await ensureHelper();
     await pushState('运行中：等一次复制');
     if (pollTimer) clearInterval(pollTimer);
     // 15 秒兜底：两条事件（storage.changed / config.changed）负责即时，这一拍只负责
@@ -715,7 +603,6 @@ async function tick() {
   if (tickBusy) return;
   tickBusy = true;
   try {
-    await ensureHelper();
     await handlePoll();
     await harvestInbox();
   } catch {
@@ -780,7 +667,15 @@ async function harvestInbox() {
   if (!can(PERM.storage)) return;
   const out = await request('storage.get', { key: 'clip/inbox/latest' }).catch(() => ({ value: '' }));
   const raw = String((out && out.value) || '');
-  if (!raw) return;
+  if (!raw) {
+    emptyHarvests += 1;
+    if (emptyHarvests === EMPTY_HARVESTS_BEFORE_WARNING) {
+      void logLine('warn',
+        'clip/inbox/latest 一直是空的：辅助脚本可能没起来。它由宿主托管（manifest 的 sidecar 字段），桌宠日志里的 sidecar 行会写明原因');
+    }
+    return;
+  }
+  emptyHarvests = 0;
   let sample;
   try {
     sample = JSON.parse(raw);
@@ -794,6 +689,17 @@ async function harvestInbox() {
 }
 
 let lastHarvestAt = 0;
+
+// 辅助脚本一句话都不说时，这个插件在界面上完全没有痕迹：没有询问卡、也没有记录，用户的结论是
+// "这功能坏了"。4 次空读 ≈ 60 秒（兜底一拍 15 秒），只在"一直没数据"的那一段里说一次。
+const EMPTY_HARVESTS_BEFORE_WARNING = 4;
+let emptyHarvests = 0;
+
+/** 往宿主的日志里写一行（plugin.log，手册 §6.13）。它借 storage 授权，所以先看有没有。 */
+function logLine(level, message) {
+  if (!can(PERM.storage)) return Promise.resolve();
+  return request('plugin.log', { level, message }).catch(() => {});
+}
 
 // 常驻帧收到事件（llm.delta 等）的分派：message 监听器里 event 分支调它。
 function dispatchEvent(name, payload) {
@@ -954,13 +860,12 @@ let answerDoneShown = false;
 // ---------------------------------------------------------------------------
 
 function initWorkshop() {
-  const ids = ['helperPath', 'provider', 'channel', 'askCooldownSec', 'askMaxChars', 'llmDailyBudget'];
+  const ids = ['provider', 'channel', 'askCooldownSec', 'askMaxChars', 'llmDailyBudget'];
   const badge = el('ws-badge');
   const status = el('ws-status');
 
   void (async () => {
     await refreshConfig();
-    el('cfg-helperPath').value = String(cfg.helperPath || '');
     el('cfg-provider').value = String(cfg.provider || '');
     el('cfg-channel').value = String(cfg.channel || '');
     el('cfg-askCooldownSec').value = String(cfgNum('askCooldownSec', 120, 0, 3600));
@@ -996,7 +901,6 @@ function initWorkshop() {
 
 async function saveConfig() {
   const values = {
-    helperPath: el('cfg-helperPath').value.trim(),
     provider: el('cfg-provider').value.trim(),
     channel: el('cfg-channel').value.trim(),
     askCooldownSec: String(Math.max(0, Number.parseInt(el('cfg-askCooldownSec').value, 10) || 0)),
@@ -1040,89 +944,6 @@ async function clearHistory() {
   await renderHistory();
 }
 
-// HOST 的事件分派也要进常驻帧的 llm 处理：message 监听器的 event 分支调用 dispatchEvent
-//（见文件顶部）。下面是 WATCH_SCRIPT：与包内 clip-watch.ps1 逐字同义的字符串常量。
-// 插件读不到自己包里的文件内容，所以脚本以这份字符串进私有目录（见 ensureHelper）。
-// 两处必须同步改：改了 clip-watch.ps1 就改这里，反之亦然——tests/ 里有守卫。
-const WATCH_SCRIPT = String.raw`param(
-    [Parameter(Mandatory = $true)][string]$OutDir,
-    [int]$IntervalMs = 600,
-    [int]$MaxChars = 20000
-)
-
-$ErrorActionPreference = 'Stop'
-
-if (-not (Test-Path -LiteralPath $OutDir -PathType Container)) {
-    New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-}
-
-Add-Type -AssemblyName System.Windows.Forms | Out-Null
-
-$last = ''
-$stall = 0
-$lastSkip = 0
-
-function Write-Utf8NoBom {
-    param([string]$Path, [string]$Text)
-    $utf8 = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($Path, $Text, $utf8)
-}
-
-function Publish-Latest {
-    param([string]$Text)
-    $payload = @{
-        at   = [System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-        text = $Text
-    } | ConvertTo-Json -Compress
-    $tmp = Join-Path $OutDir 'latest.tmp'
-    Write-Utf8NoBom -Path $tmp -Text $payload
-    # The file name must match the storage key the plugin polls, character for character:
-  # clip/inbox/latest, with NO extension. A key segment only allows [A-Za-z0-9_-], so a
-  # .txt name can never be read back - and the script writes by absolute path, so nothing
-  # complains: the plugin just never sees a sample. (2026-10-30: latest.txt vs latest.)
-  # Keep this whole script ASCII: it is launched with Get-Content -Raw under Windows
-  # PowerShell 5.1, which decodes a BOM-less file as the ANSI code page and can eat a
-  # quote or a newline in the middle of a multi-byte comment. (AGENTS.md section 7.)
-  Move-Item -LiteralPath $tmp -Destination (Join-Path $OutDir 'latest') -Force
-}
-
-while ($true) {
-    Start-Sleep -Milliseconds ([Math]::Max(100, $IntervalMs))
-
-    $text = $null
-    try {
-        if ([System.Windows.Forms.Clipboard]::ContainsText()) {
-            $text = [System.Windows.Forms.Clipboard]::GetText()
-        }
-    }
-    catch {
-        $text = $null
-    }
-
-    if ([string]::IsNullOrEmpty($text)) { continue }
-    if ($text -ceq $last) { continue }
-    $last = $text
-
-    if ($text.Length -gt $MaxChars) {
-        # Too long for the ask flow: publish an empty sample so the plugin sees that
-        # something was skipped (throttled by $lastSkip).
-        if (([System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - $lastSkip) -gt 30000) {
-            $lastSkip = [System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-            try { Publish-Latest -Text '' } catch { }
-        }
-        continue
-    }
-
-    try {
-        Publish-Latest -Text $text
-        $stall = 0
-    }
-    catch {
-        $stall += 1
-        if ($stall -gt 20) { Start-Sleep -Seconds 5 }
-    }
-}
-`;
 
 // **监听器装好之后**才握手：init 可能在你 post 完的下一个任务就到达（手册 §5.3 铁律 1）。
 HOST.postMessage({ v: V, type: 'ready' }, '*');
@@ -1131,7 +952,7 @@ HOST.postMessage({ v: V, type: 'ready' }, '*');
 // 不承载任何运行时状态：classify 是纯函数，__tick/__poll 就是各自的轮询拍。
 if (typeof window !== 'undefined') {
   window.__test_probe = {
-    classify, ACTIONS, WATCH_SCRIPT, tick, offerSample, refreshConfig,
+    classify, ACTIONS, tick, offerSample, refreshConfig,
     pollInbox, pollAnswer, sendClick,
   };
 }
