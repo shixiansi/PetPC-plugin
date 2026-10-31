@@ -1,7 +1,28 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T05:34:01Z",
+  "updatedAt": "2026-10-31T06:28:30Z",
   "plugins": [
+    {
+      "id": "com.shixiansi.plugin-agent-worker",
+      "name": "后台任务执行器",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent/status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。",
+      "permissions": ["plugin.call", "plugin.share", "storage", "plugin.config", "pet.bubble", "events"],
+      "download": "dist/com.shixiansi.plugin-agent-worker-0.1.0.zip",
+      "sha256": "f167233fbf369c8c3e5638a47c84f09d73717bcbc96af8643ae49012bc5c5fa4"
+    },
+    {
+      "id": "com.shixiansi.plugin-ast-coder",
+      "name": "代码感知与重构助手",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "让桌宠看懂本地代码：按配置的目录监听 .js/.ts 文件（结构缓存在插件私有目录，不碰文件内容之外的东西），用轻量解析提取函数名、类名与导出项；选中一段代码就能让记忆核心以审查者的身份找 Bug、给重构建议；还能一键把大模型生成的测试用例写进同名 .test.js（先读后写，绝不覆盖原代码）。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call", "plugin.share"],
+      "netHosts": ["127.0.0.1:23180"],
+      "download": "dist/com.shixiansi.plugin-ast-coder-1.0.1.zip",
+      "sha256": "bb880e156310dec08b4f3015c8e119063434cda260ac4cb3191b76c7ab8c60df"
+    },
     {
       "id": "com.shixiansi.plugin-bilibili",
       "name": "B 站刷视频插件",
@@ -34,6 +55,17 @@
       "sha256": "90a273df0bd57ded20e115b583d978684fdf017b3ca9cd858c4cb0d6f22647df"
     },
     {
+      "id": "com.shixiansi.plugin-desktop-wallpaper",
+      "name": "壁纸联动（环境色合成）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "每天抓一次 Bing 每日壁纸，用 k-means 提取主色调、三次盒滤波生成毛玻璃底色，经 plugin.share 把环境快照（主色、渐变、mood）发布给桌宠：桌宠据此调整光影与主题色。面板里看色板、模糊预览与最近 30 天的历史；其他插件可以 plugin.call 问当前环境或触发重抓。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.share", "plugin.call", "pet.bubble"],
+      "netHosts": ["www.bing.com", "cn.bing.com"],
+      "download": "dist/com.shixiansi.plugin-desktop-wallpaper-0.1.0.zip",
+      "sha256": "707d690d9ffcd7ec4443cf846ac9ca9eb2edd8a8f632b7b1a61d70237cbe62fb"
+    },
+    {
       "id": "com.shixiansi.plugin-diange",
       "name": "点歌（酷我搜索 + 直链）",
       "version": "0.1.0",
@@ -43,6 +75,79 @@
       "netHosts": ["oiapi.net", "kw-er.kuwo.cn", "kw-lv.kuwo.cn"],
       "download": "dist/com.shixiansi.plugin-diange-0.1.0.zip",
       "sha256": "783645c9615c78b470f11746d1fd833e45f646db1753d05ccc172b0215cf2e10"
+    },
+    {
+      "id": "com.shixiansi.plugin-diary-writer",
+      "name": "日记（自动情绪追踪）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "每天 23:00（或手动触发）把当天的交互碎片写成一篇 ≤300 字、带情绪标签的日记：对话摘要来自记忆核心的 export-state、已完成待办来自待办插件的共享快照、专注时长来自番茄钟的共享状态。日记存进插件私有目录，并把「昨天写了什么」注入下一次生成时的 Prompt；可经 plugin.call 问 get_recent 让桌宠在对话里引用昨天的日记。",
+      "permissions": ["plugin.call", "plugin.share", "storage", "plugin.config", "events", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-diary-writer-0.1.0.zip",
+      "sha256": "80cdf22ad66c190605985f6ce68b5a02fcaaf42f6a429b09f8f0ddb646675a1c"
+    },
+    {
+      "id": "com.shixiansi.plugin-email-digest",
+      "name": "邮件智能摘要",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "本地邮件智能聚合：从一个本机邮件桥（IMAP 拉取交给桥做，插件拿到的已经是原始 RFC822 文本）抓最新未读邮件，自己解析 MIME——发件人、主题、纯文本正文（剥 HTML、解 Quoted-Printable 与 Base64）；把分类与摘要交给记忆核心（紧急/常规/垃圾三档，紧急的逐封总结）；每天早晨或手动触发时把摘要弹成气泡并交给语音播报。",
+      "permissions": ["net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.call", "plugin.share", "audio", "pet.bubble", "events"],
+      "netHosts": ["127.0.0.1:23220"],
+      "download": "dist/com.shixiansi.plugin-email-digest-1.0.1.zip",
+      "sha256": "fd4935c1ec6bc9d4925f68704c8dff31a780be597a4b55c7918eb3f8c78244eb"
+    },
+    {
+      "id": "com.shixiansi.plugin-expense-tracker",
+      "name": "自然语言记账与财务看板",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "对桌宠说「打车花了 25 块」：模型把话解析成结构化账目（金额/类型/分类/日期）自动入账，解析失败自动带着错误原因重试一次，绝不把猜测值写进账本；账本按月存 JSONL、坏行跳过。看板用纯 SVG 画分类环形图与每日趋势折线图，支持手动记账与月度切换。",
+      "permissions": ["storage", "plugin.config", "plugin.call", "llm.chat", "llm.borrow", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-expense-tracker-0.1.0.zip",
+      "sha256": "2a173df4feab911b6ed89ab6ecd90210df34b40eb2793c265e32e688e79e53bb"
+    },
+    {
+      "id": "com.shixiansi.plugin-flashcards",
+      "name": "记忆卡片（SM-2 间隔重复）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "把笔记做成抽认卡：SuperMemo-2 算法按你的评分（忘记/困难/良好/简单）安排每张卡的下次复习时间，到点桌宠弹气泡提醒（每天最多 3 次）。正面 | 背面 一行一张批量导入，支持 Markdown 与正反面翻转；划词助手等插件可以 plugin.call 直接发卡进来。",
+      "permissions": ["storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-flashcards-0.1.0.zip",
+      "sha256": "3df67a3992035944849a11b4396eaf87865a575f7e3fee30f622f3873a8d25fd"
+    },
+    {
+      "id": "com.shixiansi.plugin-game-center",
+      "name": "游戏中心（接金币）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "宠物旁的轻量小游戏「接金币」：左右移动篮子接住掉落的金币与道具（磁铁、双倍、护盾），躲开炸弹。有开始菜单、实时计分板与结束结算面板；本局得分经 plugin.share 发给桌宠生态（亲密度/金币由记忆侧消费），游戏结束按胜负触发桌宠的欢呼或失落状态。逻辑引擎不依赖 DOM，面板只做渲染。",
+      "permissions": ["plugin.share", "pet.surface", "storage", "plugin.config"],
+      "download": "dist/com.shixiansi.plugin-game-center-0.1.0.zip",
+      "sha256": "c542db880d5df8441279f4073fba3784188fe3039b7bf14207dac369022a5e55"
+    },
+    {
+      "id": "com.shixiansi.plugin-knowledge-base",
+      "name": "本地知识库（文档切片与检索问答）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "让桌宠「读」过你给它的文档：把 Markdown/TXT 粘进面板（或给一个 http(s) 地址让它抓取），文档按 500 字滑动窗口切片（50 字重叠防语义切断），建立纯 JS 的 TF-IDF 倒排索引；提问时按关键词检索相关度最高的 3 个切片注入 Prompt，经记忆核心作答——桌宠的回答就以你的文档为准。面板显示文档列表、切片数量与索引进度。",
+      "permissions": ["net.fetch", "plugin.call", "storage", "plugin.config", "events"],
+      "netHosts": ["raw.githubusercontent.com", "gist.githubusercontent.com"],
+      "download": "dist/com.shixiansi.plugin-knowledge-base-0.1.0.zip",
+      "sha256": "8c24ddd3784761233df0badc18d9ee23817cdcba68cdf5db75655078e66433fe"
+    },
+    {
+      "id": "com.shixiansi.plugin-live-danmaku",
+      "name": "直播间弹幕互动",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "让桌宠化身为虚拟主播：接入直播平台的弹幕流（内置 Mock 桥与 B 站开放平台两种接法），内部用防抖队列把高频弹幕节流成「每几秒挑几条值得回的」，交给记忆核心生成回应，再用语音服务念出来或弹气泡；插件页实时显示直播间状态、在线人数与滚动的精简弹幕。",
+      "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "plugin.call", "audio", "pet.bubble"],
+      "netHosts": ["127.0.0.1:23100", "127.0.0.1:9880", "dealer-open.bilibili.com", "broadcast-open.chat.bilibili.com"],
+      "download": "dist/com.shixiansi.plugin-live-danmaku-1.0.1.zip",
+      "sha256": "18bee281165ff50f1b0866ca9aa8153f0c9ea2a9662fdbeb47aefb2c06369e55"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -73,7 +178,7 @@
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。0.7.0 起提供 export-state / import-state：把全部分层记忆打包成 JSON 交给快照插件保存，或从快照原样恢复。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
       "download": "dist/com.shixiansi.plugin-memcore-0.8.0.zip",
-      "sha256": "5db8fef10369f0568ba326cedd20f89bcc15e2a6499bf477da3dfa7a32dd9462"
+      "sha256": "502ca20a17119f6dbbe689ae352c3504f064709ccd9579f0e544a8a68b538ff8"
     },
     {
       "id": "com.shixiansi.plugin-moegirl",
@@ -98,6 +203,16 @@
       "sha256": "5a0fb5c3501f923e3c5231bb8bcc8fb87cd23c29c71469fef9e8f513e21cf5fb"
     },
     {
+      "id": "com.shixiansi.plugin-pet-evolution",
+      "name": "桌宠养成（等级·属性·外观）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "给桌宠的 RPG 成长系统：满级 100 级的指数经验曲线，聊天/喂食/专注/完成任务都长经验；每级 3 点自由属性（智力=对话深度、体力=互动次数、亲密=好感倍率），每 10 级解锁一个新外观。存档带版本迁移链（v1→v2 自动补字段），其他插件经 plugin.call 发奖或查档案。",
+      "permissions": ["storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-pet-evolution-0.1.0.zip",
+      "sha256": "5eabebe2f028441833f0f2d22dd4e65b3a37a35102cf80cc9d8757b6624e071a"
+    },
+    {
       "id": "com.shixiansi.plugin-pet-sense",
       "name": "系统与 DSH 感知",
       "version": "0.1.2",
@@ -118,6 +233,16 @@
       "sha256": "bb0fc8bfea7e7efb0415029c031377a777d496fe0515a152147e827e6ecc69b0"
     },
     {
+      "id": "com.shixiansi.plugin-privacy-guard",
+      "name": "隐私卫士（敏感信息监控与脱敏）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "盯着剪贴板和你的 .env/.txt 文件：身份证（带校验位）、手机号、银行卡（Luhn 校验）、sk- 开头的 API Key、邮箱、内网 IP 一出现就自动脱敏，桌宠弹窗提醒（同类告警 10 分钟节流）。扫描全在本机完成；告警只发布规则名与风险级别，不含原文。其他插件发文本前可以 plugin.call 让它先扫一遍。",
+      "permissions": ["process", "storage", "plugin.config", "plugin.share", "plugin.call", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-privacy-guard-0.1.0.zip",
+      "sha256": "9f6fc6a7b7f22d7ff86faea408dfd671b69da279a26867c215a558711f97268e"
+    },
+    {
       "id": "com.shixiansi.plugin-qq",
       "name": "QQ 群聊插件",
       "version": "1.15.0",
@@ -126,7 +251,7 @@
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
       "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
       "download": "dist/com.shixiansi.plugin-qq-1.15.0.zip",
-      "sha256": "96ac7cb0d16f3132f8abaa4e5b1c2016f4456151c5fb7e3ff9f0b5e275c3ec6d"
+      "sha256": "86d5eb825f232df9078dfd08236fff665ddc2432bb6ceaa3b1d125b5be4848eb"
     },
     {
       "id": "com.shixiansi.plugin-qqbot",
@@ -140,6 +265,27 @@
       "sha256": "be314383702e732f5373b9b43492b48f184908123cec5c71993b1cd780d11a4c"
     },
     {
+      "id": "com.shixiansi.plugin-rss-reader",
+      "name": "晨报（RSS 订阅与语音播报）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "订阅 RSS/Atom 源，每 2 小时在后台抓一次新文章；把新内容交给记忆核心的模型总结成 3 句话（语气符合桌宠人设），再用语音插件的 speak 念出来。面板里可以添加/删除订阅源、立刻抓一次、看每条源的状态与最近摘要。",
+      "permissions": ["net.fetch", "plugin.call", "plugin.share", "storage", "plugin.config", "events", "pet.bubble"],
+      "netHosts": ["example.com", "www.example.com", "feed.example.com", "rsshub.app"],
+      "download": "dist/com.shixiansi.plugin-rss-reader-0.1.0.zip",
+      "sha256": "89c0a6d6b8647540b249927b062047680e1ccb071cd3d9d780a95b42039851fc"
+    },
+    {
+      "id": "com.shixiansi.plugin-screen-vision",
+      "name": "屏幕视觉",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "给桌宠的眼睛：用本机辅助脚本截取全屏或指定区域，把截图交给视觉模型解析。别的插件用 plugin.call 问 analyze_screen（一句话问题 → 一段看图后的回答）；面板上有「看一眼屏幕」按钮，显示识别进度，保留最近几次识别记录。问答走记忆核心（memcore/chat），截图 URL 会加进网络白名单。",
+      "permissions": ["process", "llm.borrow", "plugin.call", "plugin.share", "storage", "plugin.config"],
+      "download": "dist/com.shixiansi.plugin-screen-vision-0.1.0.zip",
+      "sha256": "2e94ee0b00f7969808f119872d111d4f007c1754537d9709870c8dc444161c8d"
+    },
+    {
       "id": "com.shixiansi.plugin-slang",
       "name": "网络词词典",
       "version": "0.2.0",
@@ -148,6 +294,16 @@
       "permissions": ["storage", "plugin.config", "plugin.call"],
       "download": "dist/com.shixiansi.plugin-slang-0.2.0.zip",
       "sha256": "e04148ccb94b0a4934a0398ca7729a3f65b17e007138cc434fa6eb6b35dc06f9"
+    },
+    {
+      "id": "com.shixiansi.plugin-state-snapshot",
+      "name": "状态时光机（记忆快照）",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "给桌宠的记忆装一个游戏存档：调用记忆核心把当前的分层记忆（L1 往来、L2 摘要、L3 情节与长期摘要、全局事件链）整库打包成 JSON，保存在自己的快照库里；可以命名、列表、删除，随时回滚到任何一个历史快照——回滚是整库替换，恢复之后记忆就是那一刻的样子，没有脏数据。插件页以时间线展示全部快照并带恢复按钮。",
+      "permissions": ["storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-state-snapshot-1.0.1.zip",
+      "sha256": "a22f85ac8da416bfdc6f222912009c9b20fe3f3720fea6e5ffe90aa97eaba06f"
     },
     {
       "id": "com.shixiansi.plugin-todo",
@@ -171,6 +327,17 @@
       "sha256": "9d8812cbccbb181d4497180ceb0134c2ee61cd3a10dca738877aacaf7f4f9720"
     },
     {
+      "id": "com.shixiansi.plugin-voice-call",
+      "name": "实时语音通话",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "实时双向语音对话：在桌宠的常驻帧里跑一个「听—想—说」状态机，音量阈值 VAD 检测说话与静音；用户开口立即打断桌宠正在播放的语音（audio.stop）；录到的音频切片交给流式 ASR（或本机桥的识别端点），识别文本经记忆核心生成回答，再用语音服务合成播放。所有音频处理都走宿主的 audio/net.fetch 能力；纯逻辑的状态机可以在没有麦克风的环境下完整测试。",
+      "permissions": ["net.fetch", "audio", "storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble", "pet.surface", "events"],
+      "netHosts": ["127.0.0.1:9880", "127.0.0.1:23240"],
+      "download": "dist/com.shixiansi.plugin-voice-call-1.0.1.zip",
+      "sha256": "bfe46b2043ef6e8133c4de71d1e189ff5dba6d700b32366d6210707f83ce8d79"
+    },
+    {
       "id": "com.shixiansi.plugin-weather-env",
       "name": "天气与环境感知",
       "version": "0.1.1",
@@ -180,6 +347,28 @@
       "netHosts": ["api.open-meteo.com", "geocoding-api.open-meteo.com", "geoapi.qweather.com", "devapi.qweather.com"],
       "download": "dist/com.shixiansi.plugin-weather-env-0.1.1.zip",
       "sha256": "06707d1aaa45451662c04265d0d0e1764bd289bef92c104f5492891f9922db97"
+    },
+    {
+      "id": "com.shixiansi.plugin-web-dashboard",
+      "name": "桌宠状态看板",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "在浏览器里打开的桌宠控制中心：本地 HTTP 服务聚合各插件的数据——对话次数（记忆核心）、待办完成率（todo）、专注时长（番茄钟）——用一个纯 CSS 柱状图与卡片网络展示，样式严格走宿主 token；页面上可以直接下发暂停/恢复命令（经共享键送到目标插件）。数据由各插件通过 plugin.call 的 stats 方法现答。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
+      "netHosts": ["127.0.0.1:8080", "127.0.0.1:23260"],
+      "download": "dist/com.shixiansi.plugin-web-dashboard-1.0.1.zip",
+      "sha256": "c0cc1dd6745ae5fd6b117b11655680b5875e35a93b148d8d7ce128bdf6c26d82"
+    },
+    {
+      "id": "com.shixiansi.plugin-web-scraper",
+      "name": "网页提取（正文评分转 Markdown）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "输入一个网址：按段落密度、链接占比与类名关键词给页面上的容器评分，挑出真正的正文，去掉导航栏与广告，转成整洁的 Markdown 存进本地文章库。其他插件可以用 plugin.call 让它抓页面或读文章；抓完桌宠会弹一句。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call", "pet.bubble"],
+      "netHosts": ["example.com", "www.example.com"],
+      "download": "dist/com.shixiansi.plugin-web-scraper-0.1.0.zip",
+      "sha256": "5677b3ff3369bfbdfeec590445f4464ff0fc3fc077ebf71a5f0600f26919a888"
     },
     {
       "id": "com.shixiansi.plugin-websearch",

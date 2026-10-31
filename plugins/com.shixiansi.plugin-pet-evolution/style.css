@@ -150,11 +150,7 @@ h2 { margin: 0 0 var(--space-2); font-size: 15px; }
 
 .skin-chip.owned {
   border-color: var(--accent);
-<<<<<<< Updated upstream
-  color: var(--accent-strong);
-=======
   color: var(--accent-on-soft);
->>>>>>> Stashed changes
   background: var(--accent-soft);
 }
 

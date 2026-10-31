@@ -10,16 +10,9 @@
  * ⚠️ 为什么它与宿主的 tokens.css **不逐字相同**
  *
  * 这一版按 Soft UI 规范做：更大的圆角（卡片 24px / 控件 16px）、无可见边框（靠彩色柔和阴影分
-<<<<<<< Updated upstream
- * 层）、低饱和 indigo 主色、slate-50 底 + 白卡、正文 gray-500。宿主的控制中心仍是原来那套
- * （紫罗兰 + 1px 边框 + 18px 圆角），因为它的色板被 `.dev/check-frontend.cjs` 的「桌宠页与
+ * 层）、低饱和 violet 主色（与市场页同一族，violet-600）、slate-50 底 + 白卡、正文 gray-600。
+ * 宿主的控制中心仍是原来那套（紫罗兰 + 1px 边框 + 18px 圆角），因为它的色板被 `.dev/check-frontend.cjs` 的「桌宠页与
  * 控制中心同名同色」门禁绑着——一起换就得连桌宠页面一起换，那是另一件事。
-=======
- * 层）、低饱和 violet 主色（与市场页同族，violet-600；见 2026-10 的样式评审）、slate-50 底 +
- * 白卡、正文 gray-600。宿主的控制中心仍是原来那套（紫罗兰 + 1px 边框 + 18px 圆角），因为它的
- * 色板被 `.dev/check-frontend.cjs` 的「桌宠页与控制中心同名同色」门禁绑着——一起换就得连桌宠
- * 页面一起换，那是另一件事。
->>>>>>> Stashed changes
  * 所以两边**共享 token 名字**（--bg / --bg-raised / --line / --text / --accent / --radius-* /
  * --space-* / --sh-*），值可以不同；`market/tests/ui-tokens.test.js` 检查名字而不检查值。
  *
@@ -45,11 +38,7 @@
   --bg-surface: #ffffff;
   --bg-sunken: #f1f5f9;
   --bg-hover: #f1f5f9;
-<<<<<<< Updated upstream
-  --bg-active: #eef2ff;
-=======
   --bg-active: #f5f3ff;
->>>>>>> Stashed changes
 
   /* 分隔线：soft 到几乎只是"影子"，规范不要硬边框 */
   --line: #eef2f7;
@@ -57,27 +46,6 @@
 
   /* 正文：gray-800 / gray-500 / gray-400 */
   --text: #1f2937;
-<<<<<<< Updated upstream
-  --text-dim: #6b7280;
-  --text-faint: #9ca3af;
-
-  /* 主色：indigo（低饱和，一屏只一个主按钮） */
-  --accent: #6366f1;        /* indigo-500 */
-  --accent-strong: #4f46e5; /* indigo-600：按钮底色，白字对比 7.0:1 */
-  --accent-hover: #4f46e5;
-  --accent-soft: #eef2ff;   /* indigo-50 */
-  --accent-dim: #c7d2fe;    /* indigo-200 */
-
-  --success: #059669;
-  --success-bg: #ecfdf5;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
-  --danger: #dc2626;
-  --danger-bg: #fef2f2;
-  --info: #2563eb;
-  --info-bg: #eff6ff;
-  --ring: rgba(99, 102, 241, 0.45);
-=======
   --text-dim: #5b6472;      /* 4.5+ on sunken/violet-50（gray-500 在浅底上只有 4.4） */
   --text-faint: #64707d;    /* 输入提示等弱文字：4.6:1 on sunken（gray-400 只有 2.3） */
 
@@ -99,7 +67,6 @@
   --info: #2563eb;
   --info-bg: #eff6ff;
   --ring: rgba(124, 58, 237, 0.45);
->>>>>>> Stashed changes
 
   /* 字体：不用 Inter / Roboto / Geist（规范禁止），中文优先 */
   --font: 14px/1.6 "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
@@ -126,15 +93,9 @@
   --sh-xs: 0 2px 8px -2px rgba(100, 116, 139, 0.12);
   --sh-sm: 0 6px 16px -6px rgba(100, 116, 139, 0.22), 0 2px 6px -3px rgba(100, 116, 139, 0.12);
   --sh-md: 0 12px 28px -12px rgba(100, 116, 139, 0.3), 0 4px 10px -6px rgba(100, 116, 139, 0.16);
-<<<<<<< Updated upstream
-  --sh-lg: 0 22px 48px -18px rgba(99, 102, 241, 0.28), 0 8px 18px -10px rgba(100, 116, 139, 0.18);
-  --sh-accent: 0 12px 24px -10px rgba(99, 102, 241, 0.45);
-  --sh-ring: 0 0 0 4px rgba(99, 102, 241, 0.18);
-=======
   --sh-lg: 0 22px 48px -18px rgba(124, 58, 237, 0.28), 0 8px 18px -10px rgba(100, 116, 139, 0.18);
   --sh-accent: 0 12px 24px -10px rgba(124, 58, 237, 0.45);
   --sh-ring: 0 0 0 4px rgba(124, 58, 237, 0.18);
->>>>>>> Stashed changes
 
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --dur-1: 200ms;
@@ -154,11 +115,7 @@
   --bg-surface: #1a2234;
   --bg-sunken: #141c2c;
   --bg-hover: #222c42;
-<<<<<<< Updated upstream
-  --bg-active: #262a52;
-=======
   --bg-active: #2c2452;
->>>>>>> Stashed changes
 
   --line: #232d42;
   --line-strong: #2f3b54;
@@ -167,20 +124,12 @@
   --text-dim: #a8b4c6;
   --text-faint: #7d8ba0;
 
-<<<<<<< Updated upstream
-  --accent: #818cf8;
-  --accent-strong: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-soft: #232a4d;
-  --accent-dim: #4c4f96;
-=======
   --accent: #a78bfa;        /* violet-400：链接/强调文字，raised 上 5.8:1 */
   --accent-strong: #7c3aed; /* violet-600：按钮底色，白字 5.7:1（violet-500 只有 4.2） */
   --accent-hover: #7c3aed;
   --accent-soft: #2a2450;   /* 深紫底 */
   --accent-dim: #4a3d73;    /* 选区底：文字其上 8.1:1 */
   --accent-on-soft: #c4b5fd; /* violet-300：soft 底上的前景，7.8:1（violet-600 只有 3.1） */
->>>>>>> Stashed changes
 
   --success: #34d399;
   --success-bg: rgba(16, 185, 129, 0.14);
@@ -190,17 +139,6 @@
   --danger-bg: rgba(239, 68, 68, 0.14);
   --info: #60a5fa;
   --info-bg: rgba(59, 130, 246, 0.14);
-<<<<<<< Updated upstream
-  --ring: rgba(129, 140, 248, 0.5);
-
-  /* 深色下阴影用很深的蓝黑（不是纯黑），并保留一点 indigo 的调子 */
-  --sh-xs: 0 2px 8px -2px rgba(2, 6, 23, 0.55);
-  --sh-sm: 0 6px 16px -6px rgba(2, 6, 23, 0.6), 0 2px 6px -3px rgba(2, 6, 23, 0.5);
-  --sh-md: 0 12px 28px -12px rgba(2, 6, 23, 0.65), 0 4px 10px -6px rgba(2, 6, 23, 0.5);
-  --sh-lg: 0 22px 48px -18px rgba(79, 70, 229, 0.45), 0 8px 18px -10px rgba(2, 6, 23, 0.6);
-  --sh-accent: 0 12px 24px -10px rgba(99, 102, 241, 0.55);
-  --sh-ring: 0 0 0 4px rgba(129, 140, 248, 0.28);
-=======
   --ring: rgba(167, 139, 250, 0.5);
 
   /* 深色下阴影用很深的蓝黑（不是纯黑），并保留一点 violet 的调子 */
@@ -210,7 +148,6 @@
   --sh-lg: 0 22px 48px -18px rgba(109, 40, 217, 0.45), 0 8px 18px -10px rgba(2, 6, 23, 0.6);
   --sh-accent: 0 12px 24px -10px rgba(124, 58, 237, 0.55);
   --sh-ring: 0 0 0 4px rgba(167, 139, 250, 0.28);
->>>>>>> Stashed changes
 }
 
 /* --- reset ------------------------------------------------------------------ */
@@ -420,11 +357,7 @@ code,
 
 .btn {
   height: 40px;
-<<<<<<< Updated upstream
   min-width: 44px; /* 触控目标 ≥44px（规范要求） */
-=======
-  min-width: 44px; /* 最小可点宽度 ≥44px；高度窄屏撑到 44px（见下方媒体查询） */
->>>>>>> Stashed changes
   padding: 0 var(--space-5);
   border-radius: var(--radius);
   border: 0;
@@ -488,11 +421,7 @@ code,
 
 .btn.soft {
   background: var(--accent-soft);
-<<<<<<< Updated upstream
-  color: var(--accent-strong);
-=======
   color: var(--accent-on-soft, var(--accent-strong)); /* 深色下 --accent-strong 压在 soft 底上只有 3.1:1，见 --accent-on-soft */
->>>>>>> Stashed changes
   box-shadow: none;
 }
 
@@ -529,17 +458,9 @@ code,
   }
 }
 
-<<<<<<< Updated upstream
-.btn.tiny {
-  height: 30px;
-  min-width: 30px;
-=======
-/* 紧凑按钮的下限：36px。它常出现在触屏可达的浮层面里，再小就低于 44px 触控目标太远
-   （桌面主按钮保持 40px，窄屏媒体查询已把它撑到 44px）。 */
 .btn.tiny {
   height: 36px;
   min-width: 36px;
->>>>>>> Stashed changes
   padding: 0 var(--space-3);
   font-size: 12px;
   border-radius: var(--radius-sm);
@@ -686,11 +607,7 @@ select.input::-ms-expand {
 
 .tag.accent {
   background: var(--accent-soft);
-<<<<<<< Updated upstream
-  color: var(--accent-strong);
-=======
   color: var(--accent-on-soft, var(--accent-strong));
->>>>>>> Stashed changes
 }
 
 .tag.ok {
@@ -703,8 +620,6 @@ select.input::-ms-expand {
   color: var(--warning);
 }
 
-<<<<<<< Updated upstream
-=======
 .tag.danger {
   background: var(--danger-bg);
   color: var(--danger);
@@ -715,7 +630,6 @@ select.input::-ms-expand {
   color: var(--info);
 }
 
->>>>>>> Stashed changes
 
 /* `.chip` 是 `.tag` 的别名：两个页面用 chip 这个词写元信息行，颜色/圆角/高度必须一致。 */
 .chip {
