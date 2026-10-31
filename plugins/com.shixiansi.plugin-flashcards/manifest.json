@@ -1,0 +1,37 @@
+{
+  "id": "com.shixiansi.plugin-flashcards",
+  "name": "记忆卡片（SM-2 间隔重复）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "把笔记做成抽认卡：SuperMemo-2 算法按你的评分（忘记/困难/良好/简单）安排每张卡的下次复习时间，到点桌宠弹气泡提醒（每天最多 3 次）。正面 | 背面 一行一张批量导入，支持 Markdown 与正反面翻转；划词助手等插件可以 plugin.call 直接发卡进来。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "plugin.share",
+    "pet.bubble"
+  ],
+  "serves": ["due_stats", "add_cards", "export_deck"],
+  "background": true,
+  "config": [
+    {
+      "key": "remindOnDue",
+      "label": "到期时桌宠弹气泡提醒（需要 pet.bubble）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "remindPerDay",
+      "label": "每天最多提醒几次（1–10；默认 3）",
+      "type": "number",
+      "default": "3"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/sm2.js",
+    "lib/deck.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

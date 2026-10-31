@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>记账看板</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔：
+      workshop    控制中心插件页：当月看板（环形图+折线图）、流水、手动记账、月切换。
+      background  桌宠常驻帧：答 chat_on_message（把像记账的话解析入账）、答 stats。
+  -->
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">记账</span>
+        <span class="chip" id="chip-month"></span>
+      </div>
+      <p class="lede">
+        对桌宠说「打车花了 25 块」，模型解析成结构化账目自动入账；这里看当月的分类占比
+        （环形图）与每日趋势（折线图）。账本按月存 JSONL，坏行自动跳过。
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>当月总览</h2>
+        <div class="month-nav">
+          <button id="month-prev" class="btn tiny" type="button">‹ 上月</button>
+          <button id="month-next" class="btn tiny" type="button">下月 ›</button>
+        </div>
+      </div>
+      <div id="totals" class="totals" aria-label="月度合计"></div>
+      <div class="charts">
+        <svg id="donut" class="chart" viewBox="0 0 220 220" role="img" aria-label="分类占比环形图"></svg>
+        <svg id="trend" class="chart chart-wide" viewBox="0 0 420 220" role="img" aria-label="每日消费趋势折线图"></svg>
+      </div>
+      <p id="board-status" class="status"></p>
+    </section>
+
+    <section class="card">
+      <h2>手动记一笔</h2>
+      <div class="entry-row">
+        <input id="manual-amount" class="input" type="text" inputmode="decimal" placeholder="金额" maxlength="12" />
+        <select id="manual-type" class="input select-native" aria-label="类型">
+          <option value="expense">支出</option>
+          <option value="income">收入</option>
+          <option value="refund">退款</option>
+        </select>
+        <select id="manual-category" class="input select-native" aria-label="分类"></select>
+        <input id="manual-note" class="input" type="text" placeholder="备注（可空）" maxlength="60" />
+        <button id="manual-add" class="btn primary" type="button">入账</button>
+      </div>
+      <p class="hint">日期默认今天；也可以直接对桌宠说话（后台自动解析）。</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>流水</h2>
+        <span class="muted" id="ledger-count"></span>
+      </div>
+      <ul id="ledger-list" class="ledger-list" aria-label="当月流水"></ul>
+      <p id="ledger-empty" class="hint">这个月还没有账目。</p>
+    </section>
+
+    <p id="status" class="status"></p>
+    <p id="fatal" class="status danger hidden"></p>
+  </main>
+
+  <script src="lib/parse.js"></script>
+  <script src="lib/ledger.js"></script>
+  <script src="lib/charts.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

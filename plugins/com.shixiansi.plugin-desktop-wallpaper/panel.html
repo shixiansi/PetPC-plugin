@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>壁纸联动</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定）：
+      workshop    控制中心插件页：抓 Bing 壁纸 / 用本机脚本产出的图、色板、模糊预览、历史。
+      background  桌宠常驻帧：定时抓 Bing、发布 ambient 共享键、答 plugin.call。
+  -->
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">壁纸联动</span>
+        <span class="chip" id="chip-mood">环境未同步</span>
+      </div>
+      <p class="lede">
+        每天抓一次 Bing 每日壁纸，提取主色调并生成毛玻璃底色，经 plugin.share 发布给桌宠：
+        桌宠据此调整光影与主题色（mood 是 bright / calm / dark / warm / cool 五个词之一）。
+      </p>
+    </header>
+
+    <section class="card" id="ambient-card">
+      <h2>当前环境</h2>
+      <div class="ambient-row">
+        <div id="ambient-swatch" class="ambient-swatch" role="img" aria-label="当前壁纸主色预览"></div>
+        <div class="ambient-info">
+          <p id="ambient-title" class="ambient-title">还没有同步过壁纸。</p>
+          <p id="ambient-meta" class="hint"></p>
+        </div>
+      </div>
+      <div id="palette" class="palette" aria-label="提取出的色板"></div>
+      <div class="action-row">
+        <button id="fetch-bing" class="btn primary" type="button" disabled>抓今日 Bing 壁纸</button>
+        <button id="republish" class="btn" type="button" disabled>重新发布环境色</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>毛玻璃预览</h2>
+      <p class="hint">
+        模糊在后台帧里完成（三次盒滤波近似高斯，512px 内做完）；这里是最近一次的产物。
+        本机壁纸路径可交给 pet-sense 同款辅助脚本抓取，抓到的图放进来就能提色。
+      </p>
+      <div id="blur-box" class="blur-box hidden">
+        <img id="blur-img" class="blur-img" alt="模糊后的壁纸预览" />
+      </div>
+      <p id="blur-empty" class="hint">还没有模糊预览。</p>
+    </section>
+
+    <section class="card">
+      <h2>历史</h2>
+      <ul id="history" class="history" aria-label="最近的壁纸环境"></ul>
+      <p id="history-empty" class="hint">还没有历史。</p>
+    </section>
+
+    <p id="fatal" class="status danger hidden"></p>
+  </main>
+
+  <script src="lib/pixels.js"></script>
+  <script src="lib/bing.js"></script>
+  <script src="lib/apply.js"></script>
+  <script src="lib/decode.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+/* style.css —— 养成面板的布局（颜色只来自 ui.css 的 token，禁止十六进制值） */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.6 var(--font);
+}
+
+.workshop {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+h2 { margin: 0 0 var(--space-2); font-size: 15px; }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.exp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.level-label { font-weight: 600; min-width: 3.5em; }
+
+.exp-track {
+  flex: 1;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.exp-bar {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  transition: width var(--dur-2) var(--ease);
+}
+
+.exp-label { color: var(--text-dim); font-size: 12px; }
+
+.stat-grid {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.radar {
+  width: 200px;
+  height: 200px;
+  flex: none;
+}
+
+.radar .grid-line { stroke: var(--line); fill: none; }
+.radar .axis-line { stroke: var(--line); }
+.radar .data-shape {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 2;
+  transition: all var(--dur-3) var(--ease);
+}
+.radar .data-dot { fill: var(--accent); }
+.radar .axis-label {
+  fill: var(--text-dim);
+  font-size: 11px;
+  text-anchor: middle;
+}
+.radar .axis-value {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.stat-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stat-name { min-width: 4em; }
+
+.stat-value { font-weight: 600; min-width: 2em; text-align: right; }
+
+.stat-track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.stat-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+}
+
+.action-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.status {
+  margin: var(--space-2) 0 0;
+  min-height: 1.2em;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.status.danger { color: var(--danger); }
+
+.skins {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.skin-chip {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.skin-chip.owned {
+  border-color: var(--accent);
+<<<<<<< Updated upstream
+  color: var(--accent-strong);
+=======
+  color: var(--accent-on-soft);
+>>>>>>> Stashed changes
+  background: var(--accent-soft);
+}
+
+.skin-chip.locked { opacity: 0.5; }

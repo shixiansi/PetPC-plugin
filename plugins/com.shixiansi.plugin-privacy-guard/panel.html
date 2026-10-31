@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>隐私卫士</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔：
+      workshop    控制中心插件页：粘贴检测/脱敏试验台 + 规则开关 + 告警历史 + 辅助脚本状态。
+      background  桌宠常驻帧：轮询 outbox、扫描、发布告警、弹气泡，答 plugin.call。
+  -->
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">隐私卫士</span>
+        <span class="chip" id="chip-status">未运行</span>
+      </div>
+      <p class="lede">
+        盯着剪贴板和你指定的目录：发现身份证、手机号、银行卡、API Key 这类敏感信息，
+        立刻自动脱敏并让桌宠提醒你。全部在本机完成，任何内容都不会离开这台电脑。
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>试验台：粘贴一段文字试试</h2>
+      <textarea id="probe-input" class="input textarea" rows="4" placeholder="粘贴到这里的文字只在本机扫描，不会上传。"></textarea>
+      <div class="action-row">
+        <button id="probe-run" class="btn primary" type="button">扫描并脱敏</button>
+        <button id="probe-copy" class="btn" type="button" disabled>复制脱敏结果</button>
+      </div>
+      <p id="probe-summary" class="status"></p>
+      <pre id="probe-output" class="preview hidden"></pre>
+    </section>
+
+    <section class="card">
+      <h2>识别规则</h2>
+      <ul id="rules" class="rules" aria-label="识别规则开关"></ul>
+    </section>
+
+    <section class="card">
+      <h2>告警历史</h2>
+      <ul id="alerts" class="alerts" aria-label="最近的告警"></ul>
+      <p id="alerts-empty" class="hint">还没有发现过敏感信息。</p>
+    </section>
+
+    <p id="status" class="status"></p>
+    <p id="fatal" class="status danger hidden"></p>
+  </main>
+
+  <script src="lib/patterns.js"></script>
+  <script src="lib/watch.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
