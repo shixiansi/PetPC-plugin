@@ -83,6 +83,11 @@ window.addEventListener('message', (event) => {
       break;
     case 'event':
       // 宿主事件流：本插件不用 reminder/config，只关心自己的 llm 流式帧。
+      // 共享键变了要单独处理：命令/结果都是同一个插件的两个帧之间递的（手册 §7.1）。
+      if (data.name === 'share.changed') {
+        onShareChanged(data.payload);
+        break;
+      }
       dispatchEvent(data.name, data.payload);
       break;
     default:
@@ -724,13 +729,32 @@ function dispatchEvent(name, payload) {
 // 询问卡（浮层块 0）
 // ---------------------------------------------------------------------------
 
+// 这两个帧各自只等一个共享键：询问卡等 `SHARE.inbox`，结果卡等 `SHARE.answer`。
+// 标记是给 onShareChanged 用的——`el()` 在别的帧里是 null，读错帧会直接抛。
+let askFrameReady = false;
+let resultFrameReady = false;
+
+/**
+ * 宿主说"你关心的共享键变了"（share.changed，手册 §7.1）：立刻读一次，不等兜底定时器。
+ *
+ * 只认自己读的那两个名字（`<owner>/<name>` 里的 name）：这条事件也会因为别人的发布送到这里。
+ */
+function onShareChanged(payload) {
+  const key = String((payload && payload.key) || '');
+  const name = key.slice(key.lastIndexOf('/') + 1);
+  if (name === SHARE.inbox && askFrameReady) void pollInbox();
+  else if (name === SHARE.answer && resultFrameReady) void pollAnswer();
+}
+
 function initAskFrame() {
   const yes = el('ask-yes');
   const no = el('ask-no');
   yes.disabled = true;
   no.disabled = true;
+  askFrameReady = true;
   void pollInbox();
-  setInterval(() => void pollInbox(), 1000);
+  // 15 秒兜底：宿主会为 share.changed 发事件，这个定时器只负责"事件丢了"。
+  setInterval(() => void pollInbox(), 15000);
 
   yes.addEventListener('click', () => void sendClick('yes'));
   no.addEventListener('click', () => void sendClick('no'));
@@ -810,8 +834,10 @@ function initResultFrame() {
     watch: document.querySelector('.result-card'),
   }));
 
+  resultFrameReady = true;
   void pollAnswer();
-  setInterval(() => void pollAnswer(), 700);
+  // 15 秒兜底：同上。
+  setInterval(() => void pollAnswer(), 15000);
 }
 
 let answerId = '';

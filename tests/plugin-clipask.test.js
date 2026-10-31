@@ -663,3 +663,18 @@ test('结果卡正文去掉开头的空行（模型爱这么开头）', async ()
   expect(body.textContent.startsWith('1. 第一行'), '开头还有空行').toBe(true);
   expect(body.textContent, '内部换行被吃掉了').toContain('1. 第一行\n2. 第二行');
 });
+
+// --- share.changed 接线 ------------------------------------------------------
+//
+// 询问卡与结果卡各等一个共享键（inbox / answer），以前 1 秒和 0.7 秒各轮询一次。宿主现在在
+// share.set 之后发 share.changed（手册 §7.1），这里只留 15 秒兜底。两条都在源码里钉住：
+// 一条丢了就退回轮询，而轮询的症状只是"慢"和日志变吵。
+
+test('share.changed 接线：事件分支在、只认自己的两个键、兜底是 15 秒', () => {
+  expect(appSource).toContain("if (data.name === 'share.changed')");
+  expect(appSource).toContain('function onShareChanged(payload)');
+  expect(appSource).toContain('name === SHARE.inbox');
+  expect(appSource).toContain('name === SHARE.answer');
+  expect(appSource).toContain('setInterval(() => void pollInbox(), 15000)');
+  expect(appSource).toContain('setInterval(() => void pollAnswer(), 15000)');
+});
