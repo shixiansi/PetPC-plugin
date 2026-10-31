@@ -364,6 +364,27 @@ node node_modules\vitest\vitest.mjs run
 2. **两端都要装、都授予 `plugin.call`**，否则接入端会以「plugin.call 的目标插件未启用」失败——那是一句
    会出现在接入端插件页日志里的中文，不是静默。
 
+### qq 1.15.0 / 核心 0.8.0：MaiBot 抽取三件套（回复门控、拆条、三层人格）
+
+2026-10-31 对 MaiBot 聊天链路做了一轮静态抽取与 A/B 实验（报告在仓库外的
+`~/chat-delta-lab/reports/`：stage-a-inventory / stage-c-comparison / pet-pc-plugins-chat-upgrade），
+这一版落地了清单里的三个改造点：
+
+- **回复门控（U1，qq 1.15.0）**：`lib/reply_gate.js` 把「非 @ 消息的插话概率」从掷硬币换成
+  特征打分（8 特征逻辑回归，权重逐字取自 MaiBot `reply_likelihood.py` 的拟合结果：
+  @ 提及 +、@ 别人 −、问号 +、纯表情包 −、自己近期活跃度 +、刷屏 −、冷场回升 +）。
+  `atOnly` 默认行为不变；`replyChance` 两端语义不变（0=不插话、100=每条都回），中段档位
+  按 keep-ratio 取阈值（10→0.605、30→0.43、50→0.336），静默日志会带 `p=… 阈值=…` 可复盘。
+- **回复拆条 + 打字延迟（U3，qq 1.15.0 两条路径）**：`lib/reply_splitter.js` 把长回复按标点
+  拆成 ≤3 条（引号内不切、URL/英文单词不腰斩、超字数上限自动放弃拆分），逐条发送并按
+  MaiBot 的 `calculate_typing_time`（中文 0.3s/字、单字 ×3、emoji 1s）等待。自答与核心模式
+  两条路径都接入；短于 60 字的回复零行为变化。
+- **三层人格（U2）**：memcore 0.8.0 的 `personaStyle`（「怎么说话」，config 新增一项，16/40）
+  与 qq 的 `personaBehavior`（「何时接话/何时安静」，走工坊「接话的分寸」卡片存
+  `state/persona-behavior`，因为 qq config 已用满 40 项）。两者留空 = 与旧版完全一致。
+  兼容：memcore 的 personaBlock 现在会检测自定义人设是否已自报身份，避免双身份开场白；
+  那句话风兜底（"短句、口语…"）只在**没有自定义人设**时补，否则它会把人设的语气拉平。
+
 ### 联网搜索：核心 0.2.0 起「记忆答不上 → 先查再答」
 
 `com.shixiansi.plugin-websearch`（1.0.0）是这一条链上的**被问方**：常驻帧 + `net.fetch`，

@@ -61,6 +61,30 @@ function coreEnabled() {
   return coreMode;
 }
 
+/**
+ * 接话分寸（personaBehavior，三层人格第二层）。
+ *
+ * 同 CORE_MODE_KEY 的两个理由：config 已满，且它属于"主人的话"而不是机器参数。
+ * 存一份 JSON（{text}）而不是裸字符串：以后要加字段（例如"只对这些群生效"）不用换键。
+ * 留空 = 不往规则区注入那一行，与升级前完全一致。
+ */
+const PERSONA_BEHAVIOR_KEY = DATA.personaBehavior;
+
+/** 读一次接话分寸（常驻帧的轮询与插件页都会调）。 */
+async function refreshPersonaBehavior() {
+  let next = '';
+  try {
+    const res = await request('storage.get', { key: PERSONA_BEHAVIOR_KEY });
+    const parsed = JSON.parse(String((res && res.value) || '{}'));
+    next = String((parsed && parsed.text) || '').trim().slice(0, 80);
+  } catch {
+    // 读不出来就保持现状：一次读失败不该清掉主人的话。
+    return state.cfg.personaBehavior;
+  }
+  if (next !== state.cfg.personaBehavior) state.cfg.personaBehavior = next;
+  return next;
+}
+
 /** 读一次开关（常驻帧的轮询与插件页都会调）。 */
 async function refreshCoreMode() {
   let next = false;
@@ -145,6 +169,12 @@ async function setCoreMode(on) {
   note(coreMode ? '打开了记忆核心' : '关掉了记忆核心');
   renderMemcoreCard();
   return coreMode;
+}
+
+/** 插件页渲染入口顺带把接话分寸的当前值画上（同一张页面、同一个加载时机）。 */
+function renderMemcoreCardWithBehavior() {
+  renderMemcoreCard();
+  void renderBehaviorCard();
 }
 
 /** 问一次核心，拿回一句话。失败时抛宿主/核心给的中文句子，由调用方决定怎么讲。 */
@@ -253,12 +283,39 @@ async function takeTurnViaCore(groupID, job) {
     return;
   }
 
-  // 卡片已经发过时，正文可能是空的（模型只贴了一条链接，被 stripSongURL 拿掉了）——那就只发卡片。
-  if (say) await sendGroupReply(groupID, data.message_seq, say);
-  await remember(groupID, groupName, asked, say || `（点歌：${card.title}）`, turns);
+  // 社交能量照旧结算：它是"这个群还活跃吗"的账，不是记忆。
+  await settleEnergy(groupID, Boolean(job && job.mentioned));
+  if (!say && !card) {
+    if (job && job.mentioned) await reactToMessage(groupID, data.message_seq);
+    note(`群 ${groupID}：记忆核心回了空内容，这条没发出去`);
+    return;
+  }
+
+  // 拆条后处理与自答路径一致（lib/reply_splitter.js）：核心模式下模型也只回一句话，
+  // 长了照样在群里是一坨。只有一条时与原行为完全一致。
+  const outgoingParts = splitReplyForSend(say, maxChars);
+  for (let index = 0; index < outgoingParts.length; index += 1) {
+    const part = outgoingParts[index];
+    const quoteSeq = index === 0 ? data.message_seq : null;
+    // 卡片已经发过时，正文可能是空的（模型只贴了一条链接，被 stripSongURL 拿掉了）——那就只发卡片。
+    if (!part && !card) continue;
+    // eslint-disable-next-line no-await-in-loop —— 逐条发送是拆条的全部意义
+    await sendGroupReply(groupID, quoteSeq, part);
+    noteGateSelf(groupID);
+    if (index < outgoingParts.length - 1) {
+      const typing = calculateTypingDelay(part);
+      if (typing > 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, Math.round(typing * 1000)));
+      }
+    }
+  }
+  // 本插件的转写照旧记录（原样保留）：关掉核心开关后这些往来还在，退回自答路径不丢历史。
+  await remember(groupID, groupName, asked, say, turns);
   const spent = await spendEnergy(groupID, Array.from(say || '').length, 0);
   publishGroupState(groupID, { energy: spent, notes: (await loadNotes(groupID)).length });
-  note(`群 ${groupID} 回复了 ${asker}（记忆核心，${Array.from(say || '').length} 字${card ? '，带音乐卡片' : ''}）`);
+  const splitNote = outgoingParts.length > 1 ? `，拆成 ${outgoingParts.length} 条` : '';
+  note(`群 ${groupID} 回复了 ${asker}（记忆核心，${Array.from(say || '').length} 字${splitNote}${card ? '，带音乐卡片' : ''}）`);
   await maybeRandomSticker(groupID);
 }
 
@@ -351,6 +408,47 @@ function bindMemcoreControls() {
       note(`切换记忆核心失败：${(err && err.message) || err}`);
     });
   });
+  bindBehaviorControls();
+}
+
+// --- 接话分寸那张卡（personaBehavior 的工坊编辑位） ---------------------------------
+
+/** 把当前值画进输入框（workshop 侧渲染时调用；输入框不存在就静默跳过）。 */
+async function renderBehaviorCard() {
+  const input = document.getElementById('behavior-input');
+  if (!input) return;
+  try {
+    const res = await request('storage.get', { key: PERSONA_BEHAVIOR_KEY });
+    const parsed = JSON.parse(String((res && res.value) || '{}'));
+    input.value = String((parsed && parsed.text) || '');
+  } catch {
+    input.value = '';
+  }
+}
+
+/** 保存按钮：写 storage（{text}，与 refreshPersonaBehavior 的读取配对）。 */
+function bindBehaviorControls() {
+  const button = document.getElementById('behavior-save');
+  const input = document.getElementById('behavior-input');
+  const status = document.getElementById('behavior-status');
+  if (!button || !input) return;
+  button.addEventListener('click', async () => {
+    const text = String(input.value || '').trim().slice(0, 80);
+    try {
+      await request('storage.set', { key: PERSONA_BEHAVIOR_KEY, value: JSON.stringify({ text }) });
+      state.cfg.personaBehavior = text;
+      if (status) {
+        status.textContent = text ? '已保存，桌宠那边最多 10 秒后生效。' : '已清空。';
+        status.hidden = false;
+      }
+      note(text ? `接话分寸已保存：${text}` : '接话分寸已清空');
+    } catch (err) {
+      if (status) {
+        status.textContent = `保存失败：${(err && err.message) || err}`;
+        status.hidden = false;
+      }
+    }
+  });
 }
 
 /**
@@ -366,7 +464,7 @@ window.__qqCore = Object.freeze({
   seed: seedCore,
   autoSeed: autoSeedOnce,
   refreshMode: refreshCoreMode,
-  card: renderMemcoreCard,
+  card: renderMemcoreCardWithBehavior,
   // 核心模式会**停下**的那两条路（proactive.js）：测试要能直接验证"它真的停在这里"，
   // 而不是等 15 秒的定时器、或者靠 batchTick 的一串前置条件碰巧成立。
   batch: batchEvaluate,

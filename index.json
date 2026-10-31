@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T16:04:59Z",
+  "updatedAt": "2026-10-31T05:34:01Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -68,12 +68,12 @@
     {
       "id": "com.shixiansi.plugin-memcore",
       "name": "记忆核心（人设 + 分层记忆）",
-      "version": "0.6.5",
+      "version": "0.8.0",
       "author": "shixiansi",
-      "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
+      "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。0.7.0 起提供 export-state / import-state：把全部分层记忆打包成 JSON 交给快照插件保存，或从快照原样恢复。",
       "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-memcore-0.6.5.zip",
-      "sha256": "003e39627d4b22796b3a3cab933debcc0b6500e52a23cb23323fb462b453c53d"
+      "download": "dist/com.shixiansi.plugin-memcore-0.8.0.zip",
+      "sha256": "5db8fef10369f0568ba326cedd20f89bcc15e2a6499bf477da3dfa7a32dd9462"
     },
     {
       "id": "com.shixiansi.plugin-moegirl",
@@ -120,13 +120,13 @@
     {
       "id": "com.shixiansi.plugin-qq",
       "name": "QQ 群聊插件",
-      "version": "1.14.6",
+      "version": "1.15.0",
       "author": "shixiansi",
       "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
       "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
-      "download": "dist/com.shixiansi.plugin-qq-1.14.6.zip",
-      "sha256": "6b96964fd2051181dc55e83de6cde376a39287946baef96ca9829e34fa08eb3f"
+      "download": "dist/com.shixiansi.plugin-qq-1.15.0.zip",
+      "sha256": "96ac7cb0d16f3132f8abaa4e5b1c2016f4456151c5fb7e3ff9f0b5e275c3ec6d"
     },
     {
       "id": "com.shixiansi.plugin-qqbot",

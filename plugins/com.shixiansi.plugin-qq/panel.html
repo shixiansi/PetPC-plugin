@@ -82,6 +82,27 @@
       </section>
 
       <!--
+        接话分寸（personaBehavior）。为什么不是 config 的一项：manifest 的 config 已用满
+        宿主 40 项上限（见 README「为什么不放 config」），所以它存插件自己的 storage 键
+        state/persona-behavior，机器人侧随 config 轮询一起重读。
+        它是 MaiBot 三层人格的第二层（何时接话/何时安静）：进应答与两条主动插话路径的规则区。
+      -->
+      <section class="card" id="behavior-card">
+        <h2>接话的分寸</h2>
+        <p class="note">
+          一句额外交给模型的「接话分寸」，进应答与插话的规则区（例如「别人认真求助才接，纯斗图不理」）。
+          留空 = 不加。若要控制插话<strong>频率</strong>，用配置里的「非 @ 消息的插话概率」：
+          关掉「只回应 @ 机器人」后它不再是掷硬币，而是按对话特征打分（0=不插话，100=每条都回，
+          30 左右≈十次机会接三次）。
+        </p>
+        <div class="memory-add-row">
+          <input type="text" id="behavior-input" maxlength="80" placeholder="接话的分寸（最多 80 字，留空=不加）" />
+          <button type="button" class="ghost" id="behavior-save">保存</button>
+        </div>
+        <span class="note" id="behavior-status" hidden></span>
+      </section>
+
+      <!--
         表情包管理. The bot imports the pictures (owner's private message -> vision
         model -> bytes in storage); this card is the only human way to see what
         arrived, re-file it and curate the category list. Its bytes are read ONE PAGE
@@ -213,6 +234,9 @@
   <script src="lib/core.js"></script>
   <script src="lib/store.js"></script>
   <script src="lib/state.js"></script>
+  <!-- 回复门控与拆条：纯函数库，inbound.js / bili.js 引用（顺序须在它们之前）。 -->
+  <script src="lib/reply_gate.js"></script>
+  <script src="lib/reply_splitter.js"></script>
   <script src="lib/inbound.js"></script>
   <script src="lib/importer.js"></script>
   <script src="lib/protocol.js"></script>

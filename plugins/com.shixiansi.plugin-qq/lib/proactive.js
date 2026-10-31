@@ -317,6 +317,9 @@ function batchSystemPrompt(groupID, groupName, energy, lines, notes) {
       `- 一句话，最多 ${Math.min(40, maxChars)} 字；不复述、不总结、不解释你为什么开口。`,
       '- **大多数时候不该插嘴**：插不上、话题已经说完、或者只是两个人在对话，就只回 {"silent":true}。',
       '- 要说话时：每条回复以唯一一个 ```json 围栏结尾（没要记的就写 {}）。',
+      ...(String(state.cfg.personaBehavior || '').trim()
+        ? [`- 接话的分寸（主人另外交代的）：${String(state.cfg.personaBehavior).trim()}`]
+        : []),
     ].join('\n'),
     `【状态】${energyLabel(energy)}`,
     notesBlock,
@@ -351,6 +354,8 @@ function startConfigWatch() {
     // 记忆核心的开关存在插件自己的 storage 里（config 的 40 项已经用满了），所以它也要跟着
     // 这一轮轮询一起重读——否则"勾上了但一直没生效"会变成一个没有线索的现象。
     void refreshCoreMode();
+    // 接话分寸（personaBehavior）同理：它也在插件自己的 storage 里，跟着同一轮重读。
+    void refreshPersonaBehavior();
   }, CONFIG_POLL_MS);
 }
 
@@ -409,6 +414,9 @@ async function refreshConfig() {
 function proactivePromptFor(groupID, groupName, ctx) {
   const maxChars = number(state.cfg.replyMaxChars, 300, 20, 2000);
   const persona = String(state.cfg.persona || '').trim();
+  // personaBehavior（三层人格第二层）在主动开口这里同样适用：它写的正是
+  // "什么样的场合值得开口"——对一条无人 @ 的插话，这是最贴的注入位。
+  const behavior = String(state.cfg.personaBehavior || '').trim();
   const info = ctx || {};
   const energy = Number.isFinite(info.energy) ? info.energy : energyBaseline();
   const rules = [
@@ -419,6 +427,7 @@ function proactivePromptFor(groupID, groupName, ctx) {
     '- 不复述别人的话，不总结，不解释你为什么开口，也不提「插话」「接话」这件事，直接说内容。',
     `- 最多 ${maxChars} 字，简体中文口语，不要 Markdown、不要列表。`,
     '- **每条回复都必须以唯一一个 ```json 围栏结尾**（同聊天时一样，没要记的就写 {}）：{"meme":"表情 id","remember":["…"]}；不想说就只回 {"silent":true}。',
+    ...(behavior ? [`- 接话的分寸（主人另外交代的）：${behavior}`] : []),
     `- 现在是 ${new Date().toLocaleString('zh-CN', { hour12: false })}。`,
   ].join('\n');
 
