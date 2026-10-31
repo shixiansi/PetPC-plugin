@@ -10,10 +10,9 @@
  * ⚠️ 为什么它与宿主的 tokens.css **不逐字相同**
  *
  * 这一版按 Soft UI 规范做：更大的圆角（卡片 24px / 控件 16px）、无可见边框（靠彩色柔和阴影分
- * 层）、低饱和 violet 主色（与市场页同族，violet-600；见 2026-10 的样式评审）、slate-50 底 +
- * 白卡、正文 gray-600。宿主的控制中心仍是原来那套（紫罗兰 + 1px 边框 + 18px 圆角），因为它的
- * 色板被 `.dev/check-frontend.cjs` 的「桌宠页与控制中心同名同色」门禁绑着——一起换就得连桌宠
- * 页面一起换，那是另一件事。
+ * 层）、低饱和 violet 主色（与市场页同一族，violet-600）、slate-50 底 + 白卡、正文 gray-600。
+ * 宿主的控制中心仍是原来那套（紫罗兰 + 1px 边框 + 18px 圆角），因为它的色板被 `.dev/check-frontend.cjs` 的「桌宠页与
+ * 控制中心同名同色」门禁绑着——一起换就得连桌宠页面一起换，那是另一件事。
  * 所以两边**共享 token 名字**（--bg / --bg-raised / --line / --text / --accent / --radius-* /
  * --space-* / --sh-*），值可以不同；`market/tests/ui-tokens.test.js` 检查名字而不检查值。
  *
@@ -358,7 +357,7 @@ code,
 
 .btn {
   height: 40px;
-  min-width: 44px; /* 最小可点宽度 ≥44px；高度窄屏撑到 44px（见下方媒体查询） */
+  min-width: 44px; /* 触控目标 ≥44px（规范要求） */
   padding: 0 var(--space-5);
   border-radius: var(--radius);
   border: 0;
@@ -459,8 +458,6 @@ code,
   }
 }
 
-/* 紧凑按钮的下限：36px。它常出现在触屏可达的浮层面里，再小就低于 44px 触控目标太远
-   （桌面主按钮保持 40px，窄屏媒体查询已把它撑到 44px）。 */
 .btn.tiny {
   height: 36px;
   min-width: 36px;
