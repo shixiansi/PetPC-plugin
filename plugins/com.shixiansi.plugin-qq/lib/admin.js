@@ -262,15 +262,22 @@ async function startBot() {
   }
   void refreshModelSource();
   // Keep the running bot in step with the saved settings: see startConfigWatch.
+  //
+  // 订阅一次 `config.changed`：宿主的设置事件只发给**订阅过**的插件（win: 手册 §7.1），
+  // 而 storage.changed / share.changed 是直接发给相关插件的，不需要订阅。
+  if (granted.has('events')) {
+    void request('events.subscribe', { names: ['config.changed'] }).catch(() => {});
+  }
   startConfigWatch();
-  // 5 s beat for the Bilibili bridge: results arrive as files, and a file has no
-  // event to deliver. The interval is deliberately slower than the WebSocket: the
-  // bot's own replies must stay instant, the bridge's seconds do not matter.
+  // 30 秒兜底 for the Bilibili bridge. 这里原来写的是"结果是文件，文件没有事件可送"——那是
+  // 2026-10 的事实：bilibili 插件发布 `bili-results` / `recommend` 之后，宿主会发
+  // share.changed（手册 §7.1），qq 已经声明了这两个键的 shareRead，所以主路径是推送，
+  // 这个定时器只负责"事件丢了"。真机日志里那 182 次 share.get 就是 5 秒一拍的产物。
   state.bridgeStartedAt = Date.now();
   if (state.bridgeTimer) clearInterval(state.bridgeTimer);
   state.bridgeTimer = setInterval(() => {
     void pollBridge();
-  }, 5000);
+  }, 30_000);
   // The ticker is started from the settings, not from a constant: a user who set
   // `proactiveMinutes` to 0 must not pay for a timer that decides to do nothing
   // every minute.

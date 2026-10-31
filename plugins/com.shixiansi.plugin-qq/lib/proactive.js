@@ -342,10 +342,30 @@ function batchSystemPrompt(groupID, groupName, energy, lines, notes) {
  * or the token re-dials; a change to the trigger rules or the proactive interval takes
  * effect on the next message.
  */
-const CONFIG_POLL_MS = 10_000;
+// 兜底间隔。**不是**主路径：宿主在 config.json 变了之后发 `config.changed`（手册 §7.1），
+// 而记忆核心开关与接话分寸住在插件自己的 storage 里，由 `storage.changed`（§7.2）推。
+// 以前这里是 10 秒一轮、每轮 config.get + 两次 storage.get —— 真机日志里 qq 一小时 158 次
+// config.get、197 次 storage.get，就是这一拍的产物。用户改设置不需要 10 秒内生效两次。
+const CONFIG_POLL_MS = 60_000;
 let configTimer = 0;
 /** The settings the bot is actually running with, as a comparable string. */
 let appliedConfig = '';
+
+/** 宿主说这个插件自己的设置变了（config.changed，手册 §7.1）：立刻重读，别等那一分钟的兜底。 */
+function onConfigChanged() {
+  void refreshConfig();
+}
+
+/**
+ * 宿主说插件自己的目录变了（storage.changed，手册 §7.2）。
+ *
+ * 记忆核心的总开关、接话分寸都住在插件自己的 storage 里（config 的 40 项已经用满），
+ * 所以这一个事件要顺手把两个都重读——否则"勾上了但一直没生效"会变成一个没有线索的现象。
+ */
+function onOwnStorageChanged() {
+  void refreshCoreMode();
+  void refreshPersonaBehavior();
+}
 
 function startConfigWatch() {
   if (configTimer) return;

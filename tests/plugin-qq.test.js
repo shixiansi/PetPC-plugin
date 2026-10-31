@@ -55,12 +55,19 @@ const PERMISSIONS = manifest.permissions;
 const ALL_GRANTED = [...PERMISSIONS];
 
 describe('manifest', () => {
-  test('declares the headless frame and a permission that fills one', () => {
-    // The pairing the manifest validator enforces: `background` needs `events` or
-    // `net.ws`. This plugin has no host events to hear, so it is `net.ws`.
+  test('declares the headless frame and the permissions that fill it', () => {
+    // The pairing the manifest validator enforces: `background` needs `events` or `net.ws`.
+    // qq has both now — `net.ws` for the protocol side, and `events` because it subscribes to
+    // `config.changed` (the host only pushes settings events to subscribers, §7.1).
+    //
+    // 这条以前断言的是 `not.toContain('events')`，理由当时成立（没有任何宿主事件要听）。
+    // 现在它订阅了设置事件，所以那条断言要跟着改——**申请了就必须用**：一个"什么都没做的
+    // 开关"正是 §3.1 里拒绝的那种东西。
     expect(manifest.background).toBe(true);
     expect(manifest.permissions).toContain('net.ws');
-    expect(manifest.permissions).not.toContain('events');
+    expect(manifest.permissions).toContain('events');
+    const admin = readFileSync(path.join(pluginDir, 'lib', 'admin.js'), 'utf8');
+    expect(admin, '申请了 events 却没订阅').toContain('events.subscribe');
   });
 
   test('declares every capability the code uses', () => {
@@ -4171,5 +4178,55 @@ describe('长短期记忆与表情回应', () => {
     const call = requestsFor('llm.chat').slice(-1)[0];
     expect(call.payload.system).toContain('刚记的待办');
     expect(call.payload.system).not.toContain('昨天的待办');
+  });
+});
+
+// --- 变化通知（config / storage / share） -------------------------------------
+//
+// 真机日志里 qq 一小时 158 次 config.get、197 次 storage.get、182 次 share.get —— 三处轮询：
+// 设置 10 秒一拍、B 站桥 5 秒一拍。宿主现在会推（手册 §7.1 / §7.2），所以这些定时器只剩兜底，
+// 下面钉住"事件到了就立刻读"和"兜底间隔没有被谁悄悄调回去"。
+describe('变化通知', () => {
+  test('config.changed 到了就立刻重读设置（不等兜底）', async () => {
+    await bootBot({ values: {} });
+    const before = requestsFor('config.get').length;
+    hostEmits('config.changed', { pluginId: 'com.shixiansi.plugin-qq' });
+    await pump(6);
+    expect(requestsFor('config.get').length, 'config.changed 没有触发 config.get').toBeGreaterThan(before);
+  });
+
+  test('config.changed 不是自己那份时不重读', async () => {
+    await bootBot({ values: {} });
+    const before = requestsFor('config.get').length;
+    hostEmits('config.changed', { pluginId: 'com.example.someone-else' });
+    await pump(6);
+    expect(requestsFor('config.get').length).toBe(before);
+  });
+
+  test('storage.changed 到了就重读那两个住在 storage 里的开关', async () => {
+    await bootBot({ values: {} });
+    // 断言到**具体的键**：只数 storage.get 的话，重连之类无关的读也会让它通过（假阳性）。
+    const keys = () => requestsFor('storage.get').map((req) => String(req.payload && req.payload.key));
+    const before = keys().length;
+    hostEmits('storage.changed', { key: 'state/core' });
+    await pump(10);
+    const after = keys().slice(before);
+    expect(after, '记忆核心开关没被重读').toContain('state/core');
+    expect(after, '接话分寸没被重读').toContain('state/persona-behavior');
+  });
+
+  test('share.changed（B 站那两个键）到了就立刻收一次共享值', async () => {
+    await bootBot({ values: { biliLinkReply: 'true' } });
+    const before = requestsFor('share.get').length;
+    hostEmits('share.changed', { owner: 'com.shixiansi.plugin-bilibili', name: 'bili-results' });
+    await pump(8);
+    expect(requestsFor('share.get').length, 'share.changed 没有触发 share.get').toBeGreaterThan(before);
+  });
+
+  test('兜底间隔没有被调回去（60 秒设置 / 30 秒 B 站桥）', () => {
+    const proactive = readFileSync(path.join(pluginDir, 'lib', 'proactive.js'), 'utf8');
+    expect(proactive, '设置兜底又变回 10 秒了').toContain('const CONFIG_POLL_MS = 60_000;');
+    const admin = readFileSync(path.join(pluginDir, 'lib', 'admin.js'), 'utf8');
+    expect(admin, 'B 站桥兜底又变回 5 秒了').toMatch(/\}, 30_000\);/);
   });
 });

@@ -201,6 +201,15 @@ async function pruneVideoFiles() {
   }
 }
 /** Drains the result tray and announces recommendations. */
+/**
+ * 宿主说牌盘里 B 站那两个键变了（share.changed，手册 §7.1）：立刻收一次，别等 30 秒的兜底。
+ *
+ * 这两个键由 bilibili 插件发布，qq 只是读者（manifest 的 shareRead 声明了它们）。以前这里
+ * 只能轮询——"文件没有事件可送"是 2026-10 的事实，share.changed 之后不成立了。
+ */
+function onBiliSharedChanged(name) {
+  if (name === 'bili-results' || name === 'recommend') void pollBridge();
+}
 async function pollBridge() {
   if (state.bridgeBusy || !state.started) return;
   if (!flag(state.cfg.biliLinkReply, false) && !String(state.cfg.biliRecommendGroup || '').trim()) return;

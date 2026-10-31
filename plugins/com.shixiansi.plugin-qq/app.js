@@ -30,6 +30,18 @@ function onEvent(data) {
     case 'ws.state':
       if (view === 'background') onSocketState(data.payload);
       break;
+    case 'config.changed':
+      // 只认自己那份设置（宿主把 pluginId 放进 payload）。
+      if (view === 'background' && data.payload && data.payload.pluginId === self.pluginId) onConfigChanged();
+      break;
+    case 'storage.changed':
+      // 自己的私有目录变了：记忆核心开关与接话分寸都住在那里。
+      if (view === 'background') onOwnStorageChanged();
+      break;
+    case 'share.changed':
+      // 只关心 B 站那两个键（manifest 的 shareRead 声明了它们）。
+      if (view === 'background') onBiliSharedChanged(data.payload && data.payload.name);
+      break;
     case 'llm.delta':
       // Nothing streams into the group: a chat protocol has no "partial message",
       // so the reply is sent once, when it is finished.
