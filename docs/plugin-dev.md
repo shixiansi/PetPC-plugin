@@ -379,7 +379,7 @@ body[data-surface='boot'] { background: transparent; }
 | `audio` | 保存并播放音频（例如语音提醒） | `audio.save/import/list/remove/play/stop` |
 | `net.ws` | 保持一条到插件所声明地址的 WebSocket 长连接（收发消息） | `ws.open/send/close/state`，以及 `background` 的一个依据 |
 | `llm.borrow` | 使用其它插件已配置的大模型与密钥（密钥不会显示给你） | `llm.profile` |
-| `process` | 启动本机程序 | `process.launch/state` |
+| `process` | 启动并停掉本机程序（只能停自己启动的） | `process.launch/state/kill` |
 | `plugin.share` | 与其它插件交换消息（只能读清单里点名的键，只能写自己名下的键） | `share.set/get/remove` |
 | `plugin.call` | 与其它插件互相调用（只能调用清单里点名的目标，也只能回答清单里声明的方法） | `plugin.call`。**调用方与被调用方都要有这一项**：调用方用 `callTargets` 点名要问谁，被调用方用 `serves` 点名自己答什么 |
 
@@ -990,6 +990,7 @@ window.addEventListener('message', async (e) => {
 | --- | --- | --- |
 | `process.launch` | `{path, args?}` | `{pid}` |
 | `process.state` | `{pid}` | `{known, running, exitCode}` |
+| `process.kill` | `{pid}` | `{killed, known, exitCode?}` |
 
 - `path` 必须是**绝对路径**、`.exe`、已存在，且**是用户在配置里填的值**（不要让用户以外的东西
   决定它：这条权限的含义就是"启动用户指给你的程序"）。文件 ≤512 MiB；`args` ≤32 个、每个
@@ -997,6 +998,16 @@ window.addEventListener('message', async (e) => {
 - 不等待、不共享 stdio：它启动后与宿主无关。`process.state` 只是"它还活着吗、退出码是多少"。
 - `{known:false}` = 这个 pid 不是你启动的（或来自上一次运行），应读作"它已经不在了"。
 - 一个插件最多同时跟踪 **32** 个子进程。
+- **`process.kill` 只能停你自己启动的那个**：宿主按"谁启动的"授权，不是按 pid。别人的进程会得到
+  一句中文拒绝（`进程 N 不是本插件启动的`）。已经自己退出的进程不算失败——返回
+  `{killed:false, known:true, exitCode}`，"确认它不在跑"这个意图已经满足了；未知 pid 返回
+  `{killed:false, known:false}`，同样不是错误。
+- **升级/停用/卸载时宿主会替你收掉**：插件被停用、卸载，或**换了版本**（帧被重挂，你启动的进程
+  已经不算"你的"了）之后，宿主在几秒内停掉它名下的子进程，并在日志里写一行原因。所以辅助脚本
+  不会在升级后继续用旧文件名写文件。
+- **桌宠退出时不收**：这是有意的——协议端（Yogurt 这类）要跨桌宠重启继续跑。宿主会在日志里
+  点名"还有哪些进程在跑"。要"重启后不留旧进程"，请自己记住 pid（`storage`）并在启动时
+  `process.kill` 一次（返回 `known:false` 也是成功）。
 
 ---
 
@@ -1189,7 +1200,7 @@ Esc 关闭；焦点留在触发按钮上。
 | `llm.chat` / `llm.profile` / `llm.providers` | ✅ | ❌ |
 | `memory.read` / `memory.append` | ✅ | ❌ |
 | `events.subscribe` | ✅ | ❌ |
-| `ws.*` / `process.launch` / `process.state` | ✅ | ❌ |
+| `ws.*` / `process.launch` / `process.state` / `process.kill` | ✅ | ❌ |
 | `plugin.call` | ✅ | ❌（只挂一页、没有常驻帧，另一端没人答） |
 | 主题 | 只有深色 | `?theme=` + `theme` 消息 |
 
@@ -1463,6 +1474,7 @@ com.example.hello-1.0.0.zip
 | `ws.state` | `net.ws` | 连接状态 |
 | `process.launch` | `process` | 启动一个用户指定的 .exe |
 | `process.state` | `process` | 那个 pid 还活着吗 |
+| `process.kill` | `process` | 停掉**自己启动的**那个进程 |
 
 ---
 

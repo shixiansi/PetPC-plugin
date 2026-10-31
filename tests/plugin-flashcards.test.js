@@ -353,10 +353,15 @@ describe('完整链路（假宿主泵）', () => {
     expect(JSON.parse(store.get('deck-v1'))).toHaveLength(2);
     expect(document.getElementById('import-report').textContent).toContain('2 张');
     // 开始复习：两张都到期。
-    expect(window.__flashcards.startSession(T0)).toBe(true);
+    //
+    // 「现在」必须是**真实时钟**：卡片是 runImport() 建的，due 用的是插件自己的 Date.now()。
+    // 用固定时间戳 T0（本地 16:00）的话，真实时间过了 16:00 之后卡片"还没到期"，这条用例每天
+    // 下午都会红——2026-10-31 16:17 就是这么发现的。留 1 秒余量覆盖建卡与断言之间的毫秒差。
+    const now = Date.now() + 1000;
+    expect(window.__flashcards.startSession(now)).toBe(true);
     expect(window.__flashcards.snapshot().session.queue).toHaveLength(2);
     // 评分第一张（忘记）→ 第二张。
-    await drive(() => window.__flashcards.gradeCard('forget', T0));
+    await drive(() => window.__flashcards.gradeCard('forget', now));
     const snap = window.__flashcards.snapshot();
     expect(snap.session.index).toBe(1);
     expect(snap.session.done).toBe(1);
@@ -366,7 +371,7 @@ describe('完整链路（假宿主泵）', () => {
     expect(q1.lapses).toBe(1);
     expect(q1.interval).toBe(1);
     // 完成第二张 → 会话结束。
-    const out = await drive(() => window.__flashcards.gradeCard('good', T0));
+    const out = await drive(() => window.__flashcards.gradeCard('good', now));
     expect(out.finished).toBe(true);
     expect(window.__flashcards.snapshot().session.active).toBe(false);
     expect(document.getElementById('face-front').textContent).toContain('完成');
@@ -379,17 +384,20 @@ describe('完整链路（假宿主泵）', () => {
     // 直接经 reminderTick 驱动（loadDeck 是内部函数——由 init 调过一次，但 store 是 beforeEach 新建的）。
     // 手动把 deck 顶进去：经 add_cards。
     await drive(() => window.__flashcards.handlers.add_cards({ cards: [{ front: 'f1', back: 'b1' }] }));
-    await drive(() => window.__flashcards.reminderTick(T0));
+    // 同一条规矩：add_cards 用真实时钟打 due，所以 tick 的"现在"也要是真实时钟 + 余量，
+    // 否则每天 16:00 之后这张卡"还没到期"，一条气泡都不会有。
+    const now = Date.now() + 1000;
+    await drive(() => window.__flashcards.reminderTick(now));
     expect(bubbles).toHaveLength(1);
     expect(bubbles[0]).toContain('1 张卡片');
-    await drive(() => window.__flashcards.reminderTick(T0 + 60000));
+    await drive(() => window.__flashcards.reminderTick(now + 60000));
     expect(bubbles).toHaveLength(2);
-    await drive(() => window.__flashcards.reminderTick(T0 + 120000));
+    await drive(() => window.__flashcards.reminderTick(now + 120000));
     expect(bubbles).toHaveLength(3);
-    await drive(() => window.__flashcards.reminderTick(T0 + 180000));
+    await drive(() => window.__flashcards.reminderTick(now + 180000));
     expect(bubbles).toHaveLength(3); // 每天上限
     // 换天：重新开始计。
-    await drive(() => window.__flashcards.reminderTick(T0 + DAY));
+    await drive(() => window.__flashcards.reminderTick(now + DAY));
     expect(bubbles).toHaveLength(4);
   });
 

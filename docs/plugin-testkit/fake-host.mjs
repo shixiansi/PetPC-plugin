@@ -78,6 +78,8 @@ export const METHODS = {
   'ws.state': { perm: 'net.ws', where: 'pet' },
   'process.launch': { perm: 'process', where: 'pet' },
   'process.state': { perm: 'process', where: 'pet' },
+  // 停掉自己启动的进程（宿主按"谁启动的"授权，别人的 pid 会被拒）。
+  'process.kill': { perm: 'process', where: 'pet' },
 };
 
 /** 宿主工具目录里可以被 llm.chat 的 tools 点名的名字（见手册 6.6）。 */
