@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-websearch",
   "name": "联网搜索",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "shixiansi",
   "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
   "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],

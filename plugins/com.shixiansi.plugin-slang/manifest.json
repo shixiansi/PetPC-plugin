@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "com.shixiansi.plugin-slang",
   "name": "网络词词典",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "shixiansi",
   "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
   "entry": "panel.html",

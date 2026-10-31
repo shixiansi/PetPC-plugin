@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-diange",
   "name": "点歌（酷我搜索 + 直链）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "把「点歌 晴天」变成一首歌：歌名、歌手、专辑、封面，和一条能直接播的直链。搜索走酷我（替它查的是 oiapi 那个公开接口），链接按码率逐档回退，并在域名可探测时验证一次能不能播。别的插件用 plugin.call 问它 song（按一句话找歌）或 song_link（已知歌名，要一条当下的链接）；记忆核心在用户点歌时调它，把直链原样给出来。插件页可以手动点一首。",
   "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],

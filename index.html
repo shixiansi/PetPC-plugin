@@ -463,7 +463,7 @@ code {
       <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.6 10.8l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg></span>
       <div class="titles">
         <h2>网络词词典</h2>
-        <div class="meta"><span>版本 <code>0.2.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-slang</code></div>
+        <div class="meta"><span>版本 <code>0.2.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-slang</code></div>
       </div>
     </div>
     <p class="desc">让桌宠认得出梗。它对外只提供一件事：<code>plugin.call</code> 的 <code>slang</code>——问一句「这个词什么意思」，答释义。自带 40 条高频词；想要上万条，在插件页导入 <code>chunks.jsonl</code>（Buzzword / astrbot-rag-kb 的格式），语料留在你自己的机器上。记忆核心会在**搜索之前**先问它：查得到就不必上网，也省掉那 20 秒。</p>
@@ -471,8 +471,8 @@ code {
       <span class="tag accent">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-slang-0.2.0.zip" download>下载 0.2.0</a>
-      <span class="meta">dist/com.shixiansi.plugin-slang-0.2.0.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-slang-0.2.1.zip" download>下载 0.2.1</a>
+      <span class="meta">dist/com.shixiansi.plugin-slang-0.2.1.zip</span>
     </div>
   </section>
 <section class="card hoverable" style="margin-bottom: var(--space-3)">
@@ -480,7 +480,7 @@ code {
       <span class="icon g-llmchannel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h4v2H7v3h5V6h-2V4h4v2h-2v3h3a2 2 0 0 1 2 2v1h2v-2h2v6h-2v-2h-2v1a2 2 0 0 1-2 2h-3v3h2v2H9v-2h2v-3H7a2 2 0 0 1-2-2v-1H3v2H1v-6h2v2h2v-1a2 2 0 0 1 2-2h3V6H5V4Z"/></svg></span>
       <div class="titles">
         <h2>模型渠道（多渠道 / 多密钥 / 预设模型）</h2>
-        <div class="meta"><span>版本 <code>0.2.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-llmchannel</code></div>
+        <div class="meta"><span>版本 <code>0.2.6</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-llmchannel</code></div>
       </div>
     </div>
     <p class="desc">一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。</p>
@@ -488,8 +488,8 @@ code {
       <span class="tag accent">llm.chat</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-llmchannel-0.2.5.zip" download>下载 0.2.5</a>
-      <span class="meta">dist/com.shixiansi.plugin-llmchannel-0.2.5.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-llmchannel-0.2.6.zip" download>下载 0.2.6</a>
+      <span class="meta">dist/com.shixiansi.plugin-llmchannel-0.2.6.zip</span>
     </div>
   </section>
 
@@ -588,7 +588,7 @@ code {
       <span class="icon g-onebot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3L18.5 8 12 11.7 5.5 8 12 4.3ZM5 9.6l6 3.4v6.6l-6-3.4V9.6Zm8 10V13l6-3.4v6.6l-6 3.4Z"/></svg></span>
       <div class="titles">
         <h2>OneBot 接入端（薄适配器）</h2>
-        <div class="meta"><span>版本 <code>0.1.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-onebot</code></div>
+        <div class="meta"><span>版本 <code>0.1.6</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-onebot</code></div>
       </div>
     </div>
     <p class="desc">把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。</p>
@@ -596,8 +596,8 @@ code {
       <span class="tag accent">net.ws</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-onebot-0.1.5.zip" download>下载 0.1.5</a>
-      <span class="meta">dist/com.shixiansi.plugin-onebot-0.1.5.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-onebot-0.1.6.zip" download>下载 0.1.6</a>
+      <span class="meta">dist/com.shixiansi.plugin-onebot-0.1.6.zip</span>
     </div>
   </section>
 
@@ -606,7 +606,7 @@ code {
       <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.8A4.2 4.2 0 0 0 5.8 10h2A2.2 2.2 0 0 1 10 7.8v-2Z"/></svg></span>
       <div class="titles">
         <h2>联网搜索</h2>
-        <div class="meta"><span>版本 <code>1.0.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-websearch</code></div>
+        <div class="meta"><span>版本 <code>1.0.4</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-websearch</code></div>
       </div>
     </div>
     <p class="desc">给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。</p>
@@ -614,8 +614,8 @@ code {
       <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-websearch-1.0.3.zip" download>下载 1.0.3</a>
-      <span class="meta">dist/com.shixiansi.plugin-websearch-1.0.3.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-websearch-1.0.4.zip" download>下载 1.0.4</a>
+      <span class="meta">dist/com.shixiansi.plugin-websearch-1.0.4.zip</span>
     </div>
   </section>
 
@@ -660,7 +660,7 @@ code {
       <span class="icon g-sense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.5 0 10 3.8 10 8.5 0 2.9-1.7 5.4-4.3 6.9-.2 1.5-1.2 2.9-2.7 3.5l-.5.2v-2.3c-.8.2-1.6.2-2.5.2-5.5 0-10-3.8-10-8.5S6.5 2 12 2Zm-4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span>
       <div class="titles">
         <h2>系统与 DSH 感知</h2>
-        <div class="meta"><span>版本 <code>0.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pet-sense</code><span class="tag accent">新</span></div>
+        <div class="meta"><span>版本 <code>0.1.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pet-sense</code><span class="tag accent">新</span></div>
       </div>
     </div>
     <p class="desc">桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。</p>
@@ -668,8 +668,8 @@ code {
       <span class="tag accent">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.badge</span><span class="tag">storage</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-pet-sense-0.1.2.zip" download>下载 0.1.2</a>
-      <span class="meta">dist/com.shixiansi.plugin-pet-sense-0.1.2.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-pet-sense-0.1.3.zip" download>下载 0.1.3</a>
+      <span class="meta">dist/com.shixiansi.plugin-pet-sense-0.1.3.zip</span>
     </div>
   </section>
 
@@ -678,7 +678,7 @@ code {
       <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-2 5v10l8-5-8-5Z"/></svg></span>
       <div class="titles">
         <h2>媒体同步（正在播放）</h2>
-        <div class="meta"><span>版本 <code>0.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-media-sync</code><span class="tag accent">新</span></div>
+        <div class="meta"><span>版本 <code>0.1.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-media-sync</code><span class="tag accent">新</span></div>
       </div>
     </div>
     <p class="desc">桌宠知道你正在听什么：由本机辅助脚本（Windows SMTC / macOS MediaControl）读出当前播放的歌曲、歌手与播放状态，桌宠问「我在听什么」时，模型经 now_playing 工具拿到答案；识别出的曲目也可以经 itunes_search 补全封面。监听与查询都在常驻帧里跑。</p>
@@ -686,8 +686,8 @@ code {
       <span class="tag accent">process</span><span class="tag">net.fetch</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.badge</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-media-sync-0.1.2.zip" download>下载 0.1.2</a>
-      <span class="meta">dist/com.shixiansi.plugin-media-sync-0.1.2.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-media-sync-0.1.3.zip" download>下载 0.1.3</a>
+      <span class="meta">dist/com.shixiansi.plugin-media-sync-0.1.3.zip</span>
     </div>
   </section>
 
@@ -696,7 +696,7 @@ code {
       <span class="icon g-weather" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 6a6 6 0 0 1 11.6 1.6A5 5 0 0 1 18 17.5H7a5.5 5.5 0 0 1-.6-11A6 6 0 0 1 7 6Zm-1 3.5A3.5 3.5 0 0 0 7 15.5h11a3 3 0 1 0-.7-5.9l-1.1.2-.2-1.1A4 4 0 0 0 8.3 7l-.5 1-1.2.2A3.5 3.5 0 0 0 6 9.5ZM5 19h14v2H5v-2Zm2 3h10v1.5H7V22Z"/></svg></span>
       <div class="titles">
         <h2>天气与环境感知</h2>
-        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-weather-env</code><span class="tag accent">新</span></div>
+        <div class="meta"><span>版本 <code>0.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-weather-env</code><span class="tag accent">新</span></div>
       </div>
     </div>
     <p class="desc">桌宠出门前提醒你带伞：接入 Open-Meteo 公开天气 API（可配和风天气），get_weather(city) 工具让模型能回答任意城市的天气；下雨 / 放晴 / 高温时在桌宠头顶挂出徽标并经 plugin.share 推送 weather/condition 状态，提醒自动静音 3 小时。</p>
@@ -704,8 +704,8 @@ code {
       <span class="tag accent">net.fetch</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.badge</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-weather-env-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">dist/com.shixiansi.plugin-weather-env-0.1.1.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-weather-env-0.1.2.zip" download>下载 0.1.2</a>
+      <span class="meta">dist/com.shixiansi.plugin-weather-env-0.1.2.zip</span>
     </div>
   </section>
 
@@ -714,7 +714,7 @@ code {
       <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.6 10.8l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg></span>
       <div class="titles">
         <h2>萌娘百科</h2>
-        <div class="meta"><span>版本 <code>0.1.7</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-moegirl</code></div>
+        <div class="meta"><span>版本 <code>0.1.8</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-moegirl</code></div>
       </div>
     </div>
     <p class="desc">查「这个词 / 这个梗 / 这个角色是什么」。对外提供 <code>slang</code> 与 <code>wiki</code>：记忆核心在本地词库查不到时会来问它。站点的搜索接口对匿名调用关闭了，所以先用 <code>opensearch</code> 把说法解析成条目名、再用 <code>extracts</code> 取序言——两步都必要。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。</p>
@@ -722,8 +722,8 @@ code {
       <span class="tag accent">plugin.call</span><span class="tag">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-moegirl-0.1.7.zip" download>下载 0.1.7</a>
-      <span class="meta">dist/com.shixiansi.plugin-moegirl-0.1.7.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-moegirl-0.1.8.zip" download>下载 0.1.8</a>
+      <span class="meta">dist/com.shixiansi.plugin-moegirl-0.1.8.zip</span>
     </div>
   </section>
   <section class="card hoverable" style="margin-bottom: var(--space-3)">
@@ -731,7 +731,7 @@ code {
       <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.6A4 4 0 1 0 14 17V7h4V3h-6Z"/></svg></span>
       <div class="titles">
         <h2>点歌（酷我搜索 + 直链）</h2>
-        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-diange</code></div>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-diange</code></div>
       </div>
     </div>
     <p class="desc">点一首歌：酷我搜索 + 按码率回退，验一下链接能不能播。常驻帧答 <code>plugin.call</code> 的 <code>song</code>（一句话找歌）与 <code>song_link</code>（歌名 + 歌手要链接），记忆核心按设置里的 <code>music</code> 档位决定要不要在回答前先问它。</p>
@@ -739,8 +739,8 @@ code {
       <span class="tag accent">plugin.call</span><span class="tag">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-diange-0.1.0.zip" download>下载 0.1.0</a>
-      <span class="meta">dist/com.shixiansi.plugin-diange-0.1.0.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-diange-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">dist/com.shixiansi.plugin-diange-0.1.1.zip</span>
     </div>
   </section>
 <section class="card">
