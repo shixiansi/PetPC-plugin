@@ -670,8 +670,14 @@ test('结果卡正文去掉开头的空行（模型爱这么开头）', async ()
 // share.set 之后发 share.changed（手册 §7.1），这里只留 15 秒兜底。两条都在源码里钉住：
 // 一条丢了就退回轮询，而轮询的症状只是"慢"和日志变吵。
 
-test('share.changed 接线：事件分支在、只认自己的两个键、兜底是 15 秒', () => {
+test('变化通知接线：share / storage / config 三条都在，兜底都是 15 秒', () => {
   expect(appSource).toContain("if (data.name === 'share.changed')");
+  // 常驻帧的两条：脚本落了新样本、用户改了设置。以前它们是 1.2 秒一拍的两次 storage.get
+  // 加一次 config.get。
+  expect(appSource).toContain("if (data.name === 'storage.changed')");
+  expect(appSource).toContain("if (data.name === 'config.changed')");
+  expect(appSource).toContain('function onStorageChanged()');
+  expect(appSource).toContain('setInterval(() => void tick(), 15000)');
   expect(appSource).toContain('function onShareChanged(payload)');
   expect(appSource).toContain('name === SHARE.inbox');
   expect(appSource).toContain('name === SHARE.answer');

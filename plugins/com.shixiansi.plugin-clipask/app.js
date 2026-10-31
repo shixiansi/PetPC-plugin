@@ -82,10 +82,19 @@ window.addEventListener('message', (event) => {
       document.documentElement.dataset.theme = data.theme === 'light' ? 'light' : 'dark';
       break;
     case 'event':
-      // 宿主事件流：本插件不用 reminder/config，只关心自己的 llm 流式帧。
-      // 共享键变了要单独处理：命令/结果都是同一个插件的两个帧之间递的（手册 §7.1）。
+      // 宿主事件流。三条各有出处：share.changed 是命令/结果（手册 §7.1），
+      // storage.changed 是脚本落了新样本（§7.2），config.changed 是设置变了。
+      // 其余（llm.delta 等）走本插件自己的小总线。
       if (data.name === 'share.changed') {
         onShareChanged(data.payload);
+        break;
+      }
+      if (data.name === 'storage.changed') {
+        onStorageChanged();
+        break;
+      }
+      if (data.name === 'config.changed') {
+        void refreshConfig();
         break;
       }
       dispatchEvent(data.name, data.payload);
@@ -662,7 +671,7 @@ async function onLlmEvent(name, payload) {
 
 let answerText = '';
 
-/** 常驻帧的入口：订阅不到宿主事件（没有需要的），只需要自己的节拍器。 */
+/** 常驻帧的入口：订阅 storage.changed / config.changed，再留一个兜底节拍器。 */
 function initBackgroundFrame() {
   void (async () => {
     await refreshConfig();
@@ -671,16 +680,23 @@ function initBackgroundFrame() {
     await ensureHelper();
     await pushState('运行中：等一次复制');
     if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(() => void tick(), 1200);
+    // 15 秒兜底：两条事件（storage.changed / config.changed）负责即时，这一拍只负责
+    // "事件丢了"。以前 1.2 秒一拍，每次 config.get + 两次 storage.get。
+    pollTimer = setInterval(() => void tick(), 15000);
   })();
 }
 
-/** 一拍：读设置的变化、确保脚本在、轮询 clicks、处理 inbox 溢出。 */
+/**
+ * 一拍：确保脚本在、轮询 clicks、处理 inbox 溢出。
+ *
+ * 设置不再每一拍重读：宿主在 `config.json` 变了之后发 `config.changed`（手册 §7.1）。
+ * 以前这一拍 1.2 秒一次、每次都带一次 `config.get` + 两次 `storage.get`，而它们等的东西
+ * （用户改设置、脚本落新样本）一天也就变几次。
+ */
 async function tick() {
   if (tickBusy) return;
   tickBusy = true;
   try {
-    await refreshConfig();
     await ensureHelper();
     await handlePoll();
     await harvestInbox();
@@ -689,6 +705,23 @@ async function tick() {
   } finally {
     tickBusy = false;
   }
+}
+
+/**
+ * 宿主说"你的私有目录变了"（storage.changed，手册 §7.2）：脚本刚落了新样本，立刻收一次。
+ *
+ * 只有常驻帧做这件事：工坊帧没有脚本，也没有 handlePoll 需要的那套状态。
+ */
+function onStorageChanged() {
+  if (mySlot !== 'background') return;
+  void (async () => {
+    try {
+      await handlePoll();
+      await harvestInbox();
+    } catch {
+      // 下一拍再来。
+    }
+  })();
 }
 
 /**
