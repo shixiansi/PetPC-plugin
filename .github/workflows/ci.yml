@@ -1,0 +1,45 @@
+name: ci
+
+# 插件仓自己的门禁。
+#
+# 宿主仓（pet_PC）的 CI 跑不到这里：两个仓库分开检出，它没有 market/。所以"插件"这一侧的
+# 检查必须放在这个仓库里，否则就没人跑。
+#
+# 三道：
+#   1. npm test        —— 插件行为用例（jsdom 里驱动真实的 panel.html / app.js）
+#   2. plugin-check    —— 作者手里那一份自检（docs/plugin-testkit/），全仓插件都过一遍
+#   3. check-catalogue —— index.json / plugins/ / dist/ 三者一致
+#
+# 第 3 道是 2026-10-31 那次事故的直接产物：当时 main 上 18 个插件**有源码、没条目**，
+# 市场页点下载是 404，而所有测试都是绿的——因为没有任何一条检查同时看这三处。
+#
+# 第 2 道也差点漏掉同一个教训：那 6 个把 git 冲突标记提交进 ui.css 的插件，
+# 用作者自己的自检工具跑一遍就会红。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  market:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: 插件行为用例
+        run: npm test
+
+      - name: 每个插件过一遍自检（与作者手里那份是同一份）
+        run: node docs/plugin-testkit/plugin-check.mjs plugins/*
+
+      - name: 目录 / 包 / 摘要三者一致
+        run: node tools/check-catalogue.mjs
