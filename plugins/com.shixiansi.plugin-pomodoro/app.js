@@ -46,6 +46,17 @@ const SHARE_PHASE_ENDED = 'phase-ended';
 const SHARE_COMMAND = 'command';
 // The host's event for your settings file changed (plugin manual, section 7).
 const EVENT_CONFIG_CHANGED = 'config.changed';
+/** 宿主在 share.set 之后发的事件（手册 §7.1）。命令通道靠它从轮询变推送。 */
+const EVENT_SHARE_CHANGED = 'share.changed';
+/**
+ * 命令的兜底读取间隔，按 tick 计（1 tick = 1 秒）。
+ *
+ * 以前 `tick()` 每秒读一次命令键，那是这个插件在桌宠日志里 693 行的来源——按钮一天按不了几次，
+ * 而读的次数是它的几万倍。现在事件负责即时（视图按下 → 事件 → 立刻读），这个计数只负责
+ * "事件丢了"：15 秒内按钮一定会生效。
+ */
+const COMMAND_FALLBACK_TICKS = 15;
+let commandTicksLeft = 0;
 
 
 const els = {
@@ -556,7 +567,15 @@ function publishPhaseEnded(phase, at) {
  */
 function tick() {
   if (!initialised || role !== 'timer') return;
-  readCommand();
+  // The command read stays FIRST and before the gate guard below (a parked question must stay
+  // answerable), but it is no longer EVERY tick: the host says `share.changed` when the view
+  // writes one, and this only covers a lost event. One read per second for a value that changes
+  // when the user presses something was 693 log lines a day.
+  if (commandTicksLeft <= 0) {
+    readCommand();
+    commandTicksLeft = COMMAND_FALLBACK_TICKS;
+  }
+  commandTicksLeft -= 1;
   if (asking) {
     // A parked phase must not ADVANCE while a question is up - but it still has time left, and the
     // card keeps showing it, so the head must too. Returning here without pushing is what made the
@@ -974,7 +993,15 @@ function onResponse(data) {
 }
 
 function onEvent(data) {
-  if (!data || data.name !== EVENT_CONFIG_CHANGED) return;
+  if (!data || typeof data.name !== 'string') return;
+  // 命令通道：视图 `share.set` 之后宿主发 share.changed（手册 §7.1），不必每秒读一次。
+  // 只认自己名下的键——这条事件也会因为别人的键变了送到这里。
+  if (data.name === EVENT_SHARE_CHANGED) {
+    const key = String((data.payload && data.payload.key) || '');
+    if (pluginId && key.startsWith(pluginId + '/')) readCommand();
+    return;
+  }
+  if (data.name !== EVENT_CONFIG_CHANGED) return;
   if (data.payload && data.payload.pluginId === pluginId) refreshConfig();
 }
 

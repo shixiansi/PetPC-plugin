@@ -66,7 +66,11 @@ function mount({ slot, kind = 'surface', granted }) {
   return {
     window,
     sent,
-    init: () => say({ v: 1, type: 'init', theme: 'dark', granted, surface: { slot, kind } }),
+    // pluginId 是真的宿主每条 init 都会带的字段，而命令事件要靠它判断"这是不是我的键"。
+    init: () => say({
+      v: 1, type: 'init', theme: 'dark', granted,
+      pluginId: 'com.shixiansi.plugin-pomodoro', surface: { slot, kind },
+    }),
     respond: (id, result, ok = true) => say({ v: 1, type: 'response', id, ok, result }),
   };
 }
@@ -773,3 +777,32 @@ describe('pomodoro answers plugin.call stats（看板每 30 秒问一次）', ()
   });
 });
 
+
+// --- share.changed 接线 ------------------------------------------------------
+
+test('share.changed：自己的命令键一到就立刻读，别的键不动', async () => {
+  const { window, sent, init, respond } = mount({ slot: 'background', granted });
+  init();
+  // 第一次 tick 会兜底读一次（计数从 0 起），先答掉它再清空记录。
+  const first = sent.find((m) => m.method === 'share.get' && m.payload && m.payload.name === 'command');
+  expect(first, '首次读命令键').toBeTruthy();
+  respond(first.id, { value: '' });
+  sent.length = 0;
+
+  const say = (data) => {
+    const event = new window.MessageEvent('message', { data });
+    Object.defineProperty(event, 'source', { value: window });
+    window.dispatchEvent(event);
+  };
+  const commandReads = () => sent.filter((m) => m.method === 'share.get' && m.payload && m.payload.name === 'command').length;
+
+  // 别人的键：不读（这条事件会因为别人的发布送到这里）。
+  say({ v: 1, type: 'event', name: 'share.changed', payload: { key: 'com.other.plugin/command', at: 'now' } });
+  await new Promise((r) => setTimeout(r, 60));
+  expect(commandReads()).toBe(0);
+
+  // 自己的键：立刻读。
+  say({ v: 1, type: 'event', name: 'share.changed', payload: { key: 'com.shixiansi.plugin-pomodoro/command', at: 'now' } });
+  await new Promise((r) => setTimeout(r, 60));
+  expect(commandReads()).toBeGreaterThan(0);
+});
