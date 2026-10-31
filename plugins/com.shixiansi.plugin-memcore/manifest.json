@@ -1,9 +1,9 @@
 {
   "id": "com.shixiansi.plugin-memcore",
   "name": "记忆核心（人设 + 分层记忆）",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "author": "shixiansi",
-  "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
+  "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。0.7.0 起提供 export-state / import-state：把全部分层记忆打包成 JSON 交给快照插件保存，或从快照原样恢复。",
   "permissions": [
     "plugin.call",
     "llm.chat",
@@ -24,7 +24,9 @@
   "serves": [
     "chat",
     "seed",
-    "compact"
+    "compact",
+    "export-state",
+    "import-state"
   ],
   "background": true,
   "config": [
@@ -153,6 +155,7 @@
     "lib/websearch.js",
     "lib/music.js",
     "lib/compact.js",
+    "lib/snapshot.js",
     "lib/chat.js",
     "lib/workshop.js",
     "ui.css"

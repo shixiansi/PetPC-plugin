@@ -1,0 +1,134 @@
+/*
+ * 直播间弹幕互动：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写布局：统计格、弹幕流、回应列表。
+ *
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+}
+
+.stat-label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.dm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 320px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.dm {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-xs);
+}
+
+.dm-name {
+  flex: none;
+  font-weight: 600;
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
+.dm-text {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.reply-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.reply {
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.reply-at {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.reply-ask {
+  margin: 0;
+  font-size: 13px;
+}
+
+.reply-answer {
+  margin: 0;
+  color: var(--text);
+}
+
+.status {
+  color: var(--text-dim);
+  min-height: 1.5em;
+}
+
+.status.error {
+  color: var(--danger);
+}

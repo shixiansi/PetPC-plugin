@@ -1,0 +1,48 @@
+{
+  "id": "com.shixiansi.plugin-ast-coder",
+  "name": "代码感知与重构助手",
+  "version": "1.0.1",
+  "author": "shixiansi",
+  "description": "让桌宠看懂本地代码：按配置的目录监听 .js/.ts 文件（结构缓存在插件私有目录，不碰文件内容之外的东西），用轻量解析提取函数名、类名与导出项；选中一段代码就能让记忆核心以审查者的身份找 Bug、给重构建议；还能一键把大模型生成的测试用例写进同名 .test.js（先读后写，绝不覆盖原代码）。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "plugin.share"
+  ],
+  "background": true,
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "serves": [
+    "analyze",
+    "review",
+    "genTests"
+  ],
+  "netHosts": [
+    "127.0.0.1:23180"
+  ],
+  "config": [
+    { "key": "watchDir", "label": "要监听的目录（绝对路径或留空=不监听；只对这个目录下的 .js/.ts 提取结构）", "type": "text", "default": "" },
+    { "key": "watchEnabled", "label": "启动后自动开始监听目录", "type": "bool", "default": "false" },
+    { "key": "watchIntervalSec", "label": "目录扫描间隔（秒；本插件用轮询而不是文件系统事件，跨平台且零依赖）", "type": "number", "default": "30" },
+    { "key": "maxDepth", "label": "目录扫描深度（层，0=只看根目录）", "type": "number", "default": "4" },
+    { "key": "maxFiles", "label": "最多索引多少个文件（超出跳过最旧的）", "type": "number", "default": "200" },
+    { "key": "maxFileKB", "label": "单个文件多大以内才解析（KB）", "type": "number", "default": "256" },
+    { "key": "ignoreDirs", "label": "跳过的目录名（逗号分隔，如 node_modules,dist）", "type": "text", "default": "node_modules,dist,.git,build,out,coverage" },
+    { "key": "reviewMaxChars", "label": "送审代码最多多少字符（超出截断并注明）", "type": "number", "default": "6000" },
+    { "key": "testsWriteEnabled", "label": "允许把生成的测试写入磁盘（关掉=只返回文本）", "type": "bool", "default": "true" },
+    { "key": "bridgeUrl", "label": "本机文件桥地址（host:port，桥负责真正读写磁盘；留空=只用手动粘贴的代码）", "type": "text", "default": "127.0.0.1:23180", "hostWhitelist": true }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/parse.js",
+    "lib/watcher.js",
+    "lib/bridge.js",
+    "lib/review.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

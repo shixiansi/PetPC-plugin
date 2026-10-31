@@ -26,6 +26,10 @@ const CALL_HANDLERS = {
   // 定时记忆压缩（0.3.0）：手动触发一次"把到昨天为止还没压的天压掉"。
   // payload {daysBack?}；工坊页与测试用它，定时器走的同一个入口。
   compact: handleCompact,
+  // 状态快照（0.7.0）：整库导出 / 整库恢复。快照插件是唯一的使用方——它拿着
+  // export 的 JSON 存档，回滚时把那份原样递给 import。
+  'export-state': handleExportState,
+  'import-state': handleImportState,
 };
 
 function applyTheme(theme) {

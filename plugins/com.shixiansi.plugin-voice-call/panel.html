@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>实时语音通话</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="root">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-state">语音通话</span>
+        </div>
+        <p class="lede">
+          听—想—说的实时对话：音频桥每帧上报音量，VAD 状态机本地判定说话与静音；
+          你开口的那一刻，桌宠正在说的话会被立刻打断（audio.stop）；说完静音收音，
+          切片交给 ASR，回答由记忆核心生成、语音服务合成播放。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>当前状态</h2>
+        <p class="state-line">状态：<span id="state-now">静默</span></p>
+        <div class="level-track"><div id="level-now" class="level-fill"></div></div>
+        <div class="stats">
+          <div class="stat"><span class="stat-label">打断次数</span><span class="stat-value" id="stat-interrupts">0</span></div>
+          <div class="stat"><span class="stat-label">收到语句</span><span class="stat-value" id="stat-utterances">0</span></div>
+          <div class="stat"><span class="stat-label">回答次数</span><span class="stat-value" id="stat-replies">0</span></div>
+          <div class="stat"><span class="stat-label">丢弃/中止</span><span class="stat-value" id="stat-aborted">0</span></div>
+        </div>
+        <div class="actions">
+          <button id="call-toggle" class="btn primary" type="button">开始通话</button>
+        </div>
+        <p class="hint">音频桥（tools/audio-bridge.mjs）负责麦克风与音量帧；没有桥时这一页只是显示，不会报错。</p>
+      </section>
+
+      <p id="status-note" class="status"></p>
+      <p id="status-error" class="status error"></p>
+    </main>
+  </div>
+
+  <script src="lib/core.js"></script>
+  <script src="lib/vad.js"></script>
+  <script src="lib/call.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

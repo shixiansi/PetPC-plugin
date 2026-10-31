@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>直播间弹幕互动</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次。
+    宿主把 `?theme=light|dark` 放在帧地址上正是为了这件事：等 init 再上色会先闪一帧错的。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔，由 init 的 surface.slot 决定：
+
+      常驻帧（background）  什么都不画：连接、队列与互动循环都在脚本里。
+      工坊页（workshop）    直播间状态、在线人数、滚动弹幕、最近的回应。
+  -->
+  <div id="root">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-state">直播间弹幕</span>
+        </div>
+        <p class="lede">
+          弹幕流先进缓冲队列：屏蔽词与长度过滤、同内容去重、按「关键词 × 新鲜度」打分，
+          每隔几秒挑出最值得回的几条交给记忆核心，回应弹成气泡、或交给语音服务念出来。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>直播间状态</h2>
+        <div class="stats">
+          <div class="stat"><span class="stat-label">在线人数</span><span class="stat-value" id="stat-online">—</span></div>
+          <div class="stat"><span class="stat-label">连接次数</span><span class="stat-value" id="stat-watched">0</span></div>
+          <div class="stat"><span class="stat-label">已收弹幕</span><span class="stat-value" id="stat-accepted">0</span></div>
+          <div class="stat"><span class="stat-label">被过滤</span><span class="stat-value" id="stat-dropped">0</span></div>
+          <div class="stat"><span class="stat-label">队列深度</span><span class="stat-value" id="stat-queue">0</span></div>
+          <div class="stat"><span class="stat-label">已回应</span><span class="stat-value" id="stat-replies">0</span></div>
+          <div class="stat"><span class="stat-label">模型调用</span><span class="stat-value" id="stat-llm-calls">0</span></div>
+        </div>
+        <div class="actions">
+          <button id="start-stop" class="btn primary" type="button">开始互动</button>
+        </div>
+        <p class="hint">开关会写到共享命令键上，桌宠的常驻帧负责真正启停；这一页自己也会立即切换状态显示。</p>
+      </section>
+
+      <section class="card">
+        <h2>弹幕（最近）</h2>
+        <ul id="dm-list" class="dm-list"></ul>
+        <p id="dm-empty" class="muted">还没有收到弹幕。启动 Mock 桥（tools/mock-danmaku-server.mjs）或连上开放平台后，这里会滚动起来。</p>
+      </section>
+
+      <section class="card">
+        <h2>最近的回应</h2>
+        <ul id="reply-list" class="reply-list"></ul>
+        <p id="reply-empty" class="muted">还没有回应过。互动循环每几秒从队列里挑一次。</p>
+      </section>
+
+      <p id="status-note" class="status"></p>
+      <p id="status-error" class="status error"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），所以这里不需要 import/export。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/queue.js"></script>
+  <script src="lib/danmaku.js"></script>
+  <script src="lib/interact.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

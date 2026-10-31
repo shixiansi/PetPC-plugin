@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>状态时光机（记忆快照）</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="root">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-state">状态时光机</span>
+        </div>
+        <p class="lede">
+          把记忆核心此刻的全部分层记忆打包成一个存档（快照），随时可以整库回滚到任何一份——
+          像游戏的读档：回到那一刻，之后的对话与记忆都会从那份存档重新开始。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>保存当前状态</h2>
+        <div class="row">
+          <input id="snap-name" class="input" type="text" placeholder="快照名字（留空 = 自动起名）" />
+          <button id="snap-create" class="btn primary" type="button">保存当前状态</button>
+        </div>
+        <p class="hint">打包与恢复都由记忆核心完成（export-state / import-state），这份页面只是仓库与时间线。</p>
+      </section>
+
+      <section class="card">
+        <h2>时间线</h2>
+        <ul id="timeline" class="timeline"></ul>
+        <p id="timeline-empty" class="muted">还没有任何快照。保存第一份之后，时间线会从这里长出来。</p>
+      </section>
+
+      <section class="card">
+        <h2>回滚记录</h2>
+        <ul id="rollback-log" class="log-list"></ul>
+        <p id="rollback-log-empty" class="muted">还没有回滚过。</p>
+      </section>
+
+      <p id="status-note" class="status"></p>
+      <p id="status-error" class="status error"></p>
+    </main>
+  </div>
+
+  <script src="lib/core.js"></script>
+  <script src="lib/store.js"></script>
+  <script src="lib/snapshots.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

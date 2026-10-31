@@ -1,0 +1,104 @@
+/*
+ * 状态时光机：这一页特有的东西。
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.row .input {
+  flex: 1;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.snap-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0 var(--space-3) var(--space-5);
+  border-left: 2px solid var(--line-strong);
+  margin-left: var(--space-2);
+}
+
+.snap-dot {
+  position: absolute;
+  left: -7px;
+  top: calc(var(--space-3) + 6px);
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+.snap-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.snap-name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.snap-meta {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+}
+
+.snap-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: stretch;
+}
+
+.log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.status {
+  color: var(--text-dim);
+  min-height: 1.5em;
+}
+
+.status.error {
+  color: var(--danger);
+}

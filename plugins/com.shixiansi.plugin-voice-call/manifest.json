@@ -1,0 +1,48 @@
+{
+  "id": "com.shixiansi.plugin-voice-call",
+  "name": "实时语音通话",
+  "version": "1.0.1",
+  "author": "shixiansi",
+  "description": "实时双向语音对话：在桌宠的常驻帧里跑一个「听—想—说」状态机，音量阈值 VAD 检测说话与静音；用户开口立即打断桌宠正在播放的语音（audio.stop）；录到的音频切片交给流式 ASR（或本机桥的识别端点），识别文本经记忆核心生成回答，再用语音服务合成播放。所有音频处理都走宿主的 audio/net.fetch 能力；纯逻辑的状态机可以在没有麦克风的环境下完整测试。",
+  "permissions": [
+    "net.fetch",
+    "audio",
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "plugin.share",
+    "pet.bubble",
+    "pet.surface",
+    "events"
+  ],
+  "background": true,
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "netHosts": [
+    "127.0.0.1:9880",
+    "127.0.0.1:23240"
+  ],
+  "config": [
+    { "key": "callEnabled", "label": "启动后进入通话监听（常驻帧开始 VAD）", "type": "bool", "default": "false" },
+    { "key": "asrBaseUrl", "label": "本机 ASR 桥地址（host:port；桥提供 /asr 与 /tts）", "type": "text", "default": "127.0.0.1:23240", "hostWhitelist": true },
+    { "key": "ttsBaseUrl", "label": "语音合成地址（host:port，GPT-SoVITS 形状；留空=用 ASR 桥的 /tts）", "type": "text", "default": "" },
+    { "key": "voiceRefPath", "label": "参考音频路径（语音服务本机路径）", "type": "text", "default": "" },
+    { "key": "vadThreshold", "label": "音量阈值（0-100；超过算「有人在说话」）", "type": "number", "default": "40" },
+    { "key": "silenceMs", "label": "静音判定（毫秒；连续这么久低于阈值就收音）", "type": "number", "default": "1200" },
+    { "key": "minSpeechMs", "label": "最短说话时长（毫秒；比它短的当作噪音丢弃）", "type": "number", "default": "300" },
+    { "key": "maxUtteranceMs", "label": "单次录音上限（毫秒；到点强制收音）", "type": "number", "default": "15000" },
+    { "key": "frameMs", "label": "VAD 帧长（毫秒；每这么久量一次音量）", "type": "number", "default": "100" },
+    { "key": "interruptEnabled", "label": "用户开口时打断桌宠正在说的话", "type": "bool", "default": "true" },
+    { "key": "replyMaxChars", "label": "回答字数上限", "type": "number", "default": "120" },
+    { "key": "bubbleEnabled", "label": "把回答同时弹成桌宠气泡", "type": "bool", "default": "true" }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/vad.js",
+    "lib/call.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

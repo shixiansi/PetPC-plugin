@@ -1,0 +1,60 @@
+{
+  "id": "com.shixiansi.plugin-web-dashboard",
+  "name": "桌宠状态看板",
+  "version": "1.0.1",
+  "author": "shixiansi",
+  "description": "在浏览器里打开的桌宠控制中心：本地 HTTP 服务聚合各插件的数据——对话次数（记忆核心）、待办完成率（todo）、专注时长（番茄钟）——用一个纯 CSS 柱状图与卡片网络展示，样式严格走宿主 token；页面上可以直接下发暂停/恢复命令（经共享键送到目标插件）。数据由各插件通过 plugin.call 的 stats 方法现答。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "plugin.share",
+    "pet.bubble"
+  ],
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat",
+    "com.shixiansi.plugin-todo/stats",
+    "com.shixiansi.plugin-pomodoro/stats"
+  ],
+  "netHosts": [
+    "127.0.0.1:8080",
+    "127.0.0.1:23260"
+  ],
+  "config": [
+    {
+      "key": "serverPort",
+      "label": "看板服务端口（HTTP 服务由本机桥 tools/dashboard-bridge.mjs 提供）",
+      "type": "number",
+      "default": "8080"
+    },
+    {
+      "key": "apiBase",
+      "label": "看板桥地址（host:port；桥负责起 HTTP 服务并聚合插件数据）",
+      "type": "text",
+      "default": "127.0.0.1:23260",
+      "hostWhitelist": true
+    },
+    {
+      "key": "refreshSec",
+      "label": "数据刷新间隔（秒）",
+      "type": "number",
+      "default": "30"
+    },
+    {
+      "key": "showBubble",
+      "label": "在看板上点「打招呼」时让桌宠弹气泡",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/collect.js",
+    "lib/bridge.js",
+    "lib/workshop.js",
+    "ui.css"
+  ],
+  "background": true
+}

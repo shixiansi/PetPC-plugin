@@ -1,0 +1,51 @@
+{
+  "id": "com.shixiansi.plugin-email-digest",
+  "name": "邮件智能摘要",
+  "version": "1.0.1",
+  "author": "shixiansi",
+  "description": "本地邮件智能聚合：从一个本机邮件桥（IMAP 拉取交给桥做，插件拿到的已经是原始 RFC822 文本）抓最新未读邮件，自己解析 MIME——发件人、主题、纯文本正文（剥 HTML、解 Quoted-Printable 与 Base64）；把分类与摘要交给记忆核心（紧急/常规/垃圾三档，紧急的逐封总结）；每天早晨或手动触发时把摘要弹成气泡并交给语音播报。",
+  "permissions": [
+    "net.fetch",
+    "llm.chat",
+    "llm.borrow",
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "plugin.share",
+    "audio",
+    "pet.bubble",
+    "events"
+  ],
+  "background": true,
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "netHosts": [
+    "127.0.0.1:23220"
+  ],
+  "eventsSubscribe": ["config.changed"],
+  "config": [
+    { "key": "bridgeUrl", "label": "邮件桥地址（host:port；桥负责连 IMAP，插件拿原始邮件文本）", "type": "text", "default": "127.0.0.1:23220", "hostWhitelist": true },
+    { "key": "digestTime", "label": "每日摘要时间（HH:mm，24 小时制；到点自动推送）", "type": "text", "default": "08:00" },
+    { "key": "maxMailCount", "label": "每次最多抓几封未读", "type": "number", "default": "10" },
+    { "key": "maxBodyChars", "label": "每封正文最多解析多少字符（超出截断）", "type": "number", "default": "4000" },
+    { "key": "classifyEnabled", "label": "让记忆核心分类邮件（关掉=全部按「常规」处理，不花模型请求）", "type": "bool", "default": "true" },
+    { "key": "speakDigest", "label": "推送时把摘要交给语音播报（需要语音配置完整）", "type": "bool", "default": "false" },
+    { "key": "ttsBaseUrl", "label": "语音服务地址（GPT-SoVITS）", "type": "text", "default": "127.0.0.1:9880", "hostWhitelist": true },
+    { "key": "voiceRefPath", "label": "参考音频路径（语音服务本机上的路径）", "type": "text", "default": "" },
+    { "key": "spamKeywords", "label": "本地垃圾词（逗号分隔；命中的邮件不进模型）", "type": "text", "default": "中奖,优惠券,限时促销,unsubscribe" },
+    { "key": "llmBaseUrl", "label": "接口地址（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmModel", "label": "模型（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmApiKey", "label": "API Key（留空=借用对话插件的配置；密钥只在宿主里，本插件读不到明文）", "type": "secret", "secret": true },
+    { "key": "llmDailyBudget", "label": "每日请求上限（次，0=不限）", "type": "number", "default": "100" }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/mime.js",
+    "lib/bridge.js",
+    "lib/digest.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

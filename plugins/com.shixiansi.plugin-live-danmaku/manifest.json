@@ -1,0 +1,68 @@
+{
+  "id": "com.shixiansi.plugin-live-danmaku",
+  "name": "直播间弹幕互动",
+  "version": "1.0.1",
+  "author": "shixiansi",
+  "description": "让桌宠化身为虚拟主播：接入直播平台的弹幕流（内置 Mock 桥与 B 站开放平台两种接法），内部用防抖队列把高频弹幕节流成「每几秒挑几条值得回的」，交给记忆核心生成回应，再用语音服务念出来或弹气泡；插件页实时显示直播间状态、在线人数与滚动的精简弹幕。",
+  "permissions": [
+    "net.ws",
+    "net.fetch",
+    "llm.chat",
+    "llm.borrow",
+    "storage",
+    "plugin.config",
+    "plugin.share",
+    "plugin.call",
+    "audio",
+    "pet.bubble"
+  ],
+  "background": true,
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "netHosts": [
+    "127.0.0.1:23100",
+    "127.0.0.1:9880",
+    "dealer-open.bilibili.com",
+    "broadcast-open.chat.bilibili.com"
+  ],
+  "config": [
+    { "key": "platform", "label": "弹幕来源", "type": "select", "default": "mock", "options": [
+      { "value": "mock", "label": "Mock 弹幕桥（本地 JSON 协议，tools/mock-danmaku-server.mjs）" },
+      { "value": "bilibili-open", "label": "B 站开放平台（互动玩法）" }
+    ] },
+    { "key": "roomId", "label": "直播间号（留给平台用；也决定记忆会话键 live-<房间号>）", "type": "text", "default": "0" },
+    { "key": "mockUrl", "label": "Mock 桥地址（host:port，或 ws://host:port/路径）", "type": "text", "default": "127.0.0.1:23100", "hostWhitelist": true },
+    { "key": "appId", "label": "开放平台 app_id（用 B 站开放平台时填）", "type": "text", "default": "" },
+    { "key": "idCode", "label": "开放平台身份码（用 B 站开放平台时填）", "type": "text", "default": "" },
+    { "key": "listenEnabled", "label": "启动后自动开始监听弹幕", "type": "bool", "default": "false" },
+    { "key": "interactIntervalSec", "label": "抽取间隔（秒）：每隔这么久从缓冲队列里挑一批值得回的弹幕", "type": "number", "default": "5" },
+    { "key": "maxBatch", "label": "每次抽取最多回应几条弹幕（一次模型调用合在一起答）", "type": "number", "default": "1" },
+    { "key": "maxRepliesPerMinute", "label": "每分钟最多回几句（0=只看不回）", "type": "number", "default": "6" },
+    { "key": "queueCap", "label": "弹幕缓冲队列上限（条，满了丢最旧的）", "type": "number", "default": "500" },
+    { "key": "dedupeWindowSec", "label": "去重窗口（秒）：窗口内同样的「人+内容」降权", "type": "number", "default": "120" },
+    { "key": "minTextLen", "label": "弹幕最短采纳长度（比它短的直接跳过）", "type": "number", "default": "2" },
+    { "key": "maxTextLen", "label": "弹幕最长采纳长度（比它长的直接跳过）", "type": "number", "default": "40" },
+    { "key": "keywords", "label": "感兴趣的关键词（逗号分隔，命中加分）", "type": "text", "default": "问题,为什么,怎么,求助,点歌" },
+    { "key": "blockedWords", "label": "屏蔽词（逗号分隔，命中直接丢弃）", "type": "text", "default": "" },
+    { "key": "persona", "label": "主播人设（留给记忆核心的提示；留空=用它自己的人设）", "type": "text", "default": "" },
+    { "key": "bubbleEnabled", "label": "把回应弹成桌宠气泡", "type": "bool", "default": "true" },
+    { "key": "speakEnabled", "label": "把回应交给语音服务念出来（需要下面三项都填好）", "type": "bool", "default": "false" },
+    { "key": "voiceBaseUrl", "label": "语音服务地址（GPT-SoVITS）", "type": "text", "default": "127.0.0.1:9880", "hostWhitelist": true },
+    { "key": "voiceRefPath", "label": "参考音频路径（语音服务本机上的路径）", "type": "text", "default": "" },
+    { "key": "voicePromptText", "label": "参考音频文本（可留空）", "type": "text", "default": "" },
+    { "key": "llmBaseUrl", "label": "接口地址（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmModel", "label": "模型（留空=借用对话插件的配置）", "type": "text", "default": "" },
+    { "key": "llmApiKey", "label": "API Key（留空=借用对话插件的配置；密钥只在宿主里，本插件读不到明文）", "type": "secret", "secret": true },
+    { "key": "llmDailyBudget", "label": "每日请求上限（次，0=不限；实际问答由记忆核心计数）", "type": "number", "default": "200" }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/queue.js",
+    "lib/danmaku.js",
+    "lib/interact.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

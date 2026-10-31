@@ -53,7 +53,9 @@ describe('manifest', () => {
     // 否则它只证明了"这个文件被 import 过"。
     const body = (source.match(/const CALL_HANDLERS = \{([\s\S]*?)\n\};/) || [])[1];
     expect(body, 'app.js has no CALL_HANDLERS literal').toBeTruthy();
-    const keys = [...body.matchAll(/^\s{2}([A-Za-z0-9_]+):/gm)].map((m) => m[1]);
+    // 0.7.0 起有两个带连字符的方法名（export-state / import-state），键可能带引号。
+    const keys = [...body.matchAll(/^\s{2}(?:'([A-Za-z0-9_-]+)'|([A-Za-z0-9_]+)):/gm)]
+      .map((m) => m[1] || m[2]);
     expect(keys.length).toBeGreaterThan(0);
     expect(manifest.serves).toEqual(keys);
   });

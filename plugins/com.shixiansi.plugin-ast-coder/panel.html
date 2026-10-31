@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>代码感知与重构助手</title>
+  <!-- 控制中心的配色，在样式表绘制之前先落一次。 -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 一个文档，两副面孔：常驻帧不画东西；工坊页是索引列表 + 代码框 + 结果。 -->
+  <div id="root">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-state">代码助手</span>
+        </div>
+        <p class="lede">
+          桌宠能"看懂"本地代码：轮询你指定的目录，提取函数、类与导出项；选中一段代码交给
+          记忆核心做审查（找 Bug、给重构建议）；生成测试时先读后写，目标已存在就拒绝覆盖。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>项目索引</h2>
+        <div class="stats">
+          <div class="stat"><span class="stat-label">已索引文件</span><span class="stat-value" id="stat-files">0</span></div>
+          <div class="stat"><span class="stat-label">扫描次数</span><span class="stat-value" id="stat-scans">0</span></div>
+        </div>
+        <div class="actions">
+          <button id="watch-toggle" class="btn primary" type="button">开始监听</button>
+        </div>
+        <ul id="index-list" class="index-list"></ul>
+        <p id="index-empty" class="muted">还没有索引。配置目录并开始监听后，这里会列出每个文件的结构摘要。</p>
+      </section>
+
+      <section class="card">
+        <h2>审查 / 生成测试</h2>
+        <div class="row">
+          <input id="code-name" class="input" type="text" placeholder="文件名（不含扩展名，如 utils）" />
+        </div>
+        <textarea id="code-box" class="input code-area" rows="10" placeholder="把要审查的代码粘贴到这里……（或点上面索引里的文件名带出摘要）"></textarea>
+        <div class="actions">
+          <button id="review-btn" class="btn primary" type="button">审查这段代码</button>
+          <button id="gen-btn" class="btn secondary" type="button">生成测试（写入同名 .test.js）</button>
+        </div>
+        <p class="hint">审查与生成都会先送记忆核心（会话键 coder-review，上下文连续）；写入受「允许把生成的测试写入磁盘」开关与桥的双重限制。</p>
+      </section>
+
+      <section class="card">
+        <h2>结果</h2>
+        <div id="result"></div>
+        <p id="result-empty" class="muted">还没有结果。审查或生成一次之后会出现在这里。</p>
+      </section>
+
+      <p id="status-note" class="status"></p>
+      <p id="status-error" class="status error"></p>
+    </main>
+  </div>
+
+  <!-- 经典 script，共享一个全局作用域；加载顺序即依赖顺序。 -->
+  <script src="lib/core.js"></script>
+  <script src="lib/parse.js"></script>
+  <script src="lib/bridge.js"></script>
+  <script src="lib/watcher.js"></script>
+  <script src="lib/review.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

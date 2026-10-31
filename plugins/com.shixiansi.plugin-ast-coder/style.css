@@ -1,0 +1,140 @@
+/*
+ * 代码感知与重构助手：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+}
+
+.stat-label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.row .input {
+  flex: 1;
+}
+
+.index-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 280px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.file-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-xs);
+}
+
+.file-name {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent-strong);
+  cursor: pointer;
+  text-align: left;
+}
+
+.file-name:hover {
+  text-decoration: underline;
+}
+
+.file-meta {
+  font-size: 12px;
+}
+
+.code-area {
+  font-family: var(--font-mono);
+  resize: vertical;
+  width: 100%;
+}
+
+.review-answer {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: var(--font);
+  color: var(--text);
+  max-height: 420px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.status {
+  color: var(--text-dim);
+  min-height: 1.5em;
+}
+
+.status.error {
+  color: var(--danger);
+}
