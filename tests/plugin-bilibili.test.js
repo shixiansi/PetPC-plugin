@@ -1594,3 +1594,15 @@ describe('search 的关键词清洗', () => {
     expect(src, 'keyword 没有用洗过的那一份').toMatch(/keyword: query,/);
   });
 });
+
+// --- share.changed 接线 ------------------------------------------------------
+//
+// 两个收件箱（自己的命令键 + QQ 插件的 bili-jobs）以前 3 秒一拍各读一次。宿主现在在 share.set
+// 之后发 share.changed（手册 §7.1），这一拍只负责"事件丢了"。
+
+test('share.changed 接线：事件分支在、兜底是 15 秒', () => {
+  const src = readFileSync(appPath, 'utf8');
+  expect(src).toContain("data.name === 'share.changed'");
+  expect(src).toContain('}, 15000);');
+  expect(src).not.toContain('}, 3000);');
+});

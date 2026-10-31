@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T10:20:11Z",
+  "updatedAt": "2026-10-31T10:26:08Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -26,13 +26,13 @@
     {
       "id": "com.shixiansi.plugin-bilibili",
       "name": "B 站刷视频插件",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "author": "shixiansi",
       "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
       "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share", "plugin.call"],
       "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
-      "download": "dist/com.shixiansi.plugin-bilibili-1.1.1.zip",
-      "sha256": "f3bef5a9c424b133005d09d5dc464fda499b99b7ae325327cd54a79146168f25"
+      "download": "dist/com.shixiansi.plugin-bilibili-1.1.2.zip",
+      "sha256": "e37316b5d8d9526a7b504f241dc2c36ce42d032824fbeb718fdd7ac469189ef5"
     },
     {
       "id": "com.shixiansi.plugin-chat",
@@ -205,12 +205,12 @@
     {
       "id": "com.shixiansi.plugin-pet-evolution",
       "name": "桌宠养成（等级·属性·外观）",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "给桌宠的 RPG 成长系统：满级 100 级的指数经验曲线，聊天/喂食/专注/完成任务都长经验；每级 3 点自由属性（智力=对话深度、体力=互动次数、亲密=好感倍率），每 10 级解锁一个新外观。存档带版本迁移链（v1→v2 自动补字段），其他插件经 plugin.call 发奖或查档案。",
       "permissions": ["storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pet-evolution-0.1.1.zip",
-      "sha256": "5838f1a4060ea94f73ac6aa49db4634b9786b5067baf05294d973ad4e8a54881"
+      "download": "dist/com.shixiansi.plugin-pet-evolution-0.1.2.zip",
+      "sha256": "57cd6fc4fc62bad9fee9ac9d0733b2547feecc171765abf7309406542cdfd3cc"
     },
     {
       "id": "com.shixiansi.plugin-pet-sense",

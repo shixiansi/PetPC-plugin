@@ -567,3 +567,15 @@ describe('样式治理', () => {
       .toBe(readFileSync(path.join(here, '..', 'docs', 'ui', 'petpc-ui.css'), 'utf8'));
   });
 });
+
+// --- share.changed 接线 ------------------------------------------------------
+//
+// 以前每 5 秒读一次番茄钟的 phase-ended。宿主现在在 share.set 之后发 share.changed（手册 §7.1），
+// 定时器只留 60 秒兜底——"一段结束了"应当立刻到，而不是最多晚 5 秒。
+
+test('share.changed 接线：事件分支在、兜底是 60 秒', () => {
+  // app.js 直接读：上面那个 source 只拼了 panel.html 引的脚本，不含入口文件。
+  const appSrc = readFileSync(path.join(pluginDir, 'app.js'), 'utf8');
+  expect(appSrc).toContain("data.name === 'share.changed'");
+  expect(appSrc).toContain('setTimeout(tick, 60000)');
+});

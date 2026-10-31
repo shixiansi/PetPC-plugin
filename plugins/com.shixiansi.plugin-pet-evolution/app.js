@@ -82,6 +82,10 @@ window.addEventListener('message', (event) => {
     case 'call':
       void onCall(data);
       break;
+    case 'event':
+      // 共享键变了：番茄钟刚结束一段就立刻去读（手册 §7.1），不等 60 秒兜底。
+      if (data.name === 'share.changed') void checkPomodoroPhase().catch(() => {});
+      break;
     default:
       break;
   }
@@ -196,7 +200,9 @@ function startShareWatch() {
   const tick = async () => {
     if (gen !== pollGen) return;
     await checkPomodoroPhase().catch(() => {});
-    if (gen === pollGen) setTimeout(tick, 5000);
+    // 60 秒兜底：宿主会为 share.changed 发事件（手册 §7.1），番茄钟的 phase-ended
+    // 一变就立刻到，这个定时器只负责"事件丢了"。以前 5 秒一拍。
+    if (gen === pollGen) setTimeout(tick, 60000);
   };
   tick();
 }

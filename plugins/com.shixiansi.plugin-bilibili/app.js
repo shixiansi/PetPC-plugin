@@ -3289,12 +3289,12 @@ async function startBackground() {
   tickTimer = setInterval(() => {
     void tick();
   }, 60 * 1000);
+  // 15 秒兜底：宿主会为 share.changed 发事件（手册 §7.1），这一拍只负责"事件丢了"。
+  // 以前 3 秒一拍，两个收件箱各读一次，是日志里 ~660 行/天的来源。
   cmdTimer = setInterval(() => {
     void pollCommand();
-    // The same beat drains the cross-plugin tray: one timer, two inboxes, so the two
-    // never drift into different schedules.
     void pollShare();
-  }, 3000);
+  }, 15000);
   logLine('info', `常驻帧起来了（${APP_VERSION}）`);
   // One poll immediately, and a line when it comes back.
   //
@@ -3520,7 +3520,12 @@ function onMessage(event) {
       onResponse(data);
       break;
     case 'event':
-      // This plugin subscribes to no host events: its schedule is its own.
+      // 唯一的宿主事件：共享键变了（手册 §7.1）。命令键是自己的，
+      // bili-jobs 是 QQ 插件的——两种都让这一帧立刻去读，不必等 3 秒的那一拍。
+      if (data.name === 'share.changed') {
+        void pollCommand();
+        void pollShare();
+      }
       break;
     case 'call':
       // 别的插件问 `search`（见 onCall）：这是本插件唯一的对外出口。
