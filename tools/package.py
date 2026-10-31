@@ -45,6 +45,9 @@ def json_string(v: str) -> str:
 
 
 def main() -> int:
+    # 可选参数：只打包这些插件 id（发布单个插件时用）。给了就只碰它们，
+    # 其余的 zip 与 index 条目原样不动——一次局部发版不该重写别人的版本号。
+    only = set(sys.argv[1:])
     if not PLUGINS.is_dir():
         print(f'插件目录不存在：{PLUGINS}', file=sys.stderr)
         return 2
@@ -54,6 +57,8 @@ def main() -> int:
         plugin_dir = manifest_path.parent
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
         pid, version, entry = manifest['id'], manifest['version'], manifest['entry']
+        if only and pid not in only:
+            continue
         missing = [r for r in ([entry, *FIXED]) if not (plugin_dir / r).is_file()]
         if missing:
             raise SystemExit(f'插件 {pid} 缺少资源文件：{missing}')
@@ -106,11 +111,26 @@ def main() -> int:
 
     entries.sort(key=lambda e: e['id'])
     from datetime import datetime as dt
-    index = {
-        'version': 1,
-        'updatedAt': dt.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'plugins': entries,
-    }
+    if only:
+        # 只打包了指定插件：把它们**合并**进现有 index.json，而不是用这几条重写整份。
+        # 重写整份的后果是"发布 A 插件顺手把 B 插件的版本号退回文件里的旧值"——那正是
+        # 一次局部发版最不该发生的事。
+        if not INDEX.is_file():
+            print(f'index.json 不存在，无法按 id 合并：{INDEX}', file=sys.stderr)
+            return 2
+        merged = json.loads(INDEX.read_text(encoding='utf-8'))
+        by_id = {e.get('id'): e for e in merged.get('plugins') or []}
+        for entry in entries:
+            by_id[entry['id']] = entry
+        merged['plugins'] = [by_id[k] for k in sorted(by_id)]
+        merged['updatedAt'] = dt.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        index = merged
+    else:
+        index = {
+            'version': 1,
+            'updatedAt': dt.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'plugins': entries,
+        }
     # indent=2 但把数组压成一行（Python 没有 json.dumps 的这个开关，手动收）：
     # 与仓库既有 index.json 的排版一致——数组一行、对象多行。
     text = reformat(index) + '\n'
@@ -119,7 +139,8 @@ def main() -> int:
     # 里面；仓库里这份是 Linux 上写的（\n），两边轮流发布就会来回翻一次。显式写死 \n。
     with open(INDEX, 'w', encoding='utf-8', newline='') as fh:
         fh.write(text)
-    print(f'index.json 已重写：{len(entries)} 个插件')
+    scope = f'（本次只处理 {len(entries)} 个）' if only else ''
+    print(f'index.json 已更新{scope}：共 {len(index.get("plugins") or [])} 个插件')
     return 0
 
 

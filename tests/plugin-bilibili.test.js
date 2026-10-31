@@ -65,12 +65,11 @@ describe('manifest', () => {
   });
 
   test('stays within the host config item limit', () => {
-    // Read the cap from the HOST rather than restating the number: it is the host's rule.
-    const hostSrc = readFileSync(
-      path.join(here, '..', '..', 'internal', 'plugins', 'manifest.go'), 'utf8');
-    const cap = Number((hostSrc.match(/maxConfigItems = (\d+)/) || [])[1]);
-    expect(cap).toBeGreaterThan(0);
-    expect(manifest.config.length).toBeLessThanOrEqual(cap);
+    // Host cap = 40 (README「manifest 的 config 上限是宿主的 40 项」)。The Go source is
+    // not shipped with this market repo; the number is restated here and the README is
+    // the cross-reference (same convention as plugin-qq.test.js).
+    const HOST_CONFIG_CAP = 40;
+    expect(manifest.config.length).toBeLessThanOrEqual(HOST_CONFIG_CAP);
   });
 
   test('every host the code calls is on the allow-list', () => {

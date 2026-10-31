@@ -699,6 +699,9 @@ async function onGroupMessage(event) {
     // 没被叫到的消息进"背景聊天"缓冲：攒批自主插话靠它决定要不要接一句。
     // 只放**没被回答**的那些——被回答的那条已经在这轮提问里了，重复带一遍只会让它自言自语。
     noteChatter(groupID, speakerOf(data), raw);
+    // 门控窗口也只统计"没被回答"的消息（与 noteChatter 同一条纪律）：被回答的那条
+    // 已经作为 answered 的往来影响过 recentSelfRatio 的分子了。
+    noteGateWindow(groupID, speakerOf(data), raw, mentioned);
     // SAY why it stayed silent, once per group per minute.
     //
     // This line exists because its absence cost an afternoon: the market edits the
@@ -710,10 +713,20 @@ async function onGroupMessage(event) {
     const last = state.ignoredAt.get(groupID) || 0;
     if (now - last > 60_000) {
       state.ignoredAt.set(groupID, now);
-      note(`群 ${groupID}：这条没被 @，按当前设置不回（atOnly=${flag(state.cfg.atOnly, true)}, 插话概率=${number(state.cfg.replyChance, 0, 0, 100)}%）`);
+      // 门控模式（atOnly 关）时把这次打分的概率与阈值写出来：沉默从"掷硬币"变成
+      // 可复盘的数字。atOnly 开时 lastGate 为 null，照旧只报设置。
+      const gate = state.lastGate;
+      const gateNote = gate
+        ? `，门控 p=${gate.probability.toFixed(2)} < 阈值 ${gate.threshold.toFixed(2)}`
+        : '';
+      note(`群 ${groupID}：这条没被 @，按当前设置不回（atOnly=${flag(state.cfg.atOnly, true)}, 插话概率=${number(state.cfg.replyChance, 0, 0, 100)}%${gateNote}）`);
     }
     return;
   }
+  // 被回答的消息同样进窗口统计：门控的 recentSelfRatio（"机器人最近活跃度"）要看到
+  // 全部往来才算得准，与 noteChatter 的"只记没答的"刻意不同——理由见 reply_gate.js 头注。
+  noteGateWindow(groupID, speakerOf(data), raw, mentioned);
+  // 注意：noteGateSelf 在发送成功后才会被调（takeTurn 内）——"这条还没回"，不能先记。
 
   const ask = stripPrefix(raw);
   if (!ask) return;
@@ -786,6 +799,9 @@ async function drainGroupAsks(groupID) {
 async function takeTurn(groupID, job) {
   state.busy.add(groupID);
   state.lastAnswer.set(groupID, Date.now());
+  // 门控窗口按群归属（gateWindowStats 读 gateCurrentGroup）；takeTurn 是应答路径，
+  // 它发出去的每一条都会经 noteGateSelf 计进"机器人最近活跃度"。
+  state.gateCurrentGroup = String(groupID);
   const { data, segments, enriched, ask, asker, groupName, mentioned } = job;
   const chatter = Array.isArray(job.chatter) ? job.chatter : [];
   try {
@@ -911,11 +927,29 @@ async function takeTurn(groupID, job) {
     const outgoing = mention.leftovers.length
       ? `${mention.leftovers.map((name) => `@${name}`).join(' ')} ${say}`
       : say;
-    await sendGroupReply(groupID, data.message_seq, outgoing, mention.segments);
+    // 拆条后处理（lib/reply_splitter.js）：长回复拆成 ≤maxSplitNum 条短消息，逐条
+    // 带打字延迟发送；只有一条时与原行为完全一致（同一句、同一个引用）。
+    const outgoingParts = splitReplyForSend(outgoing, maxChars);
+    for (let index = 0; index < outgoingParts.length; index += 1) {
+      const part = outgoingParts[index];
+      const prefixSegments = index === 0 ? mention.segments : [];
+      const quoteSeq = index === 0 ? data.message_seq : null;
+      // eslint-disable-next-line no-await-in-loop —— 逐条发送是拆条的全部意义
+      await sendGroupReply(groupID, quoteSeq, part, prefixSegments);
+      noteGateSelf(groupID);
+      if (index < outgoingParts.length - 1) {
+        const typing = calculateTypingDelay(part);
+        if (typing > 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((resolve) => setTimeout(resolve, Math.round(typing * 1000)));
+        }
+      }
+    }
     await remember(groupID, groupName, asked, say, turns);
     const spent = await spendEnergy(groupID, Array.from(outgoing).length, parsed.energy);
     publishGroupState(groupID, { energy: spent, notes: (await loadNotes(groupID)).length });
-    note(`群 ${groupID} 回复了 ${asker}（${Array.from(say).length} 字，能量 ${Math.round(spent * 100)}${parsed.at.length ? '，@了 ' + parsed.at.join('、') : ''}）`);
+    const splitNote = outgoingParts.length > 1 ? `，拆成 ${outgoingParts.length} 条` : '';
+    note(`群 ${groupID} 回复了 ${asker}（${Array.from(say).length} 字${splitNote}，能量 ${Math.round(spent * 100)}${parsed.at.length ? '，@了 ' + parsed.at.join('、') : ''}）`);
     await maybeSendSticker(groupID, parsed.meme, parsed.tag);
   } catch (err) {
     state.counts.errors += 1;

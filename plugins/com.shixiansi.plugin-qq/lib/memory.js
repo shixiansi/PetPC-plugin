@@ -595,6 +595,12 @@ function withBudget(blocks, total) {
 function systemPromptFor(groupID, groupName, ctx) {
   const maxChars = number(state.cfg.replyMaxChars, 300, 20, 2000);
   const persona = String(state.cfg.persona || '').trim();
+  // 三层人格的第二层（personaBehavior，"何时接话/何时安静"）：它进的是**规则区**
+  // 而不是人设行——MaiBot 把 behavior_style 单独给 Planner（决策环节），这里对应
+  // 的决策面就是这套规则。留空 = 沿用旧规则，老配置不损语义。
+  // 第三层（"怎么说话"）QQ 这条路已经有硬规则（口语/不 Markdown/字数上限），
+  // 不再引入 personaReplyStyle 与它打架。
+  const behavior = String(state.cfg.personaBehavior || '').trim();
   const info = ctx || {};
   const energy = Number.isFinite(info.energy) ? info.energy : energyBaseline();
 
@@ -622,6 +628,7 @@ function systemPromptFor(groupID, groupName, ctx) {
     '- 情绪明显（开心、无语、委屈、得意、生气）可以配一张表情：meme 填上面候选里的 id；不确定就别填。',
     '- 围栏只给程序读，不会发进群；正文里不要再出现花括号。',
     '- 不想说话时：正文留空，只回 {"silent":true}。偶尔不想说话很正常。',
+    ...(behavior ? [`- 接话的分寸（主人另外交代的）：${behavior}`] : []),
     `- 现在是 ${new Date().toLocaleString('zh-CN', { hour12: false })}。`,
   ].join('\n');
 

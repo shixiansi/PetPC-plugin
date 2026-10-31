@@ -24,6 +24,10 @@ const DEFAULTS = {
   prefix: '',
   groupAllow: '',
   persona: '',
+  // 三层人格第二层（personaBehavior，"何时接话/何时安静"）：进 systemPromptFor /
+  // proactivePromptFor / batchSystemPrompt 的规则区。manifest 的 config 已用满宿主
+  // 上限（README「为什么不放 config」），所以 QQ 这边它走 workshop 存储而不进 config。
+  personaBehavior: '',
   contextTurns: '8',
   // 记忆与状态（参考 nonebot-plugin-aigf）：长期记忆条数上限、社交能量基线。
   memoryNotesMax: '20',
@@ -87,6 +91,12 @@ const state = {
   groupsLoaded: false,
   /** peer_id -> epoch ms of the last answer, for the cooldown. */
   lastAnswer: new Map(),
+  /** groupID -> {entries, self}: 回复门控的 60 秒滑动窗口（见 lib/reply_gate.js）。 */
+  gateWindows: new Map(),
+  /** 最近一次门控判定 {decision, probability, threshold}：静默日志引用它，不落盘。 */
+  lastGate: null,
+  /** 门控打分时"当前在给哪个群打分"（takeTurn 应答路径设置）。 */
+  gateCurrentGroup: '',
   /** peer_id -> epoch ms of the last "I stayed silent" log line, so it is rate-limited. */
   ignoredAt: new Map(),
   /** peer_id -> epoch ms of the last sticker, for the per-group cooldown. */

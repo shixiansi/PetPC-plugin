@@ -329,14 +329,14 @@ function stripPrefix(text) {
  *      to the bot on purpose;
  *   2. `atOnly` (the default) refuses everything else. It is the only mode that
  *      cannot flood a group, and it stays the default;
- *   3. with `atOnly` off, `replyChance` decides how often it joins in: 0 never,
- *      100 every message, anything between is a coin flip per message.
- *
- * Why a percentage rather than "on/off": "reply to everything" is a different
- * feature from "occasionally chime in", and the useful setting is the second one.
- * A switch would force the user to choose between silence and a monologue, and the
- * cooldown (5s by default) would turn the monologue into "answers once every five
- * seconds" - which reads as a broken bot rather than a chatty one.
+ *   3. with `atOnly` off, the REPLY GATE (lib/reply_gate.js) decides. It replaces the
+ *      old `replyChance` coin flip, which answered the same sentence yesterday and
+ *      ignored it today with nothing to explain the difference. The gate scores the
+ *      message with a logistic regression whose weights MaiBot fitted from its own
+ *      planner logs (see lib/reply_gate.js). `replyChance` keeps its 0-100 shape but
+ *      now reads as a keep-ratio: 0 = never chime in, 100 = answer everything, and
+ *      the middle is explicable instead of random. `state.lastGate` carries the
+ *      probability and threshold for the takeTurn silence log to quote.
  */
 function shouldAnswer(text, mentioned) {
   if (mentioned) return true;
@@ -346,7 +346,24 @@ function shouldAnswer(text, mentioned) {
   const chance = number(state.cfg.replyChance, 0, 0, 100);
   if (chance <= 0) return false;
   if (chance >= 100) return true;
-  return Math.random() * 100 < chance;
+  // 打分对象是"这一条"：@ 判定已经完成（被 @ 的到不了这里），其余特征从窗口统计取。
+  const stats = gateWindowStats(text);
+  const decision = gateDecision(
+    {
+      mentionBot: false,
+      atOther: stats.atOther,
+      hasQuestionMark: stats.hasQuestionMark,
+      placeholderOnly: stats.placeholderOnly,
+      recentSelfRatio: stats.recentSelfRatio,
+      recentMessageCount: stats.recentMessageCount,
+      secondsSinceBotMessage: stats.secondsSinceBotMessage,
+      pendingCount: 1,
+    },
+    gateThresholdFor(chance),
+    false,
+  );
+  state.lastGate = decision;
+  return decision.decision === 'trigger';
 }
 
 /** The speaker's display name, preferring the group card over the nickname. */

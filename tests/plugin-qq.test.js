@@ -105,14 +105,15 @@ describe('manifest', () => {
   });
 
   test('stays within the host config item limit', () => {
-    // Read from the HOST's source instead of restating the number here: the cap is the
-    // host's rule, and a test that hardcoded 16 would need editing every time a plugin
-    // legitimately grew (it did: the vision settings took this one to 19).
-    const hostSrc = readFileSync(
-      path.join(here, '..', '..', 'internal', 'plugins', 'manifest.go'), 'utf8');
-    const cap = Number((hostSrc.match(/maxConfigItems = (\d+)/) || [])[1]);
-    expect(cap, 'the host cap could not be read').toBeGreaterThan(0);
-    expect(manifest.config.length).toBeLessThanOrEqual(cap);
+    // Host cap = 40 (README: "manifest 的 config 上限是宿主的 40 项，QQ 插件已经用满了").
+    // The Go source (`internal/plugins/manifest.go`, maxConfigItems) is not part of this
+    // market repo and is absent on dev machines that only check out the market, so the
+    // number is restated here with the README as the cross-reference. The QQ manifest
+    // being AT the cap is itself load-bearing: adding a config item requires dropping
+    // one or moving the setting into plugin-owned storage (that is where the memcore
+    // switch and personaBehavior live — see lib/store.js DATA).
+    const HOST_CONFIG_CAP = 40;
+    expect(manifest.config.length, `config 项数超过宿主上限 ${HOST_CONFIG_CAP}`).toBeLessThanOrEqual(HOST_CONFIG_CAP);
   });
 });
 

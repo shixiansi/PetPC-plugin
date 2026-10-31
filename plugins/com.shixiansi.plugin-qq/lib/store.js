@@ -47,6 +47,9 @@ const DATA = {
   videoFiles: 'state/video',
   stickerIndex: 'media/stickers/index',
   stickerCategories: 'media/stickers/categories',
+  // 接话分寸（personaBehavior）。为什么走 storage 而不是 config：manifest 的 config
+  // 已用满宿主 40 项上限（README「为什么不放 config」同一条理由）。
+  personaBehavior: 'state/persona-behavior',
 };
 
 /**

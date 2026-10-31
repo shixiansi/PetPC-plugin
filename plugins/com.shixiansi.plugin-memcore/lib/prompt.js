@@ -21,6 +21,14 @@ function personaBlock() {
   const name = text(cfg.personaName, 40) || '小记';
   // 2000 而不是 1200：人设是最不该被截断的一段（用户实测写到了 722 字，且越靠后的规则越具体）。
   const custom = text(cfg.persona, 2000).trim();
+  // 三层人格（MaiBot [personality] 的设计，通宵抽取报告 pet-pc-plugins-chat-upgrade.md U2）：
+  //   persona      = 我是谁（L0）
+  //   personaStyle = 怎么说话（表达风格；原来硬编码在兜底规则里）
+  // behaviorStyle（何时接话）属于决策层，核心模式"一问必答"用不上，故不引入——
+  // 引了只会和"必答"的调用方语义打架（见 lib/chat.js handleChat 的注释）。
+  // 兼容：personaStyle 留空时，**没有自定义人设**才补那句通用腔调；有自定义人设时它会把语气
+  // 拉平（人设说"两句话、二十来字"，这句说"短句、口语"——后者更弱，模型会向它靠），所以不补。
+  const style = text(cfg.personaStyle, 400).trim();
   const lines = [];
   if (custom) {
     // **自定义人设是权威，不再往前塞一句 `你是「名字」。`**
@@ -34,12 +42,12 @@ function personaBlock() {
     const declaresSelf = /你是\s*[「『"']?[^，。！？\n]{1,20}[」』"']?/.test(custom);
     if (!declaresSelf) lines.push(`你是「${name}」。`);
     lines.push(custom);
+    // 显式写了 personaStyle 就尊重它（那是用户自己的选择，不是我们补的兜底）。
+    if (style) lines.push(style);
   } else {
     lines.push(`你是「${name}」。`);
     lines.push('话不多，但记得住事：别人说过的细节你会记得，也不特意炫耀。');
-    // 这句只在**没有自定义人设**时加：它是一句粗糙的兜底，和用户那份精细的说话规则并列时只会
-    // 拉平语气（人设说"两句话、二十来字"，这句说"短句、口语"——后者更弱，模型会向它靠）。
-    lines.push('说话像人在聊天：短句、口语，不加小标题、不列清单、不写"作为一个AI"。');
+    lines.push(style || '说话像人在聊天：短句、口语，不加小标题、不列清单、不写"作为一个AI"。');
   }
   // 「只用记忆回答」这条曾经让查到的资料被无视（2026-10-30：萌娘百科的释义明明在 system 里，
   // 模型仍答"是不是打错了"）。所以这里给它留一个明确的例外，而不是让每个提供方自己写一段

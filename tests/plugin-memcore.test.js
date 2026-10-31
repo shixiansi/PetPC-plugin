@@ -84,11 +84,13 @@ describe('manifest', () => {
   });
 
   test('stays within the host config item limit', () => {
-    const hostSrc = readFileSync(
-      path.join(here, '..', '..', 'internal', 'plugins', 'manifest.go'), 'utf8');
-    const cap = Number((hostSrc.match(/maxConfigItems = (\d+)/) || [])[1]);
-    expect(cap, 'the host cap could not be read').toBeGreaterThan(0);
-    expect(manifest.config.length).toBeLessThanOrEqual(cap);
+    // Host cap = 40. The Go source (`internal/plugins/manifest.go`, maxConfigItems)
+    // is not shipped with this market repo and is absent on dev machines that only
+    // check out the market, so the number is restated here with the README as the
+    // cross-reference ("manifest 的 config 上限是宿主的 40 项"). If the host ever
+    // changes the cap, the failing expectation is the reminder to re-check both.
+    const HOST_CONFIG_CAP = 40;
+    expect(manifest.config.length, `config 项数超过宿主上限 ${HOST_CONFIG_CAP}`).toBeLessThanOrEqual(HOST_CONFIG_CAP);
   });
 });
 
