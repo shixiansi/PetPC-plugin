@@ -181,6 +181,7 @@ window.__danmaku = Object.freeze({
   openDanmaku,
   closeDanmaku,
   danmakuTick,
+  reconcileConnection,
   parseDanmakuFrame,
   protocolFor,
   renderWorkshop,

@@ -157,16 +157,32 @@ async function closeDanmaku() {
   }
 }
 
-/** 心跳与状态轮询共用的一拍。 */
+/**
+ * 心跳那一拍：每 5 秒一次，协议要求（Mock 与 B 站都是"定期 ping，否则服务端断开"）。
+ *
+ * 这里**不再查 ws.state**。连接状态是宿主推的（`ws.state` 事件，手册 §7 与
+ * app_plugin_ws.go 的 emit），这个插件在 app.js 的 onEvent 里已经把 liveConn.open 跟着更新了。
+ * 2026-11-01 的真机日志里，每 5 秒一次的 `ws.state` 查询一小时 201 条 INFO——真正需要它的
+ * 只有"事件丢了"那一种情况，所以对表被挪到 reconcileConnection()，60 秒一次。
+ */
 async function danmakuTick() {
   const platform = protocolFor(liveConn.platform);
   if (liveConn.open && liveConn.wanted) {
     try {
       await request('ws.send', { text: platform.heartbeat() });
     } catch {
-      // 发送失败：下一轮 ws.state 会反映出来。
+      // 发送失败：宿主会发 ws.state 事件说明连接怎么了。
     }
   }
+}
+
+/**
+ * 对一次表。60 秒兜底，主路径是 `ws.state` 事件。
+ *
+ * 什么时候真用得上：事件在极端情况下会丢（帧刚挂载、宿主重启），而"想连却没连上"必须能在
+ * 工坊页上看见。
+ */
+async function reconcileConnection() {
   try {
     const stateOut = await request('ws.state', {});
     const isOpen = Boolean(stateOut && stateOut.state === 'open');

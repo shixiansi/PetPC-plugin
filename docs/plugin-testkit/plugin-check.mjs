@@ -442,9 +442,12 @@ function checkSource(report, dir, info) {
   // 插件不该被判成用了 localStorage（第一版就是这么误报的）。
   const called = new Map();
   const strippedJs = new Map();
+  const commentFreeJs = new Map();
   for (const file of jsFiles) {
     const raw = safeRead(file);
     strippedJs.set(file, stripCommentsAndStrings(raw));
+    // 方法名是字符串字面量，所以"查方法名"的规则要用只去注释的那一份。
+    commentFreeJs.set(file, stripComments(raw));
     collectRequests(stripComments(raw), file, called);
   }
   const html = info?.entry ? safeRead(join(dir, info.entry)) : '';
@@ -471,7 +474,6 @@ function checkSource(report, dir, info) {
     }
   }
   if (known > 0) add('commands-known', 'PASS', `${known} 个方法都在契约表里，且权限都已声明`);
-
   // 3.1.1 存储键的字面量必须是宿主认得的形状
   //
   // 这一条是踩出来的，而且踩了三次：三个不同的插件（pet-sense / media-sync / clipask）都写了
@@ -524,6 +526,53 @@ function checkSource(report, dir, info) {
   // 会让汇总数字读起来像"只有 3 个问题"而 PASS 也有一份，正好把要紧的那行冲淡。
   if (keysChecked > 0 && badKeys === 0) add('storage-key-legal', 'PASS', `${keysChecked} 个字面量存储键都合法`);
 
+  // 3.1.2 「有事件可听的查询」被定时器轮询
+  //
+  // 这条是 live-danmaku 教出来的：它每 5 秒查一次 `ws.state`，而宿主本来就会推 `ws.state` 事件
+  // （手册 §6.11 最后一行写着）。真机上 INFO 档一小时 201 条，全是同一条已经推给它过的信息。
+  //
+  // 麻烦的是那一拍通常长这样：`setInterval(() => void danmakuTick(), 5000)` —— 方法名在被调
+  // 函数的身体里，不在定时器里。所以多走一步：定时器里**被调用的函数**也查一遍。只一层，不做
+  // 完整调用图：够抓住真实发生的这一类，又不至于写成一个半吊子的解释器。
+  {
+    const pollable = [
+      ['ws.state', 'ws.state 事件'],
+      ['config.get', 'config.changed'],
+      ['storage.get', 'storage.changed'],
+      ['share.get', 'share.changed'],
+    ];
+    const hasMethod = (text, method) => text.includes(`'${method}'`) || text.includes(`"${method}"`);
+    for (const [file, text] of commentFreeJs) {
+      const timerBodies = [...text.matchAll(/setInterval\(\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{?([\s\S]{0,400}?)\}?\s*,\s*[0-9_]+\s*\)/g)]
+        .map((match) => match[1] || '');
+      if (!timerBodies.length) continue;
+      const seen = new Set();
+      const report1 = (method, event, where) => {
+        if (seen.has(method)) return;
+        seen.add(method);
+        add('poll-with-event', 'WARN', where(method, event),
+          '把主路径改成事件，定时器只留 15 秒以上的兜底——轮询会把日志写满，而事件是零延迟的');
+      };
+      for (const body of timerBodies) {
+        for (const [method, event] of pollable) {
+          if (!hasMethod(body, method)) continue;
+          report1(method, event, (m, e) => `定时器里直接轮询 ${m}（${short('', file)}）：它有事件可听（${e}，手册 §7）`);
+        }
+      }
+      const calledNames = new Set();
+      for (const body of timerBodies) {
+        for (const call of body.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)) calledNames.add(call[1]);
+      }
+      for (const name of calledNames) {
+        const fn = new RegExp(`function\\s+${name}\\s*\\([^)]*\\)\\s*\\{([\\s\\S]{0,1500}?)\\n\\}`, 'm').exec(text);
+        if (!fn) continue;
+        for (const [method, event] of pollable) {
+          if (!hasMethod(fn[1], method)) continue;
+          report1(method, event, (m, e) => `定时器每一拍都调 ${name}()，而它在轮询 ${m}（${short('', file)}）：这个方法有事件可听（${e}，手册 §7）`);
+        }
+      }
+    }
+  }
   // 3.2 不该碰的浏览器能力
   const banned = [
     [/\blocalStorage\b/, 'localStorage', '帧是 opaque origin，访问会抛 SecurityError；要存东西用 storage.*'],

@@ -661,16 +661,32 @@ describe('plumbing', () => {
     window.__danmaku.liveConn.platform = 'mock';
   });
 
-  test('heartbeat sends op:2 and ws.state is polled every tick', async () => {
+  test('心跳那一拍只发 op:2，不再查 ws.state', async () => {
     // 连接开着（openDanmaku 成功）才有心跳可发：boot 必须带 mockUrl。
     await bootBot({ values: { mockUrl: '127.0.0.1:23100', roomId: '1' } });
-    const before = requestsFor('ws.send').length;
+    const sendsBefore = requestsFor('ws.send').length;
+    const statesBefore = requestsFor('ws.state').length;
     const tick = window.__danmaku.danmakuTick();
     await pump(8);
     await tick;
     const sends = requestsFor('ws.send');
-    expect(sends.length).toBeGreaterThan(before);
+    expect(sends.length).toBeGreaterThan(sendsBefore);
     expect(JSON.parse(sends[sends.length - 1].payload.text)).toEqual({ op: 2 });
+    // 状态是宿主推的（ws.state 事件），心跳这一拍不该再问一次——
+    // 真机上就是它把 INFO 档写成了每小时 201 条。
+    expect(requestsFor('ws.state').length, '心跳又去查 ws.state 了').toBe(statesBefore);
+  });
+
+  test('对表是单独的一拍（60 秒兜底），它才查 ws.state', async () => {
+    await bootBot({ values: { mockUrl: '127.0.0.1:23100', roomId: '1' } });
+    const before = requestsFor('ws.state').length;
+    // 不能直接 await：宿主回包要在 pump 里才发出去（这个文件里的每一处都这样）。
+    const pending = window.__danmaku.reconcileConnection();
+    await pump(10);
+    const state = await pending;
+    expect(requestsFor('ws.state').length).toBeGreaterThan(before);
+    // 假宿主的 ws.state 应答是 open 时，本地标记跟着变。
+    if (state && state.state) expect(window.__danmaku.liveConn.open).toBe(state.state === 'open');
   });
 
   test('the memcore role key follows the room id and survives weird input', async () => {

@@ -21,6 +21,7 @@ const DM_FEED_MAX = 30;
 let liveStats = { online: 0, watched: 0 };
 let persistTimer = null;
 let heartbeatTimer = null;
+let reconcileTimer = null;
 
 /** 本进程看到的最近一次状态（工坊页与测试接缝都用它）。 */
 function liveSnapshot() {
@@ -65,6 +66,11 @@ function startBot() {
       void danmakuTick();
       void persistTick();
     }, 5000);
+    // 连接状态的主路径是 `ws.state` 事件；这个 60 秒的对表只负责"事件丢了"。
+    // 以前它混在心跳那一拍里，于是 INFO 档每小时 201 条 ws.state。
+    reconcileTimer = setInterval(() => {
+      void reconcileConnection();
+    }, 60_000);
   }
 }
 
@@ -74,6 +80,10 @@ function stopBot() {
   if (heartbeatTimer) {
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
+  }
+  if (reconcileTimer) {
+    clearInterval(reconcileTimer);
+    reconcileTimer = null;
   }
   say('已停止');
 }

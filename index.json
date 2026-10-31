@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T13:37:28Z",
+  "updatedAt": "2026-10-31T13:47:40Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -147,7 +147,7 @@
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "plugin.call", "audio", "pet.bubble"],
       "netHosts": ["127.0.0.1:23100", "127.0.0.1:9880", "dealer-open.bilibili.com", "broadcast-open.chat.bilibili.com"],
       "download": "dist/com.shixiansi.plugin-live-danmaku-1.0.2.zip",
-      "sha256": "1b7eb8cd63b92de0242ab58eeeea941a2b937a1a45eba8e73539ab9f51f9e594"
+      "sha256": "c6f1a95abffb06d40230512c121f4d374782525069c97dada04274d921f419c0"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",

@@ -1071,6 +1071,9 @@ window.addEventListener('message', async (e) => {
 - 每个插件**一条**连接；宿主负责重连与心跳（30 秒 ping）。
 - `state` 是 `connecting` / `open` / `error` / `closed` 之一；`error` 不是终态（宿主会继续重试）。
 - 入站文本帧通过 `event` 推给你：`ws.message {text}`；状态变化推 `ws.state {state,…}`。
+  **`ws.state` 有事件，不要用定时器去查它。** 查询方法只在两种时候有意义：刚挂载时对一次表、
+  以及事件可能丢了的慢速兜底（60 秒级）。live-danmaku 曾经每 5 秒查一次，真机上 INFO 档一小时
+  201 条——而那条通知本来就已经推给它了。
 - 出站单帧上限 **512 KiB**。
 
 ### 6.12 `process` — 启动本机程序
