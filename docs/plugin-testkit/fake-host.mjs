@@ -118,7 +118,7 @@ export function okResult(method) {
     case 'storage.get': return { value: '' };
     case 'storage.stat': return { exists: false, bytes: 0 };
     case 'storage.dir': return { dir: 'C:\\模拟\\plugin-data\\example' };
-    case 'storage.list': return { dir: 'C:\\模拟', files: [], dirs: [] };
+    case 'storage.list': return { dir: 'C:\\模拟', files: [{ name: '举例', bytes: 12, modified: Date.now() - 3600000 }], dirs: [] };
     case 'storage.move': return { ok: true, moved: true };
     case 'storage.usage': return { used: 0, limit: 67108864 };
     case 'config.get': return { values: {}, secrets: {} };

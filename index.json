@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T13:00:39Z",
+  "updatedAt": "2026-10-31T13:24:51Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -245,13 +245,13 @@
     {
       "id": "com.shixiansi.plugin-qq",
       "name": "QQ 群聊插件",
-      "version": "1.15.0",
+      "version": "1.16.0",
       "author": "shixiansi",
       "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
       "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
-      "download": "dist/com.shixiansi.plugin-qq-1.15.0.zip",
-      "sha256": "86d5eb825f232df9078dfd08236fff665ddc2432bb6ceaa3b1d125b5be4848eb"
+      "download": "dist/com.shixiansi.plugin-qq-1.16.0.zip",
+      "sha256": "6fc7d5c9497f3777d65cecd64b8ca380f76475fd0e08225b16caae3787769304"
     },
     {
       "id": "com.shixiansi.plugin-qqbot",

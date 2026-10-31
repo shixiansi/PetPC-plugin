@@ -59,6 +59,11 @@ function onInit(payload) {
     // 先把开关读进来，再开始连协议端：一个重启后要用的模式，不该等第一条群消息才生效。
     void refreshCoreMode().catch(() => {});
     void tidy.then(() => startBot());
+    // media/ 的字节预算（lib/media.js）**不挡启动**：机器人先连上，再收拾缓存。真机上这个目录
+    // 长到 497 MiB，而宿主上限是 64 MiB——不自己清，宿主只能拒绝写入，那就连账本都存不下去。
+    void tidy.then(() => trimMediaAndNote().catch(() => {}));
+    // 半小时一次就够：媒体文件的增长是"用户发图/看视频"驱动的，不是秒级的。
+    setInterval(() => void trimMediaAndNote().catch(() => {}), 30 * 60 * 1000);
     return;
   }
   void tidy.then(() => renderWorkshop());
@@ -145,6 +150,11 @@ window.__qq = Object.freeze({
   stickerSignature,
   state,
   ffmpegBudgetMs,
+  // 字节预算的清理：测试要能直接驱动它，而不是等半小时的定时器。
+  trimMedia,
+  trimMediaAndNote,
+  planEviction,
+  MEDIA_BUDGET_BYTES,
 });
 
 // The sticker card's controls are wired once, at load. Function declarations are hoisted,

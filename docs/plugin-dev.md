@@ -600,7 +600,7 @@ else { /* 这一面没有这件事，说明它在哪 */ }
 
 ### 6.3 `storage` — 你自己的私有目录
 
-> **想知道自己用了多少？** `storage.usage` → `{used, limit}`。它和"超限被拒"用的是同一套计算，
+> **缓存要怎么清？** `storage.list` 的 `modified` + `storage.remove`：按最旧优先删到预算以内。别用文件名当"新旧"，也别维护自己的索引（qq 插件的 `media/` 长到 497 MiB 就是因为没人知道哪张表情是旧的）。\n>\n> **想知道自己用了多少？** `storage.usage` → `{used, limit}`。它和"超限被拒"用的是同一套计算，
 > 所以 `used` 就是那个会跟 `limit` 比的数字。典型用法是收到 `storage.pressure`（§7.3）之后算
 > "还要删多少"——而不是自己 `storage.list` 再逐个 `storage.stat`。
 >
@@ -646,7 +646,7 @@ else { /* 这一面没有这件事，说明它在哪 */ }
 | `storage.remove` | `{key}` | `{ok:true}` | 删除不存在的键也算成功 |
 | `storage.stat` | `{key}` | `{exists, bytes}` | 不存在 = `{exists:false, bytes:0}` |
 | `storage.dir` | `{sub?}` | `{dir}` | 返回你自己的绝对目录；`sub` 是一个相对子路径（同样 ≤4 段，会按需创建）。给人看路径、或交给 `process.launch` 启动的程序写文件时用 |
-| `storage.list` | `{sub?}` | `{dir, files:[{name,bytes}], dirs:[名字]}` | 列出你某个子目录里的东西；目录不存在 = 空列表 |
+| `storage.list` | `{sub?}` | `{dir, files:[{name,bytes,modified}], dirs:[名字]}` | 列出你某个子目录里的东西；目录不存在 = 空列表。`modified` 是文件修改时间的毫秒数——**缓存预算靠它才有意义**（"删最旧的直到装得下"） |
 | `storage.move` | `{from, to}` | `{ok, moved, targetExists?}` | 重命名/搬你自己的文件；目标已存在时 `moved:false, targetExists:true`（不覆盖） |
 | `storage.usage` | `{}` | `{used, limit}` | 整个私有目录的字节数与你这条上限。和"超限被拒"用的是同一套计算，所以 `used` 就是那个会跟 `limit` 比的数字 |
 
@@ -1643,7 +1643,7 @@ manifest 是**宿主解析**的，而市场里的包是**所有人马上下载**
 | `storage.remove` | `storage` | 删你自己的键 |
 | `storage.stat` | `storage` | 文件大小 |
 | `storage.dir` | `storage` | 你的目录的绝对路径 |
-| `storage.list` | `storage` | 列你的子目录 |
+| `storage.list` | `storage` | 列你的子目录（含每个文件的 `bytes` 与 `modified`） |
 | `storage.move` | `storage` | 搬/改名你自己的文件 |
 | `storage.usage` | `storage` | 私有目录用了多少 / 上限多少（`{used, limit}`） |
 | `memory.read` | `storage` | 读长期记忆文档 |
