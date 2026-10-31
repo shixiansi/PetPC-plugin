@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T07:51:28Z",
+  "updatedAt": "2026-10-31T08:58:32Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -318,13 +318,13 @@
     {
       "id": "com.shixiansi.plugin-voice",
       "name": "语音插件",
-      "version": "1.0.2",
+      "version": "1.1.0",
       "author": "shixiansi",
-      "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
-      "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share"],
+      "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。1.1.0 起别的插件可以用 plugin.call 问 speak，把任意一段话交给语音引擎念出来。",
+      "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share", "plugin.call"],
       "netHosts": ["127.0.0.1:9880"],
-      "download": "dist/com.shixiansi.plugin-voice-1.0.2.zip",
-      "sha256": "9d8812cbccbb181d4497180ceb0134c2ee61cd3a10dca738877aacaf7f4f9720"
+      "download": "dist/com.shixiansi.plugin-voice-1.1.0.zip",
+      "sha256": "affad531778af7f6dd70393d25e22678651c46b1e8235dc7ffa92ed12bb0cee7"
     },
     {
       "id": "com.shixiansi.plugin-voice-call",
