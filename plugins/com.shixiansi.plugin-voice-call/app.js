@@ -62,12 +62,26 @@ function onInit(payload) {
       startCall();
       startFrameTimer();
     }
+    // 15 秒兜底：宿主会为 share.changed 发事件（手册 §7.1），这个定时器只负责"事件丢了"。
     setInterval(() => {
       void pollCommand();
-    }, 3000);
+    }, 15000);
   })();
 }
 
+/**
+ * 宿主说"你关心的共享键变了"（share.changed，手册 §7.1）：立刻读一次，不用等 15 秒兜底。
+ *
+ * 只认自己名下的键（`<自己的 id>/<名字>`）：命令键是同一个插件的两个帧之间的通道，
+ * 而这条事件也会因为"别人的键变了"送到这里——那不是给我们的。
+ */
+function onHostEvent(data) {
+  if (!data || data.name !== 'share.changed') return;
+  const payload = data.payload || {};
+  const key = String(payload.key || '');
+  if (!self.pluginId || !key.startsWith(self.pluginId + '/')) return;
+  void pollCommand();
+}
 function onMessage(event) {
   if (event.source !== window.parent) return;
   const data = event.data;
@@ -75,6 +89,9 @@ function onMessage(event) {
   switch (data.type) {
     case 'init':
       onInit(data);
+      break;
+    case 'event':
+      onHostEvent(data);
       break;
     case 'theme':
       applyTheme(data.theme);

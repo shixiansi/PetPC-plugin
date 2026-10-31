@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T09:25:48Z",
+  "updatedAt": "2026-10-31T10:12:25Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -15,13 +15,13 @@
     {
       "id": "com.shixiansi.plugin-ast-coder",
       "name": "代码感知与重构助手",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "让桌宠看懂本地代码：按配置的目录监听 .js/.ts 文件（结构缓存在插件私有目录，不碰文件内容之外的东西），用轻量解析提取函数名、类名与导出项；选中一段代码就能让记忆核心以审查者的身份找 Bug、给重构建议；还能一键把大模型生成的测试用例写进同名 .test.js（先读后写，绝不覆盖原代码）。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call", "plugin.share"],
       "netHosts": ["127.0.0.1:23180"],
-      "download": "dist/com.shixiansi.plugin-ast-coder-1.0.1.zip",
-      "sha256": "bb880e156310dec08b4f3015c8e119063434cda260ac4cb3191b76c7ab8c60df"
+      "download": "dist/com.shixiansi.plugin-ast-coder-1.0.2.zip",
+      "sha256": "467c9d7fa5ca4953ff28a5c83a23644129a446a5894ea0056bf05da64bab3af1"
     },
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -141,13 +141,13 @@
     {
       "id": "com.shixiansi.plugin-live-danmaku",
       "name": "直播间弹幕互动",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "让桌宠化身为虚拟主播：接入直播平台的弹幕流（内置 Mock 桥与 B 站开放平台两种接法），内部用防抖队列把高频弹幕节流成「每几秒挑几条值得回的」，交给记忆核心生成回应，再用语音服务念出来或弹气泡；插件页实时显示直播间状态、在线人数与滚动的精简弹幕。",
       "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "plugin.call", "audio", "pet.bubble"],
       "netHosts": ["127.0.0.1:23100", "127.0.0.1:9880", "dealer-open.bilibili.com", "broadcast-open.chat.bilibili.com"],
-      "download": "dist/com.shixiansi.plugin-live-danmaku-1.0.1.zip",
-      "sha256": "18bee281165ff50f1b0866ca9aa8153f0c9ea2a9662fdbeb47aefb2c06369e55"
+      "download": "dist/com.shixiansi.plugin-live-danmaku-1.0.2.zip",
+      "sha256": "1b7eb8cd63b92de0242ab58eeeea941a2b937a1a45eba8e73539ab9f51f9e594"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -329,13 +329,13 @@
     {
       "id": "com.shixiansi.plugin-voice-call",
       "name": "实时语音通话",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "实时双向语音对话：在桌宠的常驻帧里跑一个「听—想—说」状态机，音量阈值 VAD 检测说话与静音；用户开口立即打断桌宠正在播放的语音（audio.stop）；录到的音频切片交给流式 ASR（或本机桥的识别端点），识别文本经记忆核心生成回答，再用语音服务合成播放。所有音频处理都走宿主的 audio/net.fetch 能力；纯逻辑的状态机可以在没有麦克风的环境下完整测试。",
       "permissions": ["net.fetch", "audio", "storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble", "pet.surface", "events"],
       "netHosts": ["127.0.0.1:9880", "127.0.0.1:23240"],
-      "download": "dist/com.shixiansi.plugin-voice-call-1.0.1.zip",
-      "sha256": "bfe46b2043ef6e8133c4de71d1e189ff5dba6d700b32366d6210707f83ce8d79"
+      "download": "dist/com.shixiansi.plugin-voice-call-1.0.2.zip",
+      "sha256": "8a1df414a5a54ccafe2291014686821a107575ef29e40ae0bf1ec409e6bd380a"
     },
     {
       "id": "com.shixiansi.plugin-weather-env",

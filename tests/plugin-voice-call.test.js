@@ -526,3 +526,20 @@ describe('plumbing：打断与整条链路', () => {
     expect(requests()).toEqual([]);
   });
 });
+
+// --- share.changed 接线（宿主事件 → 立刻读命令） --------------------------------
+//
+// 命令键是同一个插件的两个帧之间的通道：工坊页写，常驻帧读。以前靠 3 秒轮询，现在宿主在
+// share.set 之后发 share.changed（手册 §7.1），这里只留 15 秒兜底。两条都在源码里钉住：
+// 一条丢了就退回轮询，而轮询的症状只是"慢"和日志变吵——测试不盯就没人发现。
+
+test('share.changed 接线：事件分支在、兜底是 15 秒', () => {
+  // 消息泵把 event 交给 onHostEvent（而不是落进 default 被忽略）。
+  expect(source).toMatch(/case 'event':\s*\n\s*onHostEvent\(data\)/);
+  // onHostEvent 只认自己名下的键：别人的键变了不该触发读。
+  expect(source).toMatch(/function onHostEvent\(data\)/);
+  expect(source).toContain("key.startsWith(self.pluginId + '/')");
+  // 兜底不再是 3 秒。
+  expect(source).toContain('}, 15000);');
+  expect(source).not.toContain('}, 3000);');
+});
