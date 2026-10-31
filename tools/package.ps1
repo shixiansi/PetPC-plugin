@@ -16,8 +16,11 @@
       4. rewrites market/index.json from the *packaged* manifest, so the
          permissions a user sees in the catalogue can never drift from the ones
          the package actually asks for (design.md D3);
-      5. copies the zip and index.json into the host repo's built-in sample
-         source so the offline fallback is the same bytes.
+      5. refreshes the packages the host repo's built-in sample ALREADY ships
+         and rewrites that sample's index.json to list exactly them. The sample
+         is a CURATED SUBSET (AGENTS.md §3.7: "故意更旧"), not a mirror - see the
+         comment above the copy at the end of this file for what copying every
+         package over it broke.
 
     Deliberately does NOT run git, npm, go, wails or anything on the network:
     packaging is local and offline, and publishing is a human decision.
@@ -251,55 +254,124 @@ foreach ($manifestPath in $manifestFiles) {
 }
 
 # Build index.json by hand for stable key order and readable Chinese.
-$updatedAt = [System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
-$sb = New-Object System.Text.StringBuilder
-[void]$sb.Append("{`n")
-[void]$sb.Append("  ""version"": 1,`n")
-[void]$sb.Append("  ""updatedAt"": " + (ConvertTo-JsonString $updatedAt) + ",`n")
-[void]$sb.Append("  ""plugins"": [`n")
+#
+# A FUNCTION rather than inline, because the file is written TWICE: the market's own catalogue
+# (every packaged plugin) and the built-in sample's (only the packages it ships). The two used to
+# be one file, and that is exactly what the sample step at the bottom now stopped doing.
+function Build-IndexJson {
+    param([object[]]$rows, [string]$stamp)
 
-for ($i = 0; $i -lt $entries.Count; $i++) {
-    $e = $entries[$i]
-    [void]$sb.Append("    {`n")
-    [void]$sb.Append("      ""id"": " + (ConvertTo-JsonString $e.Id) + ",`n")
-    [void]$sb.Append("      ""name"": " + (ConvertTo-JsonString $e.Name) + ",`n")
-    [void]$sb.Append("      ""version"": " + (ConvertTo-JsonString $e.Version) + ",`n")
-    [void]$sb.Append("      ""author"": " + (ConvertTo-JsonString $e.Author) + ",`n")
-    [void]$sb.Append("      ""description"": " + (ConvertTo-JsonString $e.Description) + ",`n")
-    $perms = ($e.Permissions | ForEach-Object { ConvertTo-JsonString $_ }) -join ', '
-    [void]$sb.Append("      ""permissions"": [" + $perms + "],`n")
-    # Emitted only when non-empty, matching the manifest's own `omitempty` and the
-    # Go struct's, so a plugin without hosts produces byte-identical JSON to
-    # before and the chat package's digest does not move.
-    $hosts = @($e.NetHosts | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
-    if ($hosts.Count -gt 0) {
-        $hostJson = ($hosts | ForEach-Object { ConvertTo-JsonString $_ }) -join ', '
-        [void]$sb.Append("      ""netHosts"": [" + $hostJson + "],`n")
+    $sb = New-Object System.Text.StringBuilder
+    [void]$sb.Append("{`n")
+    [void]$sb.Append("  ""version"": 1,`n")
+    [void]$sb.Append("  ""updatedAt"": " + (ConvertTo-JsonString $stamp) + ",`n")
+    [void]$sb.Append("  ""plugins"": [`n")
+
+    for ($i = 0; $i -lt $rows.Count; $i++) {
+        $e = $rows[$i]
+        [void]$sb.Append("    {`n")
+        [void]$sb.Append("      ""id"": " + (ConvertTo-JsonString $e.Id) + ",`n")
+        [void]$sb.Append("      ""name"": " + (ConvertTo-JsonString $e.Name) + ",`n")
+        [void]$sb.Append("      ""version"": " + (ConvertTo-JsonString $e.Version) + ",`n")
+        [void]$sb.Append("      ""author"": " + (ConvertTo-JsonString $e.Author) + ",`n")
+        [void]$sb.Append("      ""description"": " + (ConvertTo-JsonString $e.Description) + ",`n")
+        $perms = ($e.Permissions | ForEach-Object { ConvertTo-JsonString $_ }) -join ', '
+        [void]$sb.Append("      ""permissions"": [" + $perms + "],`n")
+        # Emitted only when non-empty, matching the manifest's own `omitempty` and the
+        # Go struct's, so a plugin without hosts produces byte-identical JSON to
+        # before and the chat package's digest does not move.
+        $hosts = @($e.NetHosts | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($hosts.Count -gt 0) {
+            $hostJson = ($hosts | ForEach-Object { ConvertTo-JsonString $_ }) -join ', '
+            [void]$sb.Append("      ""netHosts"": [" + $hostJson + "],`n")
+        }
+        [void]$sb.Append("      ""download"": " + (ConvertTo-JsonString $e.Download) + ",`n")
+        [void]$sb.Append("      ""sha256"": " + (ConvertTo-JsonString $e.Sha256) + "`n")
+        [void]$sb.Append("    }")
+        if ($i -lt $rows.Count - 1) { [void]$sb.Append(",") }
+        [void]$sb.Append("`n")
     }
-    [void]$sb.Append("      ""download"": " + (ConvertTo-JsonString $e.Download) + ",`n")
-    [void]$sb.Append("      ""sha256"": " + (ConvertTo-JsonString $e.Sha256) + "`n")
-    [void]$sb.Append("    }")
-    if ($i -lt $entries.Count - 1) { [void]$sb.Append(",") }
-    [void]$sb.Append("`n")
+
+    [void]$sb.Append("  ]`n")
+    [void]$sb.Append("}`n")
+    return $sb.ToString()
 }
 
-[void]$sb.Append("  ]`n")
-[void]$sb.Append("}`n")
-
-Write-Utf8NoBom -Path $indexPath -Text $sb.ToString()
+$updatedAt = [System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+Write-Utf8NoBom -Path $indexPath -Text (Build-IndexJson -rows $entries -stamp $updatedAt)
 Write-Host ("已回写 index.json（updatedAt {0}）" -f $updatedAt)
 
-# Mirror the same bytes into the host repo's embedded sample source, so the
-# offline fallback and the market artefact cannot diverge.
+# Refresh the host repo's built-in sample source.
+#
+# IT IS A SUBSET, NOT A MIRROR, and its packages are DELIBERATELY OLDER (AGENTS.md §3.7).
+# This step used to copy EVERY package over it and then overwrite the sample's index.json with the
+# market's, which quietly broke the offline floor as soon as the market outgrew the sample: the
+# embedded catalogue declared 36 downloads while internal/plugins/sample/embed.go embeds ten by
+# name, so a user clicking 安装 on the fallback would 404 for the other 26.
+# TestBuiltinSampleMatchesIndex caught the symptom afterwards; the fix belongs here.
+#
+# What this step therefore does, and refuses to do:
+#
+#   - it NEVER adds a file to the sample: embed.go lists packages by name, and a file the binary
+#     does not carry is a catalogue row that 404s. Growing the floor stays a hand edit (drop the
+#     package in, add it to embed.go, run this script);
+#   - a sample package whose version has moved on STAYS where it is - that is the "故意更旧" half
+#     of the contract, and a floor that tracked every release would re-embed megabytes each time;
+#   - a sample package whose id left the market catalogue is dropped, because the fallback can
+#     only offer what the catalogue still lists;
+#   - every kept row's sha256 is recomputed from the FILE ON DISK (same version repackaged = new
+#     bytes), so the sample index can never describe a package it does not ship.
 if (-not (Test-Path $HostSampleDir)) {
     New-Item -ItemType Directory -Path $HostSampleDir -Force | Out-Null
 }
 
-foreach ($e in $entries) {
-    Copy-Item -Path $e.ZipPath -Destination (Join-Path $HostSampleDir (Split-Path $e.ZipPath -Leaf)) -Force
+$sampleIndexPath = Join-Path $HostSampleDir 'index.json'
+if (-not (Test-Path $sampleIndexPath)) {
+    throw ("内置样例源缺少 index.json（{0}）：兜底源至少要有一份目录" -f $sampleIndexPath)
 }
-Copy-Item -Path $indexPath -Destination (Join-Path $HostSampleDir 'index.json') -Force
-Write-Host ("已复制 {0} 个 zip 与 index.json 到 {1}" -f $entries.Count, $HostSampleDir)
+
+$sampleDoc = Get-Content -Path $sampleIndexPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$marketById = @{}
+foreach ($e in $entries) { $marketById[$e.Id] = $e }
+
+$sampleRows = @()
+$sampleNames = @{}
+foreach ($row in @($sampleDoc.plugins)) {
+    $name = Split-Path ([string]$row.download) -Leaf
+    $file = Join-Path $HostSampleDir $name
+    if (-not (Test-Path $file)) {
+        Write-Host ("样例索引声明了 {0}，但文件不在：把它从样例里去掉" -f $name) -ForegroundColor Yellow
+        continue
+    }
+    if (-not $marketById.ContainsKey([string]$row.id)) {
+        Write-Host ("{0} 已经不在市场目录里：样例索引去掉它（兜底源只能是市场的子集）" -f $row.id) -ForegroundColor Yellow
+        continue
+    }
+    $fresh = $marketById[[string]$row.id]
+    if ((Split-Path $fresh.ZipPath -Leaf) -eq $name) {
+        # Same version: take the freshly built bytes (a fix at the same version is still a fix);
+        # the digest below is recomputed from whatever ended up on disk.
+        Copy-Item -Path $fresh.ZipPath -Destination $file -Force
+    }
+    $row.sha256 = (Get-FileHash -Path $file -Algorithm SHA256).Hash.ToLowerInvariant()
+    $sampleRows += $row
+    $sampleNames[$name] = $true
+}
+
+if ($sampleRows.Count -eq 0) {
+    throw ("内置样例源里一个可用的包都没有（{0}）：离线兜底会变成空目录" -f $HostSampleDir)
+}
+
+# A zip nobody indexes is a zip embed.go may be listing without a catalogue row. Warn instead of
+# deleting: the human may be halfway through adding a package.
+foreach ($file in Get-ChildItem -Path $HostSampleDir -Filter *.zip -File) {
+    if (-not $sampleNames.ContainsKey($file.Name)) {
+        Write-Host ("样例目录里有 {0}，但样例索引没有它：确认 embed.go 与 index.json 要不要一起改" -f $file.Name) -ForegroundColor Yellow
+    }
+}
+
+Write-Utf8NoBom -Path $sampleIndexPath -Text (Build-IndexJson -rows $sampleRows -stamp $updatedAt)
+Write-Host ("已刷新内置样例 {0} 个包与它的 index.json（市场目录共 {1} 个，其余不进兜底源）" -f $sampleRows.Count, $entries.Count)
 
 Write-Host "打包完成。"
 exit 0

@@ -391,6 +391,7 @@ body[data-surface='boot'] { background: transparent; }
 | 规则 | 为什么 |
 | --- | --- |
 | `script` 是**插件目录内的相对路径**，`.ps1` 或 `.exe` | 绝对路径会让含义取决于桌宠从哪儿启动；`.ps1` 由宿主用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 拉起，`.exe` 直接跑 |
+| `.ps1` **必须带 UTF-8 BOM**，或者整份写成纯 ASCII | Windows PowerShell 5.1 用**本机 ANSI 代码页**解码没有 BOM 的脚本：一句中文注释就能把它后面的引号或花括号吃掉，脚本一启动就抛 `Missing closing '}'`，而报的行号指向一行完全正常的代码。2026-10-31 的实测：五个带 sidecar 的插件里四个是这样的形状，全部从未产生过一个字节（`plugin-check.mjs` 的 `sidecar-encoding` 会拦它；宿主也会在启动前把原因写进日志） |
 | `script` **必须同时写进 `assets`** | 打包器只发 manifest + 入口 + 三个固定资源 + `assets`。不写进 assets 的脚本不会进包，装好之后"找不到文件" |
 | 必须申请 `process` | 它就是一个本机程序。用户装插件时看到的那一项，必须真的覆盖这件事 |
 | 必须声明 `background` | 常驻帧才是读它输出的那一半。没有读者的进程不该被启动 |

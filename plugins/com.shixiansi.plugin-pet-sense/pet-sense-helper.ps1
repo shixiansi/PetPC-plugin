@@ -1,4 +1,4 @@
-# pet-sense-helper.ps1 —— 系统与 DSH 感知的本机辅助脚本（由插件经 process.launch 启动）。
+﻿# pet-sense-helper.ps1 —— 系统与 DSH 感知的本机辅助脚本（由插件经 process.launch 启动）。
 #
 # 它同时做两件事，一个进程：
 #

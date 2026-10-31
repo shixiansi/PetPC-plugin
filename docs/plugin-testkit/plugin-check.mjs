@@ -244,6 +244,33 @@ function checkManifest(report, manifest) {
     }
   }
 
+  // sidecar：宿主托管的辅助脚本（手册 §4 末尾）。
+  //
+  // 四条与宿主 validateSidecar 一一对应，因为它们的失败方式都是"装的时候没报错、跑起来什么也没有"：
+  // 脚本不在包里（宿主每 5 秒找不到一次）、没申请 process（一个能启动本机程序却没被问过的插件）、
+  // 没声明 background（脚本的输出没有读者）。编码那条在 checkPackage 里查——它要读文件。
+  const sidecar = manifest.sidecar && typeof manifest.sidecar === 'object' ? manifest.sidecar : null;
+  if (manifest.sidecar !== undefined && !sidecar) {
+    add('sidecar-shape', 'FAIL', 'sidecar 必须是对象 {script, args?}');
+  } else if (sidecar) {
+    const script = typeof sidecar.script === 'string' ? sidecar.script.trim() : '';
+    if (!validRelPath(script)) add('sidecar-script', 'FAIL', `sidecar.script 必须是插件目录内的相对路径：${JSON.stringify(sidecar.script)}`);
+    else if (!/\.(ps1|exe)$/i.test(script)) add('sidecar-ext', 'FAIL', `sidecar.script 只能是 .ps1 或 .exe：${script}`);
+    else if (!assets.includes(script)) {
+      add('sidecar-not-asset', 'FAIL', `sidecar.script ${script} 没有写进 assets`,
+        '打包器只发 manifest + 入口 + 三个固定资源 + assets。不写进 assets 的脚本不会进包，装好之后宿主的日志里是"找不到脚本"');
+    }
+    if (!declared.has('process')) add('sidecar-without-process', 'FAIL', 'sidecar 要求申请 process 权限（它就是"启动一个本机程序"）');
+    if (!hasBackground) add('sidecar-without-background', 'FAIL', 'sidecar 要求同时声明 background：常驻帧才是读脚本输出的那一半');
+    const args = Array.isArray(sidecar.args) ? sidecar.args : [];
+    if (args.length > 8) add('sidecar-args-many', 'FAIL', `sidecar.args 最多 8 个，收到 ${args.length}`);
+    for (const a of args) {
+      if (typeof a !== 'string' || a.length > 256 || /[\r\n]/.test(a)) {
+        add('sidecar-argv', 'FAIL', `sidecar.args 的每一项都必须是不含换行的字符串（≤256）：${JSON.stringify(a)}`);
+      }
+    }
+  }
+
   // config
   const config = Array.isArray(manifest.config) ? manifest.config : [];
   if (config.length > LIMITS.configItems) add('config-long', 'FAIL', `config 最多 ${LIMITS.configItems} 项，收到 ${config.length}`);
@@ -297,7 +324,7 @@ function checkManifest(report, manifest) {
     if (r.maxH !== undefined && !(num(r.maxH) > 0)) add('surface-maxH', 'FAIL', `surface 第 ${i} 块的 maxH 必须是正数或省略：${r.maxH}`);
   });
 
-  return { id, declared, entry, surface, config, hasBackground };
+  return { id, declared, entry, surface, config, hasBackground, assets, sidecar };
 }
 
 function validRelPath(rel) {
@@ -352,6 +379,26 @@ function checkPackage(report, dir, info) {
       '打包器只发 panel.html / app.js / style.css 加 assets，其余文件进不了包：装好之后是"页面在、样式没了"。把它加进 assets');
   }
   if (refs.length > 0 && undeclared.length === 0) add('asset-declared-ok', 'PASS', `${refs.length} 个本地引用都会进包`);
+
+  // 辅助脚本的**编码**：这一条只有读文件才能查，所以它在这里而不是 checkManifest 里。
+  //
+  // Windows PowerShell 5.1 用本机 ANSI 代码页解码一个没有 BOM 的 .ps1。于是"UTF-8 存盘、没有
+  // BOM、注释里有中文"的脚本会被按 GBK 读，一个多字节字符能把它后面的引号或花括号吃掉，脚本在
+  // 启动时抛 `Missing closing '}'`，而报的行号指向一行完全正常的代码。
+  //
+  // 2026-10-31 的实测：五个带 sidecar 的插件里，四个的脚本是这种形状，全部从未产生过一个字节，
+  // 而插件侧只能猜「辅助脚本可能没起来」。修法只有两个：加 BOM，或把脚本写成纯 ASCII。
+  const script = typeof info.sidecar?.script === 'string' ? info.sidecar.script : '';
+  if (script && /\.ps1$/i.test(script) && existsSync(join(dir, script))) {
+    let bytes = Buffer.alloc(0);
+    try { bytes = readFileSync(join(dir, script)); } catch { bytes = Buffer.alloc(0); }
+    const hasBOM = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+    const nonASCII = bytes.some((b) => b >= 0x80);
+    if (!hasBOM && nonASCII) {
+      add('sidecar-encoding', 'FAIL', `${script} 没有 UTF-8 BOM 而含非 ASCII 字符`,
+        'Windows PowerShell 5.1 会按本机 ANSI 代码页解析它，中文注释可能吃掉后面的引号或花括号，脚本一启动就 ParserError。给文件加 UTF-8 BOM（推荐），或把脚本写成纯 ASCII');
+    }
+  }
 }
 
 /** 抽出 HTML 里指向本地的 src/href（跳过 http(s)、data:、#、//）。 */

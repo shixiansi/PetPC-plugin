@@ -144,6 +144,15 @@ beforeEach(() => {
   windowListeners = [];
   intervals = [];
   timeouts = [];
+  // FREEZE ONLY `Date`, to the fixture's NOW.
+  //
+  // The plugin reads the real clock for "今天"/"这个月" (`todayStr` / `renderBoard`), while the
+  // fixtures below say `2026-10-31` / `2026-10`. On 2026-11-01 those two disagreed and four
+  // assertions went red - the suite had quietly depended on the day it was written. Faking the
+  // clock rather than rewriting the fixtures keeps both ends of the comparison fixed, and
+  // `toFake: ['Date']` leaves setTimeout/setInterval REAL: the pump below drives the plugin
+  // through them, and fake timers would hang it.
+  vi.useFakeTimers({ now: NOW, toFake: ['Date'] });
   const originalAdd = window.addEventListener.bind(window);
   vi.spyOn(window, 'addEventListener').mockImplementation(function (type, fn, opts) {
     windowListeners.push([type, fn, opts]);
@@ -168,6 +177,7 @@ afterEach(() => {
   for (const id of intervals) clearInterval(id);
   for (const id of timeouts) clearTimeout(id);
   for (const [type, fn, opts] of windowListeners) window.removeEventListener(type, fn, opts);
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 

@@ -83,3 +83,4 @@ while ($true) {
         $stall += 1
         if ($stall -gt 20) { Start-Sleep -Seconds 5 }
     }
+}

@@ -1,4 +1,4 @@
-# media-helper.ps1 —— 正在播放的本机辅助脚本（由插件经 process.launch 启动）。
+﻿# media-helper.ps1 —— 正在播放的本机辅助脚本（由插件经 process.launch 启动）。
 #
 # Windows 的"系统正在播什么"住在 SMTC（System Media Transport Controls）里：
 # 每个播放器把自己的曲目注册进去，GlobalSystemMediaTransportControlsSessionManager

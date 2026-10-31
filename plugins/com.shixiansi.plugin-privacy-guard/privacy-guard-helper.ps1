@@ -1,4 +1,4 @@
-# privacy-guard-helper.ps1 —— 敏感信息监控的本机辅助脚本（由插件经 process.launch 启动）。
+﻿# privacy-guard-helper.ps1 —— 敏感信息监控的本机辅助脚本（由插件经 process.launch 启动）。
 #
 # 两件事，一个进程（pet-sense 同款流水线：本机做采集，插件只轮询文件）：
 #

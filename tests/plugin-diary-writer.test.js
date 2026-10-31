@@ -153,7 +153,11 @@ describe('collect: three-route aggregation', () => {
     expect(collect.dayKeyOf(TODAY_MS)).toBe(TODAY);
     expect(collect.yesterdayKey(TODAY_MS)).toBe('2026-10-30');
     // 非法输入落回今天，不抛。
-    expect(collect.dayKeyOf('x')).toBe(collect.dayKeyOf(Date.now()));
+    //
+    // 只断言"是个日期键"，不再拿测试进程的 Date.now() 去比：插件跑在 mountIsolated() 的另一个
+    // realm 里，`Date` 不是同一个对象，这条比较只在写它的那一天（2026-10-31）成立，第二天就红。
+    // 这里要的证据是"没抛 + 落回一个合法的 day key"。
+    expect(collect.dayKeyOf('x')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   test('msUntilNext lands on the configured time (today or tomorrow)', () => {
