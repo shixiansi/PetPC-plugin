@@ -563,3 +563,36 @@ test('share.changed 接线：事件分支在、兜底是 15 秒', () => {
   expect(source).toContain('}, 15000);');
   expect(source).not.toContain('}, 3000);');
 });
+
+// --- 变化通知（config.changed） ----------------------------------------------
+//
+// 工坊页在控制中心里，而控制中心现在也会推 `config.changed`（手册 §7，两个宿主都发）。
+// 以前这一页 5 秒一次 `config.get` —— 真机上那是这个插件最大的一笔调用量，而用户改设置
+// 一天也就几次。
+describe('设置变化走事件', () => {
+  test('config.changed（自己的）到了就重读设置', async () => {
+    loadApp();
+    hostSends(initFrame({ slot: 'workshop' }));
+    await pump(20);
+    const before = requestsFor('config.get').length;
+    hostSends({ v: 1, type: 'event', name: 'config.changed', payload: { pluginId: PLUGIN_ID } });
+    await pump(10);
+    expect(requestsFor('config.get').length, 'config.changed 没有触发 config.get').toBeGreaterThan(before);
+  });
+
+  test('不是自己那份设置时不重读', async () => {
+    loadApp();
+    hostSends(initFrame({ slot: 'workshop' }));
+    await pump(20);
+    const before = requestsFor('config.get').length;
+    hostSends({ v: 1, type: 'event', name: 'config.changed', payload: { pluginId: 'com.example.someone-else' } });
+    await pump(10);
+    expect(requestsFor('config.get').length).toBe(before);
+  });
+
+  test('兜底是 60 秒，不是 5 秒', () => {
+    const source = readFileSync(path.join(pluginDir, 'app.js'), 'utf8');
+    expect(source, '工坊页又退回 5 秒一轮了').toContain('}, 60_000);');
+    expect(source).not.toContain('}, 5000);');
+  });
+});

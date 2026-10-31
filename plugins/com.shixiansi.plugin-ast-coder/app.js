@@ -53,12 +53,15 @@ function onInit(payload) {
   if (self.slot === 'workshop') {
     if (els.workshop) els.workshop.classList.remove('hidden');
     void restoreIndex().then(() => renderWorkshop()).catch(() => {});
+    // 60 秒兜底。主路径是 `config.changed`（手册 §7）：工坊页在控制中心里，那里保存设置时
+    // **控制中心也会推**这条事件（两个宿主都发）。以前这里 5 秒一次 `config.get`——真机上
+    // 那是这个插件最大的一笔调用量，而用户改设置一天也就几次。
     setInterval(() => {
       void (async () => {
         await refreshCfg();
         renderWorkshop();
       })();
-    }, 5000);
+    }, 60_000);
     return;
   }
 
@@ -84,8 +87,15 @@ function onInit(payload) {
  * 而这条事件也会因为"别人的键变了"送到这里——那不是给我们的。
  */
 function onHostEvent(data) {
-  if (!data || data.name !== 'share.changed') return;
+  if (!data || typeof data.name !== 'string') return;
   const payload = data.payload || {};
+  if (data.name === 'config.changed') {
+    // 只认自己那份设置（payload 里带 pluginId，两个宿主都会带）。
+    if (!self.pluginId || payload.pluginId !== self.pluginId) return;
+    void refreshCfg().then(() => renderWorkshop()).catch(() => {});
+    return;
+  }
+  if (data.name !== 'share.changed') return;
   const key = String(payload.key || '');
   if (!self.pluginId || !key.startsWith(self.pluginId + '/')) return;
   void pollCommand();

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T14:04:28Z",
+  "updatedAt": "2026-10-31T14:34:40Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -15,13 +15,13 @@
     {
       "id": "com.shixiansi.plugin-ast-coder",
       "name": "代码感知与重构助手",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "author": "shixiansi",
       "description": "让桌宠看懂本地代码：按配置的目录监听 .js/.ts 文件（结构缓存在插件私有目录，不碰文件内容之外的东西），用轻量解析提取函数名、类名与导出项；选中一段代码就能让记忆核心以审查者的身份找 Bug、给重构建议；还能一键把大模型生成的测试用例写进同名 .test.js（先读后写，绝不覆盖原代码）。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call", "plugin.share"],
       "netHosts": ["127.0.0.1:23180"],
-      "download": "dist/com.shixiansi.plugin-ast-coder-1.0.2.zip",
-      "sha256": "467c9d7fa5ca4953ff28a5c83a23644129a446a5894ea0056bf05da64bab3af1"
+      "download": "dist/com.shixiansi.plugin-ast-coder-1.0.3.zip",
+      "sha256": "3fac40ebdc667460b231f7a40802f38b98b0a66011683e78cae8146fe644c773"
     },
     {
       "id": "com.shixiansi.plugin-bilibili",
@@ -308,12 +308,12 @@
     {
       "id": "com.shixiansi.plugin-todo",
       "name": "待办插件",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "author": "shixiansi",
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
       "permissions": ["storage", "plugin.config", "plugin.share", "plugin.call", "pet.surface", "pet.bubble", "events"],
-      "download": "dist/com.shixiansi.plugin-todo-1.2.2.zip",
-      "sha256": "c99c290397f9400077f35061671f76dc43c5f0390209f73266a60cbe5c112670"
+      "download": "dist/com.shixiansi.plugin-todo-1.2.3.zip",
+      "sha256": "a1f0256937c0995af2f9be80c47493a3988a76040680cac288e037ffbae8eb5e"
     },
     {
       "id": "com.shixiansi.plugin-voice",

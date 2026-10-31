@@ -167,43 +167,59 @@ describe('todo plugin 1.2.0: one list, two windows', () => {
   // surface was the only writer, and is wrong the moment a second window can add or tick a row.
   const reads = (sent) => sent.filter((m) => m.method === 'storage.get').length;
 
-  test('the list role re-reads on a slow tick', async () => {
-    const { sent, init, respond } = await mount({ granted: listGrant, surface: { kind: 'surface' } });
+  // 2026-11-01：轮询换成事件。这个插件的一份列表会同时出现在桌宠的列、控制中心的插件页和常驻的
+  // 提醒帧里，而**两个宿主**现在都会推 `storage.changed`（手册 §7.2）。以前 2 秒一次的
+  // `storage.get` 是它最大的一笔调用量。
+  const storageChanged = (window, key) => {
+    const event = new window.MessageEvent('message', {
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key } },
+    });
+    Object.defineProperty(event, 'source', { value: window });
+    window.dispatchEvent(event);
+  };
+
+  test('storage.changed 到了就立刻重读，别的键不动', async () => {
+    const { window, sent, init, respond } = await mount({ granted: listGrant, surface: { kind: 'surface' } });
     init();
     respond(lastOf(sent, 'storage.get').id, { value: '[]' });
-    const before = reads(sent);
+    sent.length = 0;
 
-    await new Promise((r) => setTimeout(r, 2300));
+    // 别人的键：一次都不读。
+    storageChanged(window, 'state/other');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(reads(sent), 'a foreign key triggered a read').toBe(0);
 
-    expect(reads(sent), 'the list never re-read: the other window is invisible').toBeGreaterThan(before);
+    // 自己的键：立刻读。
+    storageChanged(window, 'todos-v1');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(reads(sent), 'storage.changed did not trigger a read').toBeGreaterThan(0);
   });
 
-  test('the poll pauses while a write of its own is in flight', async () => {
-    const { window, sent, init, respond } = await mount({
-      granted: listGrant,
-      surface: { kind: 'surface' },
-    });
+  test('写入还在飞的时候，事件也不读', async () => {
+    const { window, sent, init, respond } = await mount({ granted: listGrant, surface: { kind: 'surface' } });
     init();
     respond(lastOf(sent, 'storage.get').id, { value: '[]' });
 
-    // Add a row and deliberately do NOT answer the resulting storage.set: the write is "in
-    // flight", and a read issued now would come back with the copy from before it.
+    // 加一行，并且**故意不回答**随之而来的 storage.set：写入"在飞"，此刻读回来的还是旧的那份。
     window.document.getElementById('title').value = '买菜';
     window.document.getElementById('add').dispatchEvent(
       new window.MouseEvent('click', { bubbles: true }),
     );
     const afterWrite = reads(sent);
+    storageChanged(window, 'todos-v1');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(reads(sent), 'a read ran on top of an unanswered write').toBe(afterWrite);
 
-    await new Promise((r) => setTimeout(r, 2300));
-    expect(reads(sent), 'a poll ran on top of an unanswered write').toBe(afterWrite);
+    // 回答之后，同一个事件就能读了——所以那是"暂停"，不是"停掉"。
+    respond(lastOf(sent, 'storage.set').id, null);
+    storageChanged(window, 'todos-v1');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(reads(sent)).toBeGreaterThan(afterWrite);
+  });
 
-    // Answering it lets the poll resume, so this is a pause and not a stop.
-    const write = lastOf(sent, 'storage.set');
-    respond(write.id, null);
-    sent.length = 0;
-    respond(lastOf(sent, 'storage.get')?.id ?? 'no-read', { value: '[]' });
-    await new Promise((r) => setTimeout(r, 2300));
-    expect(reads(sent)).toBeGreaterThan(0);
+  test('兜底是 30 秒，不是 2 秒', () => {
+    expect(source, 'the fallback went back to a fast poll').toContain('}, 30_000);');
+    expect(source).not.toContain('}, 2000);');
   });
 });
 

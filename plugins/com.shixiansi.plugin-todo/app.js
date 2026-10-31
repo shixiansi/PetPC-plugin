@@ -428,10 +428,13 @@ function onInit(data) {
  */
 function startListPoll() {
   if (!granted.has('storage')) return;
+  // 30 秒兜底。主路径是 `storage.changed`（手册 §7.2）：另一个窗口存了列表，宿主会推过来。
+  // 以前这里是 2 秒一次 `storage.get`——真机上那是这个插件最大的一笔调用量，而它等的事情
+  // （用户在另一个窗口勾了一行）一天也就发生几次。
   window.setInterval(() => {
     if (pendingList || writes.size > 0) return;
     loadTodos();
-  }, 2000);
+  }, 30_000);
 }
 
 function onResponse(data) {
@@ -464,11 +467,22 @@ function onResponse(data) {
   if (data.error && els.status) els.status.textContent = data.error;
 }
 
-function onEvent() {
-  // Nothing to do. `todos.changed` was the host's "the list is not what you last read" signal, and
-  // it was how the two frames of this plugin stayed in step while the list lived in the host's
-  // store. The list is this plugin's now: the surface is the only writer, and the headless frame
-  // re-reads storage on every reminder tick (once a minute, against a 30-minute interval).
+/**
+ * `storage.changed`（手册 §7.2）：同一份列表可能在**另一个窗口**里被改过。
+ *
+ * 这个插件的一份列表会同时出现在桌宠旁边的列、控制中心的插件页、以及常驻的提醒帧里——
+ * 而两个宿主现在都会推这条事件（控制中心也看私有目录）。所以列表这一侧不需要轮询：事件到了
+ * 就读一次，2 秒的慢拍（现为 30 秒）只负责"事件丢了"。
+ *
+ * 写入还在飞的时候不读：那时候读回来的还是写入前的那一份（见 startListPoll 的守卫）。
+ */
+function onEvent(data) {
+  if (!data || data.name !== 'storage.changed') return;
+  const key = String((data.payload && data.payload.key) || '');
+  if (key !== TODOS_KEY) return;
+  if (role !== 'list') return;
+  if (pendingList || writes.size > 0) return;
+  loadTodos();
 }
 
 function onMessage(event) {

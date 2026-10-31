@@ -543,7 +543,11 @@ function checkSource(report, dir, info) {
     ];
     const hasMethod = (text, method) => text.includes(`'${method}'`) || text.includes(`"${method}"`);
     for (const [file, text] of commentFreeJs) {
-      const timerBodies = [...text.matchAll(/setInterval\(\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{?([\s\S]{0,400}?)\}?\s*,\s*[0-9_]+\s*\)/g)]
+      // 只看**快**的定时器。15 秒以上的兜底是手册推荐的做法（§7：主路径是事件、定时器只兜底），
+      // 把它也报出来就是让这条规则和文档互相矛盾——第一版就是这样误报 todo 的 30 秒兜底。
+      const FAST_POLL_MS = 10_000;
+      const timerBodies = [...text.matchAll(/setInterval\(\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{?([\s\S]{0,400}?)\}?\s*,\s*([0-9_]+)\s*\)/g)]
+        .filter((match) => Number(String(match[2]).replace(/_/g, '')) < FAST_POLL_MS)
         .map((match) => match[1] || '');
       if (!timerBodies.length) continue;
       const seen = new Set();
