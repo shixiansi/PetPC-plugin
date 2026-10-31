@@ -418,7 +418,7 @@ body[data-surface='boot'] { background: transparent; }
 | `events` | 订阅宿主的状态变化事件（提醒触发、计时阶段结束、配置变更） | `events.subscribe`，以及 `background` 帧的一个依据 |
 | `net.fetch` | 访问网络（仅限插件声明的域名） | `net.fetch`，以及 `background` 的一个依据 |
 | `net.credentials` | 以你保存的网站登录凭据发请求（凭据本身不会显示给插件） | **不是独立方法**：`net.fetch` 携带 `credentials`/`referer`/`readCookies` 的第二道开关。声明了它就必须同时声明 `net.fetch` |
-| `storage` | 在自己的私有目录里保存数据 | `storage.get/set/remove/dir/stat/list/move`、`memory.read/append` |
+| `storage` | 在自己的私有目录里保存数据 | `storage.get/set/remove/dir/stat/list/move`、`memory.read/append`、`plugin.log` |
 | `pet.surface` | 在桌宠旁显示自定义浮层面 | `surface.show/hide/blocks` |
 | `llm.chat` | 调用你已配置的大模型（流式返回） | `llm.chat` |
 | `plugin.config` | 保存你自己的插件配置 | `config.get/set` |
@@ -1081,6 +1081,29 @@ window.addEventListener('message', async (e) => {
 
 ---
 
+### 6.13 `plugin.log` — 往宿主的日志里写一行
+
+| 方法 | payload | 返回 |
+| --- | --- | --- |
+| `plugin.log` | `{level?, message}` | `{ok, swallowed}` |
+
+`console.error` 只会进那个**用户打不开的帧的 devtools**：它不会出现在 `pet.log` 里。2026-10-31
+那次排查是靠读 `pet.log` + grep 插件源码做完的，因为插件说过的任何一句话都不在里面——辅助脚本
+没起来、模型回了一段解析不了的东西、用户把某个权限取消了，全都看不见。所以有了这个方法。
+
+- `level`：`debug` / `info` / `warn`，默认 `info`。**没有 `error`**：日志只有三级。
+- **一行**：消息里的换行会变成空格。宿主按行解析日志、前缀是自由文本，所以带换行的消息等于让
+  插件伪造一行"宿主的日志"——那是唯一不能允许的事。
+- 超过 **500 字符**截断并标 `…（截断）`。
+- 每一行都**带你的插件 id**（`INFO plugin <你的 id> …`），读者不会把它当成宿主自己写的。
+- 同一个插件 + 同一个等级 **5 秒内只写一行**，被合并的次数在 `swallowed` 里告诉你。所以不要在
+  每秒的轮询里写日志：它会和宿主的节流一起把你的话吃掉。
+
+> **不要写密钥，也不要写用户的原文。** INFO 及以上会出现在**诊断报告**里（那是用户会贴给别人的
+> 东西），这一条宿主拦不住，只能靠你。
+
+权限：借用 `storage`（这是把你自己的数据交给宿主，和往自己的私有目录写文件同一件事），
+所以不需要额外授权。
 ## 7. 事件
 
 可订阅的**只有两个**：
@@ -1585,6 +1608,7 @@ com.example.hello-1.0.0.zip
 | `process.launch` | `process` | 启动一个用户指定的 .exe |
 | `process.state` | `process` | 那个 pid 还活着吗 |
 | `process.kill` | `process` | 停掉**自己启动的**那个进程 |
+| `plugin.log` | `storage` | 往宿主日志里写一行（带你的插件 id） |
 
 ---
 

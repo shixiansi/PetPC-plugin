@@ -47,6 +47,8 @@ export const METHODS = {
   'storage.move': { perm: 'storage', where: 'both' },
   'memory.read': { perm: 'storage', where: 'pet' },
   'memory.append': { perm: 'storage', where: 'pet' },
+  // 往宿主日志写一行（借用 storage，两个宿主都服务）。
+  'plugin.log': { perm: 'storage', where: 'both' },
   'config.get': { perm: 'plugin.config', where: 'both' },
   'config.set': { perm: 'plugin.config', where: 'both' },
   'surface.show': { perm: 'pet.surface', where: 'pet' },
