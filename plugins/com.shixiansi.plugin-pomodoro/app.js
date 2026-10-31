@@ -173,6 +173,59 @@ function request(method, payload) {
   return id;
 }
 
+// --- answering other plugins (`plugin.call`) ---------------------------------
+
+/**
+ * 答一次 `plugin.call`。三种结局都要回一条 call-result——**包括「我不认识这个方法」**：
+ * 不回，调用方只能等到 30 秒超时，而超时是唯一说不清原因的失败。
+ */
+function postCallResult(ticket, ok, value) {
+  const message = { v: 1, type: 'call-result', ticket, ok: Boolean(ok) };
+  if (ok) message.result = value === undefined ? null : value;
+  else message.error = String(value && value.message ? value.message : value);
+  postToHost(message);
+}
+
+async function onCall(data) {
+  const ticket = typeof data.ticket === 'string' ? data.ticket : '';
+  if (!ticket) return;
+  const method = typeof data.method === 'string' ? data.method : '';
+  const handler = CALL_HANDLERS[method];
+  if (!handler) {
+    postCallResult(ticket, false, new Error(
+      '番茄钟不认识方法 ' + (method || '(空)') + '：它只回答 ' + Object.keys(CALL_HANDLERS).join(' / ')));
+    return;
+  }
+  try {
+    postCallResult(ticket, true, await handler(data.payload === undefined ? {} : data.payload));
+  } catch (err) {
+    postCallResult(ticket, false, err);
+  }
+}
+
+/**
+ * `stats` —— 给看板插件的三个数（今天专注多久、今天几个番茄、累计几个）。
+ *
+ * 只读，且只看 `records`：那是计时器写的会话记录（`{ id, endedAt, focusMinutes, ... }`），
+ * 休息段不产生记录，所以「番茄数」就是记录条数。答话的是常驻帧（宿主的规矩：background 帧
+ * 优先答），它的 `records` 在启动和每次写完都会重读，够新。
+ */
+function handleStats() {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const from = midnight.getTime();
+  const focus = records.filter((r) => r && Number(r.focusMinutes) > 0);
+  const today = focus.filter((r) => Number(r.endedAt) >= from);
+  return {
+    focusMinutesToday: today.reduce((n, r) => n + Number(r.focusMinutes), 0),
+    focusSessions: today.length,
+    focusSessionsTotal: focus.length,
+    at: Date.now(),
+  };
+}
+
+const CALL_HANDLERS = { stats: handleStats };
+
 // --- storage ----------------------------------------------------------------
 
 /**
@@ -942,6 +995,9 @@ function onMessage(event) {
       break;
     case 'event':
       onEvent(data);
+      break;
+    case 'call':
+      void onCall(data);
       break;
     default:
       break;

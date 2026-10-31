@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T07:25:45Z",
+  "updatedAt": "2026-10-31T07:51:28Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -205,12 +205,12 @@
     {
       "id": "com.shixiansi.plugin-pet-evolution",
       "name": "桌宠养成（等级·属性·外观）",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": "shixiansi",
       "description": "给桌宠的 RPG 成长系统：满级 100 级的指数经验曲线，聊天/喂食/专注/完成任务都长经验；每级 3 点自由属性（智力=对话深度、体力=互动次数、亲密=好感倍率），每 10 级解锁一个新外观。存档带版本迁移链（v1→v2 自动补字段），其他插件经 plugin.call 发奖或查档案。",
       "permissions": ["storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pet-evolution-0.1.0.zip",
-      "sha256": "5eabebe2f028441833f0f2d22dd4e65b3a37a35102cf80cc9d8757b6624e071a"
+      "download": "dist/com.shixiansi.plugin-pet-evolution-0.1.1.zip",
+      "sha256": "5838f1a4060ea94f73ac6aa49db4634b9786b5067baf05294d973ad4e8a54881"
     },
     {
       "id": "com.shixiansi.plugin-pet-sense",
@@ -225,12 +225,12 @@
     {
       "id": "com.shixiansi.plugin-pomodoro",
       "name": "番茄钟插件",
-      "version": "2.3.12",
+      "version": "2.3.13",
       "author": "shixiansi",
       "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
-      "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-pomodoro-2.3.12.zip",
-      "sha256": "bb0fc8bfea7e7efb0415029c031377a777d496fe0515a152147e827e6ecc69b0"
+      "permissions": ["storage", "plugin.config", "plugin.share", "plugin.call", "events", "pet.surface", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-pomodoro-2.3.13.zip",
+      "sha256": "414a25c54789b60c946b46e88bd88ca3f55cbf205f8602ac5669014ab760ad5d"
     },
     {
       "id": "com.shixiansi.plugin-privacy-guard",
@@ -308,12 +308,12 @@
     {
       "id": "com.shixiansi.plugin-todo",
       "name": "待办插件",
-      "version": "1.2.1",
+      "version": "1.2.2",
       "author": "shixiansi",
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
-      "permissions": ["storage", "plugin.config", "plugin.share", "pet.surface", "pet.bubble", "events"],
-      "download": "dist/com.shixiansi.plugin-todo-1.2.1.zip",
-      "sha256": "1390d36f9c65f0bef13782ab52cb4cc01df619301acc31df7dca39aa38d7f2c3"
+      "permissions": ["storage", "plugin.config", "plugin.share", "plugin.call", "pet.surface", "pet.bubble", "events"],
+      "download": "dist/com.shixiansi.plugin-todo-1.2.2.zip",
+      "sha256": "c99c290397f9400077f35061671f76dc43c5f0390209f73266a60cbe5c112670"
     },
     {
       "id": "com.shixiansi.plugin-voice",
@@ -351,13 +351,13 @@
     {
       "id": "com.shixiansi.plugin-web-dashboard",
       "name": "桌宠状态看板",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": "shixiansi",
       "description": "在浏览器里打开的桌宠控制中心：本地 HTTP 服务聚合各插件的数据——对话次数（记忆核心）、待办完成率（todo）、专注时长（番茄钟）——用一个纯 CSS 柱状图与卡片网络展示，样式严格走宿主 token；页面上可以直接下发暂停/恢复命令（经共享键送到目标插件）。数据由各插件通过 plugin.call 的 stats 方法现答。",
       "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
       "netHosts": ["127.0.0.1:8080", "127.0.0.1:23260"],
-      "download": "dist/com.shixiansi.plugin-web-dashboard-1.0.1.zip",
-      "sha256": "c0cc1dd6745ae5fd6b117b11655680b5875e35a93b148d8d7ce128bdf6c26d82"
+      "download": "dist/com.shixiansi.plugin-web-dashboard-1.0.2.zip",
+      "sha256": "63cbf848f5b54949adc01c84a9b94b04da7ac06122d4c15f52a5e34ab56a8221"
     },
     {
       "id": "com.shixiansi.plugin-web-scraper",

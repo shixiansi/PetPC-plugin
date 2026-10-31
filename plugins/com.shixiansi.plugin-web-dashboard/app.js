@@ -35,6 +35,9 @@ function onInit(payload) {
   self = {
     pluginId: payload.pluginId || '',
     slot: (payload.surface && payload.surface.slot) || '',
+    // 宿主能力表（init.host = {program, methods}）。**别按 slot 猜**：这个窗口服务不服务
+    // plugin.call 只有这一份答案，而猜错的代价是每 30 秒一条 WARN。
+    host: payload.host && Array.isArray(payload.host.methods) ? payload.host : null,
   };
   granted.clear();
   for (const name of payload.granted || []) granted.add(name);

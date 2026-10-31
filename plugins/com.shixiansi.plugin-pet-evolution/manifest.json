@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-pet-evolution",
   "name": "桌宠养成（等级·属性·外观）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "给桌宠的 RPG 成长系统：满级 100 级的指数经验曲线，聊天/喂食/专注/完成任务都长经验；每级 3 点自由属性（智力=对话深度、体力=互动次数、亲密=好感倍率），每 10 级解锁一个新外观。存档带版本迁移链（v1→v2 自动补字段），其他插件经 plugin.call 发奖或查档案。",
   "permissions": [

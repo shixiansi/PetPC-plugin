@@ -119,19 +119,24 @@ function loadApp() {
   new Function(source)();
 }
 
-function boot(slot = 'workshop', granted = manifest.permissions) {
+// 宿主能力表（init.host.methods）。默认按桌宠挂：bubble.say 只有桌宠服务，控制中心那份
+// 方法表里没有它——而插件现在按这张表决定要不要发（否则每次升级都留一条「不支持该方法」）。
+const PET_HOST = ['bubble.say', 'plugin.call', 'plugin.share', 'storage', 'plugin.config', 'pet.surface', 'pet.bubble', 'events'];
+const WORKSHOP_HOST = ['plugin.share', 'storage', 'plugin.config', 'pet.surface', 'pet.bubble', 'events'];
+
+function boot(slot = 'workshop', granted = manifest.permissions, host = PET_HOST) {
   const parsed = new JSDOM(html);
   document.body.innerHTML = parsed.window.document.body.innerHTML;
   loadApp();
   hostSends({
     v: 1, type: 'init', pluginId: PLUGIN_ID, permissions: manifest.permissions,
-    granted, surface: { kind: 'panel', slot },
+    granted, surface: { kind: 'panel', slot }, host: { program: 'pet', methods: host },
   });
   return macro();
 }
 
-async function bootSettled(slot = 'workshop', granted = manifest.permissions) {
-  await boot(slot, granted);
+async function bootSettled(slot = 'workshop', granted = manifest.permissions, host = PET_HOST) {
+  await boot(slot, granted, host);
   await pump(8);
 }
 
@@ -443,6 +448,16 @@ describe('完整链路（假宿主泵）', () => {
     const state = JSON.parse(pubs[pubs.length - 1].value);
     expect(state.level).toBeGreaterThanOrEqual(2);
     expect(state.mood).toBe('levelup');
+  });
+
+  test('控制中心（不服务 bubble.say）里升级不发声，只发 share', async () => {
+    // 2026-10-31 的真机日志：控制中心里每升一级都留一条「本程序不支持该方法」的 WARN。
+    // 现在发之前先问 init.host.methods。
+    await bootSettled('workshop', manifest.permissions, WORKSHOP_HOST);
+    for (let i = 0; i < 3; i += 1) await drive(() => window.__evolution.doInteraction('feed'));
+    expect(bubbles).toEqual([]);
+    const pubs = sharePublished.filter((s) => s.name === 'evolution-state');
+    expect(pubs.length, 'share 是控制中心里也能做的那一半，不该跟着气泡一起没了').toBeGreaterThanOrEqual(1);
   });
 
   test('plugin.call grant_exp：外部发奖、单次上限 100000', async () => {

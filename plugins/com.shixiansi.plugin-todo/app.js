@@ -93,6 +93,63 @@ function request(method, payload) {
   return id;
 }
 
+// --- answering other plugins (`plugin.call`) ---------------------------------
+
+/**
+ * 答一次 `plugin.call`。三种结局都要回一条 call-result——**包括「我不认识这个方法」**：
+ * 不回，调用方只能等到 30 秒超时，而超时是唯一说不清原因的失败。
+ */
+function postCallResult(ticket, ok, value) {
+  const message = { v: 1, type: 'call-result', ticket, ok: Boolean(ok) };
+  if (ok) message.result = value === undefined ? null : value;
+  else message.error = String(value && value.message ? value.message : value);
+  postToHost(message);
+}
+
+async function onCall(data) {
+  const ticket = typeof data.ticket === 'string' ? data.ticket : '';
+  if (!ticket) return;
+  const method = typeof data.method === 'string' ? data.method : '';
+  const handler = CALL_HANDLERS[method];
+  if (!handler) {
+    postCallResult(ticket, false, new Error(
+      '待办不认识方法 ' + (method || '(空)') + '：它只回答 ' + Object.keys(CALL_HANDLERS).join(' / ')));
+    return;
+  }
+  try {
+    postCallResult(ticket, true, await handler(data.payload === undefined ? {} : data.payload));
+  } catch (err) {
+    postCallResult(ticket, false, err);
+  }
+}
+
+/**
+ * `stats` —— 给看板插件的四个数（完成率卡片）。
+ *
+ * 只读：不写 storage、不发气泡、不碰界面。答话的是**常驻帧**（宿主的规矩：background 帧优先
+ * 答一个 plugin.call），它每次提醒 tick 都会重读列表；这里再顺手读一次，让下一次问话是新的。
+ * 看板 30 秒问一次，所以一份最多一分钟前的列表对「完成率」这个粒度够用——为它加一套
+ * promise 化的 storage 等待，换来的是同一张卡片早 0.3 秒出现，不值得。
+ */
+function handleStats() {
+  loadTodos();
+  const total = todos.length;
+  const done = todos.filter((t) => t.done === true).length;
+  const open = total - done;
+  // `due` 是本插件自己的自由字段（界面目前不写它，只留给手改/导入的数据）：非空即「有期限」。
+  const dueToday = todos.filter((t) => t.done !== true && String(t.due || '').trim() !== '').length;
+  return {
+    total,
+    done,
+    open,
+    dueToday,
+    completionRate: total === 0 ? 0 : Math.round((done / total) * 100),
+    at: Date.now(),
+  };
+}
+
+const CALL_HANDLERS = { stats: handleStats };
+
 // --- the list ---------------------------------------------------------------
 
 // The request id whose response carries the stored list, so its answer can be told apart from the
@@ -430,6 +487,9 @@ function onMessage(event) {
       break;
     case 'event':
       onEvent(data);
+      break;
+    case 'call':
+      void onCall(data);
       break;
     default:
       break;

@@ -36,7 +36,18 @@ function request(method, payload) {
 // --- state -------------------------------------------------------------------
 
 const granted = new Set();
-let self = { pluginId: '', slot: '' };
+let self = { pluginId: '', slot: '', host: null };
+
+/**
+ * 这个窗口服务不服务某个方法（`init.host.methods`，手册 §5.2.1）。
+ *
+ * 控制中心挂这一页时不服务 `plugin.call` / `bubble.say`：它只挂一页、没有常驻帧，另一端没人
+ * 答。按 slot 猜会猜错，猜错的代价是每 30 秒一条「不支持该方法」的 WARN——2026-10-31 的真机
+ * 日志里就是这么来的。
+ */
+function hostHas(method) {
+  return !!(self && self.host && Array.isArray(self.host.methods) && self.host.methods.includes(method));
+}
 let ready = false;
 let cfg = {};
 

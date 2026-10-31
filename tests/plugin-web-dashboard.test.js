@@ -98,10 +98,15 @@ function answer(id, result, { ok = true, error = '' } = {}) {
   hostSends({ v: 1, type: 'response', id, ok, result, error });
 }
 
-function initFrame({ slot = 'workshop', granted = ALL_GRANTED } = {}) {
+// 宿主能力表（init.host.methods）。**默认按桌宠挂**：插件只在桌宠里问 stats，控制中心那份
+// 方法表没有 plugin.call，而这一页在控制中心里也会被挂起来——两边的行为必须都测到。
+const PET_HOST = ['plugin.call', 'storage', 'plugin.config', 'net.fetch', 'pet.bubble', 'plugin.share'];
+const WORKSHOP_HOST = ['storage', 'plugin.config', 'net.fetch', 'plugin.share'];
+
+function initFrame({ slot = 'workshop', granted = ALL_GRANTED, host = PET_HOST } = {}) {
   return {
     v: 1, type: 'init', pluginId: PLUGIN_ID, permissions: PERMISSIONS,
-    granted, surface: { kind: 'panel', slot },
+    granted, surface: { kind: 'panel', slot }, host: { program: 'pet', methods: host },
   };
 }
 
@@ -271,6 +276,24 @@ describe('collect：stats 聚合', () => {
     expect(data.todo.total).toBe(1);
     expect(data.pomodoro).toBeNull();
     expect(window.__dash.state().lastError).toContain('pomodoro');
+  }, 20000);
+
+  test('控制中心里没有 plugin.call 就一条都不发（不发就不会有 WARN）', async () => {
+    // 2026-10-31 的真机日志：这一页在控制中心里每 30 秒发一次 plugin.call，宿主每次都回
+    // 「本程序不支持该方法」——噪音的来源就是"没问这个窗口服务不服务它"。
+    withBothPlugins();
+    await loadApp();
+    hostSends(initFrame({ slot: 'workshop', host: WORKSHOP_HOST }));
+    await pump(12);
+    const data = await (async () => {
+      const p = window.__dash.collectOnce();
+      await pump(30);
+      return p;
+    })();
+    expect(requestsFor('plugin.call')).toEqual([]);
+    expect(data.todo).toBeNull();
+    expect(data.pomodoro).toBeNull();
+    expect(window.__dash.state().lastError).toContain('plugin.call');
   }, 20000);
 
   test('memcore passthrough comes from the bridge-written storage key', async () => {

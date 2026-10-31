@@ -732,3 +732,44 @@ describe('pomodoro 2.3.11: 常驻帧的门标记和保存的状态不同步时�
   });
 });
 
+// --- answering other plugins -------------------------------------------------
+
+describe('pomodoro answers plugin.call stats（看板每 30 秒问一次）', () => {
+  const RECORDS = [
+    { id: 'rec-1', endedAt: Date.now(), focusMinutes: 25, todoTitle: '写周报', summary: '' },
+    { id: 'rec-2', endedAt: Date.now() - 3 * 86400000, focusMinutes: 25, todoTitle: '', summary: '' },
+  ];
+
+  test('stats 回今天与累计的番茄数；不认识的方法要拒绝而不是沉默', async () => {
+    const { window, sent, init, respond } = mount({ slot: 'background', granted: [...granted, 'plugin.call'] });
+    init();
+    const recRead = sent.find((m) => m.method === 'storage.get' && m.payload && m.payload.key === RECORDS_KEY);
+    expect(recRead, '计时器帧没有读 records').toBeTruthy();
+    respond(recRead.id, { value: JSON.stringify(RECORDS) });
+
+    const say = (data) => {
+      const event = new window.MessageEvent('message', { data });
+      Object.defineProperty(event, 'source', { value: window });
+      window.dispatchEvent(event);
+    };
+
+    say({
+      v: 1, type: 'call', ticket: 'tk-1',
+      from: 'com.shixiansi.plugin-web-dashboard', method: 'stats', payload: {},
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    const answer = sent.find((m) => m.type === 'call-result');
+    expect(answer, 'call 没有被回答（调用方只会等到 30 秒超时）').toBeTruthy();
+    expect(answer.ticket).toBe('tk-1');
+    expect(answer.ok).toBe(true);
+    expect(answer.result).toMatchObject({ focusMinutesToday: 25, focusSessions: 1, focusSessionsTotal: 2 });
+
+    say({ v: 1, type: 'call', ticket: 'tk-2', from: 'x', method: 'nope', payload: {} });
+    await new Promise((r) => setTimeout(r, 0));
+    const refused = sent.filter((m) => m.type === 'call-result').pop();
+    expect(refused.ticket).toBe('tk-2');
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toContain('不认识方法');
+  });
+});
+

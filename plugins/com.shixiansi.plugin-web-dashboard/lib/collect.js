@@ -5,7 +5,8 @@
 //              用它已声明的 seed？不行——看板读的是"记忆规模"，走 storage 的路径
 //              也被沙箱挡住。所以 memcore 的数据由**桥**在宿主侧读（它有宿主权限，
 //              见 tools/dashboard-bridge.mjs），插件的 plugin.call 只负责 todo 与
-//              pomodoro——这两个插件在 1.2.1/2.3.12 起各自 serves 一个 stats。
+//              pomodoro——这两个插件从 todo 1.2.2 / pomodoro 2.3.13 起各自 serves 一个 stats
+//              （在那之前它们的 manifest 里根本没有 serves，这两个调用只能靠超时收场）。
 //
 // 结果统一成 DashboardData 的形状（桥的 /api/data 与这里共用）：
 //   { at, chat: {…}|null, todo: {…}|null, pomodoro: {…}|null, plugins: [{id,name,state}] }
@@ -21,6 +22,12 @@ let lastError = '';
 
 /** 向一个插件问 stats（带 try/catch：对方不在/没在帧上是常态，不是错误）。 */
 async function askPlugin(target, method, payload) {
+  // 这个窗口不服务 plugin.call 时连发都不发：控制中心只挂一页、没有常驻帧，另一端没人答，
+  // 发出去的结果就是每 30 秒一条「不支持该方法」的 WARN。答案在 init.host.methods 里。
+  if (!hostHas('plugin.call')) {
+    lastError = '这个窗口不支持 plugin.call：看板数据只在桌宠那边采集';
+    return null;
+  }
   try {
     const out = await request('plugin.call', { target, method, payload: payload || {} });
     return out && typeof out === 'object' ? out : null;

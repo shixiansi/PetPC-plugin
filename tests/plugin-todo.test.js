@@ -206,3 +206,58 @@ describe('todo plugin 1.2.0: one list, two windows', () => {
     expect(reads(sent)).toBeGreaterThan(0);
   });
 });
+
+// --- answering other plugins -------------------------------------------------
+
+describe('todo answers plugin.call stats（看板每 30 秒问一次）', () => {
+  /** 往窗口里塞一条宿主发来的消息：call 不是 init/response，harness 里没有现成的入口。 */
+  function say(window, data) {
+    const event = new window.MessageEvent('message', { data });
+    Object.defineProperty(event, 'source', { value: window });
+    window.dispatchEvent(event);
+  }
+
+  const threeItems = JSON.stringify([
+    { id: 'a', title: '写周报', done: false, due: '18:00' },
+    { id: 'b', title: '整理纸箱', done: true, due: '' },
+    { id: 'c', title: '交电费', done: false, due: '' },
+  ]);
+
+  test('stats 回四个数：total / done / open / dueToday / completionRate', async () => {
+    const { window, sent, init, respond } = await mount({
+      granted: [...listGrant, 'plugin.call'],
+      surface: { slot: 'background' },
+    });
+    init();
+    respond(lastOf(sent, 'storage.get').id, { value: threeItems });
+    await Promise.resolve();
+
+    say(window, {
+      v: 1, type: 'call', ticket: 'tk-1',
+      from: 'com.shixiansi.plugin-web-dashboard', method: 'stats', payload: {},
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    const answer = sent.find((m) => m.type === 'call-result');
+    expect(answer, 'call 没有被回答（调用方只会等到 30 秒超时）').toBeTruthy();
+    expect(answer.ticket).toBe('tk-1');
+    expect(answer.ok).toBe(true);
+    expect(answer.result).toMatchObject({ total: 3, done: 1, open: 2, dueToday: 1, completionRate: 33 });
+  });
+
+  test('不认识的方法要回一条中文拒绝，而不是沉默', async () => {
+    const { window, sent, init } = await mount({
+      granted: [...listGrant, 'plugin.call'],
+      surface: { slot: 'background' },
+    });
+    init();
+    say(window, { v: 1, type: 'call', ticket: 'tk-2', from: 'x', method: 'todos', payload: {} });
+    await new Promise((r) => setTimeout(r, 0));
+
+    const answer = sent.find((m) => m.type === 'call-result');
+    expect(answer, '拒绝也要有回包').toBeTruthy();
+    expect(answer.ok).toBe(false);
+    expect(answer.error).toContain('不认识方法');
+    expect(answer.error).toContain('stats');
+  });
+});

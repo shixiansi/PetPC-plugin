@@ -31,6 +31,16 @@ const PERM = {
 };
 
 const PROFILE_KEY = 'profile-v2';
+
+/**
+ * 这个窗口服务不服务某个方法（`init.host.methods`，手册 §5.2.1）。
+ *
+ * 控制中心挂这一页时不服务 `bubble.say`——按 slot 猜会猜错，而猜错的代价是每次升级都留一条
+ * 「不支持该方法」的 WARN（2026-10-31 的真机日志里就是这么来的）。
+ */
+function hostHas(method) {
+  return !!(self && self.host && Array.isArray(self.host.methods) && self.host.methods.includes(method));
+}
 const POMODORO_SHARE = { owner: 'com.shixiansi.plugin-pomodoro', name: 'phase-ended' };
 const POMODORO_REWARD = 30;
 
@@ -105,7 +115,7 @@ async function grantAndPersist(amount, reason) {
   profile = result.profile;
   if (leveledUp) profile.mood = 'levelup';
   await persistProfile();
-  if (leveledUp && granted.has(PERM.bubble)) {
+  if (leveledUp && granted.has(PERM.bubble) && hostHas('bubble.say')) {
     request('bubble.say', {
       text: result.capped
         ? `我到满级啦！（${reason ? reason + '，' : ''}好感 +2）`
@@ -280,6 +290,8 @@ async function onInit(data) {
   self = {
     pluginId: data.pluginId || '',
     slot: (data.surface && data.surface.slot) || '',
+    // 宿主能力表（init.host = {program, methods}）：这个窗口服务不服务 bubble.say 只有这一份答案。
+    host: data.host && Array.isArray(data.host.methods) ? data.host : null,
   };
   granted.clear();
   for (const name of data.granted || []) granted.add(name);
