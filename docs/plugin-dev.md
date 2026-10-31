@@ -600,6 +600,10 @@ else { /* 这一面没有这件事，说明它在哪 */ }
 
 ### 6.3 `storage` — 你自己的私有目录
 
+> **想知道自己用了多少？** `storage.usage` → `{used, limit}`。它和"超限被拒"用的是同一套计算，
+> 所以 `used` 就是那个会跟 `limit` 比的数字。典型用法是收到 `storage.pressure`（§7.3）之后算
+> "还要删多少"——而不是自己 `storage.list` 再逐个 `storage.stat`。
+>
 > **一个插件能占多少磁盘是有上限的。** 单次 `storage.set` 的值 ≤ **1 MiB**；你的整个私有目录
 > （含 `audio/`）≤ **64 MiB**。超了拒绝，错误里写明已经用了多少、这次要写多少。两个数字都不是
 > 预算，是天花板：私有目录是你的草稿纸，不是你的数据库——需要更大的东西，说明该换个存法
@@ -642,6 +646,7 @@ else { /* 这一面没有这件事，说明它在哪 */ }
 | `storage.dir` | `{sub?}` | `{dir}` | 返回你自己的绝对目录；`sub` 是一个相对子路径（同样 ≤4 段，会按需创建）。给人看路径、或交给 `process.launch` 启动的程序写文件时用 |
 | `storage.list` | `{sub?}` | `{dir, files:[{name,bytes}], dirs:[名字]}` | 列出你某个子目录里的东西；目录不存在 = 空列表 |
 | `storage.move` | `{from, to}` | `{ok, moved, targetExists?}` | 重命名/搬你自己的文件；目标已存在时 `moved:false, targetExists:true`（不覆盖） |
+| `storage.usage` | `{}` | `{used, limit}` | 整个私有目录的字节数与你这条上限。和"超限被拒"用的是同一套计算，所以 `used` 就是那个会跟 `limit` 比的数字 |
 
 > **一个键只有一个写者。** 两个文档同时对同一个键做"读-改-写"会丢更新。
 > 要么只让一个角色写（例如"只有 surface#2 写状态"），要么用 `plugin.share` 的单向约定。
@@ -1638,6 +1643,7 @@ manifest 是**宿主解析**的，而市场里的包是**所有人马上下载**
 | `storage.dir` | `storage` | 你的目录的绝对路径 |
 | `storage.list` | `storage` | 列你的子目录 |
 | `storage.move` | `storage` | 搬/改名你自己的文件 |
+| `storage.usage` | `storage` | 私有目录用了多少 / 上限多少（`{used, limit}`） |
 | `memory.read` | `storage` | 读长期记忆文档 |
 | `memory.append` | `storage` | 追加一条长期记忆 |
 | `config.get` | `plugin.config` | 读你声明的设置（secret 只给 `{set,mask}`） |

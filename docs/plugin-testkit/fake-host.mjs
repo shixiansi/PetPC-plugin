@@ -45,6 +45,8 @@ export const METHODS = {
   'storage.dir': { perm: 'storage', where: 'both' },
   'storage.list': { perm: 'storage', where: 'both' },
   'storage.move': { perm: 'storage', where: 'both' },
+  // 私有目录用了多少 / 上限是多少 —— 收到 storage.pressure 之后用它算"还要删多少"。
+  'storage.usage': { perm: 'storage', where: 'both' },
   'memory.read': { perm: 'storage', where: 'pet' },
   'memory.append': { perm: 'storage', where: 'pet' },
   // 往宿主日志写一行（借用 storage，两个宿主都服务）。
@@ -118,6 +120,7 @@ export function okResult(method) {
     case 'storage.dir': return { dir: 'C:\\模拟\\plugin-data\\example' };
     case 'storage.list': return { dir: 'C:\\模拟', files: [], dirs: [] };
     case 'storage.move': return { ok: true, moved: true };
+    case 'storage.usage': return { used: 0, limit: 67108864 };
     case 'config.get': return { values: {}, secrets: {} };
     case 'llm.profile': return { ownReady: false, borrowAllowed: false, ready: false, source: 'none', model: '' };
     case 'llm.providers': return { providers: [], default: '', own: { ready: false, model: '' } };
