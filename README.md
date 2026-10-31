@@ -1,8 +1,8 @@
-# PetPC 插件市场（pet-pc-plugins）
+# PetPC 插件市场（PetPC-plugin）
 
 桌宠 **PetPC** 的官方插件市场仓：示例插件的源码、打包脚本、市场目录 `index.json`、以及给人看的静态页 `index.html`。
 
-> **本仓是一个公开仓**（`https://github.com/shixiansi/pet-pc-plugins.git`），面向所有插件作者与使用者；桌宠本体所在的仓 **`pet_PC` 是私有仓**。两者刻意分开：插件作者只需要看到本仓的插件格式与产物，不需要、也拿不到桌宠本体的源码。桌宠本体请使用者**自行 build**（见下文「本仓不含什么」）。
+> **本仓是一个公开仓**（`https://github.com/shixiansi/PetPC-plugin.git`），面向所有插件作者与使用者；桌宠本体所在的仓 **`pet_PC` 是私有仓**。两者刻意分开：插件作者只需要看到本仓的插件格式与产物，不需要、也拿不到桌宠本体的源码。桌宠本体请使用者**自行 build**（见下文「本仓不含什么」）。
 
 ---
 
@@ -505,14 +505,14 @@ prompt 永远带着"上一段长期摘要"接住故事线；定时 / 启动补�
 默认基址走 `gh-proxy.com` 镜像（`raw.githubusercontent.com` 在部分网络下不可达）：
 
 ```
-https://gh-proxy.com/https://raw.githubusercontent.com/shixiansi/pet-pc-plugins/main
+https://gh-proxy.com/https://raw.githubusercontent.com/shixiansi/PetPC-plugin/main
 ```
 
 在该基址下，本仓的 `index.json` 与插件包分别位于：
 
 ```
-https://gh-proxy.com/https://raw.githubusercontent.com/shixiansi/pet-pc-plugins/main/index.json
-https://gh-proxy.com/https://raw.githubusercontent.com/shixiansi/pet-pc-plugins/main/dist/com.shixiansi.plugin-chat-1.3.0.zip
+https://gh-proxy.com/https://raw.githubusercontent.com/shixiansi/PetPC-plugin/main/index.json
+https://gh-proxy.com/https://raw.githubusercontent.com/shixiansi/PetPC-plugin/main/dist/com.shixiansi.plugin-chat-1.3.0.zip
 ```
 
 基址可在桌宠的「设置」页里修改（点「打开插件市场」进市场程序改）；把它**清空**表示强制使用桌宠内置的示例源（离线兜底，内容与 `dist/` 同字节）。
