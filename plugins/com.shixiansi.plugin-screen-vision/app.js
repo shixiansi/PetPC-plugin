@@ -43,26 +43,21 @@ async function onCall(data) {
   }
 }
 
-/** 启动截图辅助脚本（pet-sense 的同一条路：写好的脚本 + 用户配置的 powershell.exe）。 */
-async function startHelper() {
-  const helperExe = String(cfg.helperPath || '').trim();
-  const scriptPath = String(cfg.helperScript || '').trim();
-  if (!helperExe || !scriptPath) {
-    say('先在设置里填 PowerShell 路径与辅助脚本路径，再重启桌宠');
+/**
+ * 截图辅助脚本现在由**宿主**托管（manifest 的 sidecar）。
+ *
+ * 以前这里要用户先填 powershell.exe 与脚本两个绝对路径——插件拿不到自己的安装目录，所以
+ * "自己启动"只能这么写；2026-10-31 的实测是四个这样写的插件因此从来没跑起来过。
+ * 脚本从 PETPC_PLUGIN_DATA 拿到该往哪写（见 vision-helper.ps1），插件只轮询那几个文件。
+ *
+ * 这个函数保留下来只为了"界面上说一句"，不再发 process.launch。
+ */
+function sidecarNote() {
+  if (!granted.has('process')) {
+    say('未获授权：process（只能等别人来问）');
     return;
   }
-  const dirOut = await request('storage.dir', {}).catch(() => null);
-  const outDir = dirOut && dirOut.dir ? dirOut.dir : '';
-  if (!outDir) return;
-  try {
-    await request('process.launch', {
-      path: helperExe,
-      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-OutDir', outDir],
-    });
-    say('截图辅助脚本已启动');
-  } catch (err) {
-    say('启动失败：' + text(err && err.message, 120));
-  }
+  say('截图辅助脚本由宿主托管（没起来就看桌宠日志）');
 }
 
 function onInit(payload) {
@@ -93,13 +88,9 @@ function onInit(payload) {
         }, 5000);
         return;
       }
-      // 桌宠的常驻帧（slot=background）：启动辅助脚本，然后不画任何东西。
+      // 桌宠的常驻帧（slot=background）：辅助脚本由宿主启动，这里不画任何东西。
       if (els.root) els.root.classList.add('view-background');
-      if (granted.has('process')) {
-        void startHelper().catch(() => {});
-      } else {
-        say('未获授权：process（只能等别人来问）');
-      }
+      sidecarNote();
       // 面板（surface 块）也用这份文档：那里 process 都被授予了，按钮可用。
       if (els.look) els.look.disabled = !granted.has('process') || !granted.has('plugin.call');
       void renderHistory().catch(() => {});
@@ -155,7 +146,7 @@ window.__vision = Object.freeze({
   runAnalysis,
   renderHistory,
   clearAllHistory,
-  startHelper,
+  sidecarNote,
   handlers: CALL_HANDLERS,
   screenshot: { captureOnce, pollMeta, readUploadResult, readHelperHealth, cleanRegion, urlHostInWhitelist, effectiveWhitelist },
   snapshot: () => ({

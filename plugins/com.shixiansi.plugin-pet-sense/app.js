@@ -121,22 +121,14 @@ function highStreak() {
   return Number.isFinite(n) ? Math.min(12, Math.max(1, n)) : 3;
 }
 
-// --- 启动辅助脚本 ---------------------------------------------------------------
-
-/** process.launch 一个 powershell 去跑辅助脚本。 */
-async function launchHelper(helperExe, scriptPath, outDir) {
-  const args = [
-    '-NoProfile',
-    '-ExecutionPolicy', 'Bypass',
-    '-File', scriptPath,
-    '-OutDir', outDir,
-    '-IntervalSec', String(intervalSec()),
-    '-CpuThreshold', String(cpuThreshold()),
-    '-HighStreak', String(highStreak()),
-  ];
-  const out = await request('process.launch', { path: helperExe, args });
-  return out;
-}
+// --- 辅助脚本（由宿主托管：manifest 的 sidecar） -----------------------------------
+//
+// 插件不再自己 process.launch：它拿不到自己的安装目录，所以"自己启动"必然要求用户手填两个
+// 绝对路径（2026-10-31 的实测：四个这样写的插件因此从没跑起来过）。现在宿主在插件启用且
+// 授予 process 时启动它，脚本从 PETPC_PLUGIN_DATA 拿到该往哪写。
+//
+// 采样间隔、阈值、连续次数这些**设置项仍然生效**：它们经 config 落到插件，插件读 outbox 时
+// 用的还是同一份判定（lib/sampler.js）。只有"谁启动脚本"这件事搬到了宿主。
 
 // --- 轮询：outbox → share / badge ----------------------------------------------
 //
@@ -299,24 +291,9 @@ async function onInit(data) {
     return;
   }
 
-  // 常驻帧：启动辅助脚本，然后开始轮询。
+  // 常驻帧：辅助脚本由宿主托管（manifest 的 sidecar），这里只轮询它写的文件。
   if (granted.has(PERM.process)) {
-    const helperExe = String(cfg.helperPath || '').trim();
-    const scriptPath = String(cfg.helperScript || '').trim();
-    if (helperExe && scriptPath) {
-      const dirOut = await request('storage.dir', {}).catch(() => null);
-      const outDir = dirOut && dirOut.dir ? dirOut.dir : '';
-      if (outDir) {
-        try {
-          await launchHelper(helperExe, scriptPath, outDir);
-          setNote('辅助脚本已启动（采样 5s · HTTP 3210）');
-        } catch (err) {
-          setNote('启动失败：' + clamp(err && err.message, 120));
-        }
-      }
-    } else {
-      setNote('先在设置里填 helperPath 与 helperScript，再重启桌宠');
-    }
+    setNote('辅助脚本由宿主托管（采样 · HTTP 3210；没起来就看桌宠日志）');
   } else {
     setNote('未获授权：process（只能读已有的 outbox）');
   }

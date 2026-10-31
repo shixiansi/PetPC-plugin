@@ -93,10 +93,14 @@ describe('manifest', () => {
     }
   });
 
-  test('config 的 helperPath / helperScript 是文本项', () => {
+  test('辅助脚本由宿主托管：manifest 声明 sidecar，不再有 helperPath/helperScript 两个设置项', () => {
+    expect(manifest.sidecar).toEqual({ script: 'pet-sense-helper.ps1' });
+    expect(manifest.assets).toContain('pet-sense-helper.ps1');
+    expect(manifest.permissions).toContain('process');
+    expect(manifest.background).toBe(true);
     const keys = manifest.config.map((c) => c.key);
-    expect(keys).toContain('helperPath');
-    expect(keys).toContain('helperScript');
+    expect(keys).not.toContain('helperPath');
+    expect(keys).not.toContain('helperScript');
     expect(keys).toContain('sampleInterval');
     expect(keys).toContain('cpuThreshold');
     expect(keys).toContain('highStreak');

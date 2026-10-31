@@ -9,7 +9,9 @@
 #
 # hash 是内容的前 64 位 SHA256（去重用：插件侧只处理 hash 变了的条目）。
 #
-# 输出目录：$env:PRIVACY_GUARD_DIR\outbox\
+# 输出目录：$OutDir\outbox\ —— 宿主按 manifest 的 sidecar 启动它时给的是 PETPC_PLUGIN_DATA
+# （插件的私有目录），所以插件用 storage.get 'outbox/…' 读到的就是这里写的东西。
+# 手工跑（调试）时不给 -OutDir 就落到 TEMP 下。
 
 param(
   [string]$OutDir = "",
@@ -18,6 +20,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $OutDir) { $OutDir = $env:PETPC_PLUGIN_DATA }
 if (-not $OutDir) { $OutDir = Join-Path $env:TEMP 'privacy-guard' }
 $outbox = Join-Path $OutDir 'outbox'
 New-Item -ItemType Directory -Force -Path $outbox | Out-Null

@@ -49,11 +49,14 @@ describe('manifest', () => {
     expect(manifest.callTargets).toEqual([`${MEMCORE_ID}/chat`]);
   });
 
-  test('helper script is shipped as an asset and referenced by config', () => {
+  test('helper script is shipped as an asset and declared as a sidecar', () => {
     expect(manifest.assets).toContain('vision-helper.ps1');
+    // 辅助脚本由宿主托管（manifest 的 sidecar），所以不再有 helperPath / helperScript 两个
+    // 要用户手填的绝对路径——2026-10-31 的实测是四个插件因此从没跑起来过。
+    expect(manifest.sidecar).toEqual({ script: 'vision-helper.ps1' });
     const keys = manifest.config.map((item) => item.key);
-    expect(keys).toContain('helperPath');
-    expect(keys).toContain('helperScript');
+    expect(keys).not.toContain('helperPath');
+    expect(keys).not.toContain('helperScript');
     const whitelist = manifest.config.filter((item) => item.hostWhitelist === true);
     expect(whitelist).toHaveLength(1);
     expect(whitelist[0].key).toBe('visionBaseUrl');
@@ -345,14 +348,12 @@ test('unknown call method: answered with an error, never silence', async () => {
   expect(packet.error).toContain('analyze_screen');
 });
 
-test('background frame starts the helper through process.launch with the storage dir', async () => {
+test('background frame does NOT launch the helper itself: the host owns it now', async () => {
+  // 插件拿不到自己的安装目录，"自己启动"只能靠用户手填两个绝对路径；现在宿主按
+  // manifest 的 sidecar 启动它（见宿主仓 openspec/changes/plugin-sidecar）。
   await boot();
   await pump();
-  expect(launchCalls).toHaveLength(1);
-  expect(launchCalls[0].path).toBe(configValues.helperPath);
-  const args = launchCalls[0].args.join(' ');
-  expect(args).toContain('vision-helper.ps1');
-  expect(args).toContain('C:/plugin-data/screen-vision');
+  expect(launchCalls).toHaveLength(0);
 });
 
 test('every request has a unique non-empty id; says ready first', async () => {

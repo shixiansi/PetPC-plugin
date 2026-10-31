@@ -12,7 +12,7 @@ Controls）里——网易云、QQ 音乐、Spotify、浏览器播放器都会�
 ## 数据流
 
 ```
-media-helper.ps1（process.launch 启动，读 WinRT SMTC）
+media-helper.ps1（宿主按 manifest 的 sidecar 启动，读 WinRT SMTC）
   └── 每 2s 原子写 outbox/media {title, artist, album, status, at}
                  常驻帧每 1s 轮询
                         │
@@ -51,9 +51,12 @@ media-helper.ps1（process.launch 启动，读 WinRT SMTC）
 
 ## 启用
 
-设置里填 `helperPath`（powershell.exe 绝对路径）与 `helperScript`（media-helper.ps1
-的安装路径），重启桌宠。macOS / Linux / 未开播放器时没有数据——插件把"没有数据"
-显示为"现在没在放"，而不是报错。
+**不需要填任何路径**：`manifest.json` 里声明了 `sidecar: {script: "media-helper.ps1"}`，宿主在
+插件启用、且用户授予 `process` 时自己启动它，脚本从 `PETPC_PLUGIN_DATA` 拿到该往哪写。
+（0.1.5 之前要用户手填 `helperPath` / `helperScript` 两个绝对路径，那一步是"装好了但什么也没有"
+的主要来源。）
+
+macOS / Linux / 未开播放器时没有数据——插件把"没有数据"显示为"现在没在放"，而不是报错。
 
 ## 权限
 

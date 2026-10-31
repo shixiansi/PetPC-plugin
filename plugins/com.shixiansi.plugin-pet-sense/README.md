@@ -11,7 +11,7 @@
 ## 数据流
 
 ```
-本机辅助脚本（pet-sense-helper.ps1，process.launch 启动）
+本机辅助脚本（pet-sense-helper.ps1，宿主按 manifest 的 sidecar 启动）
   ├── 每 5s 采样 CPU/内存 ──写──> outbox/system
   ├── 连续 N 次超阈值     ──写──> outbox/load
   ├── HTTP :3210 ← DSH    ──写──> outbox/dsh
@@ -48,12 +48,12 @@ curl -X POST http://127.0.0.1:3210/api/state \
 
 ## 启用
 
-采样与监听需要本机脚本。安装后在设置里填：
+采样与监听需要本机脚本，但**不需要填任何路径**：`manifest.json` 里声明了
+`sidecar: {script: "pet-sense-helper.ps1"}`，宿主在插件启用、且用户授予 `process` 时自己启动它，
+脚本从 `PETPC_PLUGIN_DATA` 拿到该往哪写。（0.1.4 之前要手填 `helperPath` / `helperScript`，
+那一步是"装好了但什么也没有"的主要来源。）
 
-- `helperPath`：`powershell.exe` 的绝对路径；
-- `helperScript`：包内 `pet-sense-helper.ps1` 的安装路径（桌宠插件页里能看到安装目录）。
-
-然后重启桌宠。不填也能跑：没有辅助脚本时插件只读已有的 outbox（例如别的机器推过来的）。
+没有辅助脚本在跑时插件只读已有的 outbox（例如别的机器推过来的），不会报错。
 
 ## 权限
 

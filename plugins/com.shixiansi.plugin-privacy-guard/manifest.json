@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-privacy-guard",
   "name": "隐私卫士（敏感信息监控与脱敏）",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "shixiansi",
   "description": "盯着剪贴板和你的 .env/.txt 文件：身份证（带校验位）、手机号、银行卡（Luhn 校验）、sk- 开头的 API Key、邮箱、内网 IP 一出现就自动脱敏，桌宠弹窗提醒（同类告警 10 分钟节流）。扫描全在本机完成；告警只发布规则名与风险级别，不含原文。其他插件发文本前可以 plugin.call 让它先扫一遍。",
   "permissions": [
@@ -14,19 +14,8 @@
   ],
   "serves": ["scan", "alerts", "rules"],
   "background": true,
+  "sidecar": { "script": "privacy-guard-helper.ps1" },
   "config": [
-    {
-      "key": "helperPath",
-      "label": "PowerShell 路径（powershell.exe 的绝对路径；留空=不启动自动监控，试验台仍可用）",
-      "type": "text",
-      "default": ""
-    },
-    {
-      "key": "helperScript",
-      "label": "辅助脚本路径（安装目录里 privacy-guard-helper.ps1 的绝对路径）",
-      "type": "text",
-      "default": ""
-    },
     {
       "key": "watchDir",
       "label": "要盯的目录（绝对路径；留空=用户主目录的顶层，不递归）",

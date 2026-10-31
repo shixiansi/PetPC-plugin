@@ -24,6 +24,7 @@
 param([string]$OutDir = "", [int]$IntervalSec = 5, [double]$CpuThreshold = 80.0, [int]$HighStreak = 3)
 
 $ErrorActionPreference = 'Stop'
+if (-not $OutDir) { $OutDir = $env:PETPC_PLUGIN_DATA }
 if (-not $OutDir) { $OutDir = Join-Path $env:TEMP 'pet-sense' }
 $outbox = Join-Path $OutDir 'outbox'
 New-Item -ItemType Directory -Force -Path $outbox | Out-Null

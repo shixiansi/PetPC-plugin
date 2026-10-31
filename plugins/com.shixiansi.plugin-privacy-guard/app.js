@@ -117,27 +117,19 @@ async function persistAlerts() {
   }
 }
 
-// --- 辅助脚本启动（process.launch，pet-sense 同款） --------------------------------
+// --- 辅助脚本（由宿主托管：manifest 的 sidecar） ----------------------------------
+//
+// 插件**不再**自己 process.launch。它拿不到自己的安装目录，于是"自己启动"必然要求用户在设置
+// 里手填两个绝对路径——2026-10-31 的实测是四个这样写的插件因此从来没跑起来过（界面上只是
+// "没有数据"）。现在宿主在插件启用、且用户授予 process 时启动它，脚本从 PETPC_PLUGIN_DATA
+// 拿到该往哪写（见 privacy-guard-helper.ps1 的 -OutDir 默认值）。
+//
+// 这里只剩下"界面上该说什么"。
 
-async function launchHelper() {
-  if (!granted.has(PERM.process)) return '未获授权：process（只能手动扫描）';
-  const helperExe = String(cfg.helperPath || '').trim();
-  if (!helperExe) return '先在设置里填 PowerShell 路径（helperPath）再重启桌宠';
-  const dirOut = await request('storage.dir', {}).catch(() => null);
-  const outDir = dirOut && dirOut.dir ? dirOut.dir : '';
-  if (!outDir) return '拿不到私有目录（storage 未授权？）';
-  const scriptPath = String(cfg.helperScript || '').trim();
-  if (!scriptPath) return '先在设置里填辅助脚本路径（helperScript）';
-  const watchDir = String(cfg.watchDir || '').trim() || '';
-  const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-OutDir', outDir];
-  if (watchDir) args.push('-WatchDir', watchDir);
-  try {
-    await request('process.launch', { path: helperExe, args });
-    helperStarted = true;
-    return '监控已启动（剪贴板 + 文件目录）';
-  } catch (err) {
-    return `启动失败：${String(err && err.message || err)}`;
-  }
+function helperNote() {
+  helperStarted = granted.has(PERM.process);
+  if (!helperStarted) return '未获授权：process（只能手动扫描）';
+  return '监控脚本由宿主托管（桌宠启动时自动运行；没起来就看桌宠日志）';
 }
 
 // --- 轮询：outbox → 扫描 → 动作 ---------------------------------------------------
@@ -281,12 +273,8 @@ async function onInit(data) {
   if (granted.has(PERM.storage)) await loadAlerts();
 
   if (self.slot !== 'workshop') {
-    // 常驻帧：先启动辅助脚本，然后轮询。
-    const note = await launchHelper();
-    if (self.slot === 'background' && note) {
-      // background 帧没有 UI，note 只进告警日志的第一条注释位。
-      void note;
-    }
+    // 常驻帧：辅助脚本由宿主启动，这里只轮询它写的文件。
+    helperNote();
     startPolling();
     return;
   }
@@ -310,7 +298,7 @@ window.__privacy = Object.freeze({
   handlers: CALL_HANDLERS,
   pollOnce,
   runPollCycle,
-  launchHelper,
+  helperNote,
   runProbe,
   patterns: PrivacyPatterns,
   watch: PrivacyWatch,

@@ -448,19 +448,20 @@ describe('完整链路（假宿主泵）', () => {
     expect(bubbles).toHaveLength(0);
   });
 
-  test('process.launch：配置齐全时用给定参数启动辅助脚本', async () => {
-    configValues.helperPath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe';
-    configValues.helperScript = 'C:\\plugins\\privacy-guard-helper.ps1';
+  test('辅助脚本交给宿主（manifest 的 sidecar）：插件自己一条 process.launch 都不发', async () => {
+    // 2026-10-31 的教训：插件拿不到自己的安装目录，于是"自己启动"必然要求用户手填两个绝对
+    // 路径，四个插件因此从没跑起来过。现在宿主按 manifest 的 sidecar 启动它，插件只轮询文件。
     configValues.watchDir = 'C:\\Users\\me';
     await bootSettled('background');
-    expect(launched).toHaveLength(1);
-    expect(launched[0].path).toContain('powershell.exe');
-    expect(launched[0].args).toEqual(expect.arrayContaining(['-File', 'C:\\plugins\\privacy-guard-helper.ps1', '-WatchDir', 'C:\\Users\\me']));
+    expect(launched).toHaveLength(0);
+    // 而"监控在不在跑"这件事仍然要能回答（工坊页的 chip 用它）。
+    expect(window.__privacy.snapshot().helperStarted).toBe(true);
   });
 
-  test('helperPath 没填：不启动，也不炸', async () => {
-    await bootSettled('background');
+  test('没授予 process：不假装在监控', async () => {
+    await bootSettled('background', ['storage', 'plugin.config', 'plugin.share', 'plugin.call', 'pet.bubble']);
     expect(launched).toHaveLength(0);
+    expect(window.__privacy.snapshot().helperStarted).toBe(false);
   });
 
   test('plugin.call scan：文本自查（给其他插件用）', async () => {

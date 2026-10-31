@@ -15,6 +15,7 @@
 param([string]$OutDir = "", [int]$IntervalSec = 2)
 
 $ErrorActionPreference = 'Continue'
+if (-not $OutDir) { $OutDir = $env:PETPC_PLUGIN_DATA }
 if (-not $OutDir) { $OutDir = Join-Path $env:TEMP 'pet-media' }
 $outbox = Join-Path $OutDir 'outbox'
 New-Item -ItemType Directory -Force -Path $outbox | Out-Null

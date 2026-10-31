@@ -1064,7 +1064,8 @@ window.addEventListener('message', async (e) => {
 | 事件 | payload | 谁发 | 什么时候 |
 | --- | --- | --- | --- |
 | `reminder.fired` | `{due, overdue, total}` | 桌宠 | **它自己**弹提醒气泡时。今天这只在用户点「立刻提醒一次」（托盘菜单 / 右键菜单）时发生；**定时提醒是待办插件自己弹 `bubble.say`，不经这个事件** |
-| `config.changed` | `{pluginId}` | 桌宠 | 你的 `config.json` 在磁盘上变了——**不管是谁改的**：控制中心的插件页保存设置，或者你自己的工坊界面调 `config.set`。它是**广播**：每个订阅者都会收到每个插件的变化，所以要用 `payload.pluginId` 和自己的 id 比一下 || `timer.phaseEnded` | `{phase}` | **没有人发** | 订阅它会成功，但你**永远收不到**：宿主不产生这个事件。要听"一段结束了"，读番茄钟插件发布的 `com.shixiansi.plugin-pomodoro/phase-ended` |
+| `config.changed` | `{pluginId}` | 桌宠 | 你的 `config.json` 在磁盘上变了——**不管是谁改的**：控制中心的插件页保存设置，或者你自己的工坊界面调 `config.set`。它是**广播**：每个订阅者都会收到每个插件的变化，所以要用 `payload.pluginId` 和自己的 id 比一下 |
+| `timer.phaseEnded` | `{phase}` | **没有人发** | 订阅它会成功，但你**永远收不到**：宿主不产生这个事件。要听"一段结束了"，读番茄钟插件发布的 `com.shixiansi.plugin-pomodoro/phase-ended`（见第 7.1 节） |
 
 番茄钟的"一段结束了"由**番茄钟插件**通过 `plugin.share` 发布（
 `owner: "com.shixiansi.plugin-pomodoro"`, `name: "phase-ended"`,
@@ -1079,6 +1080,23 @@ window.addEventListener('message', async (e) => {
 
 所以"用户关掉界面后还要办事"的插件必须声明 `background: true`——否则事件到不了你，
 宿主会直接丢掉它（没有"补发"）。
+
+### 7.1 `share.changed` —— 不用轮询的那种
+
+上面的三个条件是**宿主事件**（`events.subscribe`）的。还有一条事件不走那个通道：
+
+| 事件 | payload | 谁发 | 什么时候 |
+| --- | --- | --- | --- |
+| `share.changed` | `{key, owner, name, at}` | 桌宠 | 某个插件 `share.set` 之后，**只发给在 `shareRead` 里点名了这一对 `<owner>/<name>` 的插件** |
+
+- **不需要 `events.subscribe`**：授权就是 `shareRead` 里那一对 + `plugin.share` 权限——和
+  `share.get` 完全同一份授权，只是花得更便宜。
+- `key` 就是 `<owner>/<name>`（`share.get` 的 `key` 字段是同一个字符串），可以直接拿去 `share.get`。
+- **不是投递保证**：你仍然要有一个帧被挂载（常驻帧也算），没挂载就收不到。所以**轮询要留着**——
+  这条事件让常见情况立刻发生，不替代读。
+- 为什么要它：`plugin.share` 是牌盘，不是总线。2026-10-31 的桌宠日志里 94% 是 DEBUG，
+  绝大部分是各插件每秒一次的 `share.get` 轮询（media-sync / pet-sense 每秒，privacy-guard 每两秒），
+  每次都读到同一个值。
 
 ---
 

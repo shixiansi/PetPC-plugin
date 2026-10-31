@@ -261,28 +261,13 @@ async function onInit(data) {
     return;
   }
 
-  // 常驻帧：启动辅助脚本，然后轮询。
+  // 常驻帧：辅助脚本由宿主托管（manifest 的 sidecar），这里只轮询它写的文件。
+  //
+  // 以前这一段要用户先在设置里填两个绝对路径——插件拿不到自己的安装目录，所以"自己启动"
+  // 只能这么写；2026-10-31 的实测是四个这样写的插件因此从来没跑起来过。
   if (granted.has(PERM.process)) {
-    const helperExe = String(cfg.helperPath || '').trim();
-    const scriptPath = String(cfg.helperScript || '').trim();
-    if (helperExe && scriptPath) {
-      const dirOut = await request('storage.dir', {}).catch(() => null);
-      const outDir = dirOut && dirOut.dir ? dirOut.dir : '';
-      if (outDir) {
-        try {
-          await request('process.launch', {
-            path: helperExe,
-            args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath, '-OutDir', outDir],
-          });
-          started = true;
-          setNote('辅助脚本已启动（SMTC 监听）');
-        } catch (err) {
-          setNote('启动失败：' + clamp(err && err.message, 120));
-        }
-      }
-    } else {
-      setNote('先在设置里填 helperPath 与 helperScript，再重启桌宠');
-    }
+    started = true;
+    setNote('辅助脚本由宿主托管（SMTC 监听；没起来就看桌宠日志）');
   } else {
     setNote('未获授权：process（只能读已有的 outbox）');
   }

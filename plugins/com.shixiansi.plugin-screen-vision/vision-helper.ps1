@@ -21,6 +21,7 @@
 param([string]$OutDir = "", [int]$PollMs = 600)
 
 $ErrorActionPreference = 'Stop'
+if (-not $OutDir) { $OutDir = $env:PETPC_PLUGIN_DATA }
 if (-not $OutDir) { $OutDir = Join-Path $env:TEMP 'pet-vision' }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
