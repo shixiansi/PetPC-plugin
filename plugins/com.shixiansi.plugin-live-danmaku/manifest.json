@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-live-danmaku",
   "name": "直播间弹幕互动",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "shixiansi",
   "description": "让桌宠化身为虚拟主播：接入直播平台的弹幕流（内置 Mock 桥与 B 站开放平台两种接法），内部用防抖队列把高频弹幕节流成「每几秒挑几条值得回的」，交给记忆核心生成回应，再用语音服务念出来或弹气泡；插件页实时显示直播间状态、在线人数与滚动的精简弹幕。",
   "permissions": [

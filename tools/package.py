@@ -13,6 +13,7 @@
 import json
 import hashlib
 import sys
+import io
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -76,16 +77,28 @@ def main() -> int:
                 raise SystemExit(f'插件 {pid} 声明的 assets 文件不存在：{asset}')
 
         zip_path = DIST / f'{pid}-{version}.zip'
-        if zip_path.exists():
-            zip_path.unlink()
+        # 先在内存里打，再和已发布的同名包比字节。
+        #
+        # 为什么：2026-11-01 我改了 live-danmaku 的代码、重打包、**忘了升版本**——于是目录里
+        # 那一份 1.0.2 的字节变了、版本没变，而已经装了 1.0.2 的人永远不会被提示更新。
+        # 那个 bug 只能靠人记得；zip 的 date_time 是钉住的（PINNED），内容一样就是字节一样，
+        # 所以"同版本不同内容"可以在这里判出来。
         stamp = datetime(*PINNED, tzinfo=timezone.utc)
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
             for member in members:
                 info = zipfile.ZipInfo(member, date_time=stamp.timetuple()[:6])
                 info.compress_type = zipfile.ZIP_DEFLATED
                 info.external_attr = 0o644 << 16
                 zf.writestr(info, (plugin_dir / member).read_bytes())
-        sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+        data = buffer.getvalue()
+        if zip_path.exists() and zip_path.read_bytes() != data:
+            raise SystemExit(
+                f'插件 {pid} 的版本没变（{version}）但内容变了：'
+                f'dist/{zip_path.name} 已经发布过。先升版本再打包——'
+                f'否则已经装了 {version} 的人永远收不到这次改动。')
+        zip_path.write_bytes(data)
+        sha = hashlib.sha256(data).hexdigest()
 
         entry_obj = {
             'id': pid,
