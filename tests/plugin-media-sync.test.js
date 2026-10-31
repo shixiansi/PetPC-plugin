@@ -147,6 +147,17 @@ describe('app.js 行为（jsdom）', () => {
     shares = [];
     badges = [];
     storage = new Map();
+    // 辅助脚本写文件 → 宿主发 storage.changed。测试里同样模拟：`storage.set` 之后补一条事件，
+    // 否则"等轮询捡到变化"的用例要等 15 秒兜底（插件的轮询间隔已经不是 1 秒了）。
+    const rawSet = storage.set.bind(storage);
+    storage.set = (key, value) => {
+      rawSet(key, value);
+      window.dispatchEvent(new window.MessageEvent('message', {
+        source: window.parent,
+        data: { v: 1, type: 'event', name: 'storage.changed', payload: { key, at: 'now' } },
+      }));
+      return storage;
+    };
 
     const responses = {
       'config.get': () => ({ values: configValues || {} }),
@@ -200,6 +211,31 @@ describe('app.js 行为（jsdom）', () => {
   test('握手只发一次 ready', () => {
     boot({ grantedNames: [] });
     expect(outbound.filter((m) => m.type === 'ready')).toHaveLength(1);
+  });
+
+  test('storage.changed：自己关心的键一到就立刻读，别的键不动', async () => {
+    boot({ grantedNames: ['plugin.share', 'pet.surface', 'storage', 'plugin.config'] });
+    playTrack('晴天', '周杰伦');
+    expect(await until(() => shares.length > 0)).toBe(true);
+    const reads = () => outbound.filter((m) => m.method === 'storage.get').length;
+
+    // 不是这个插件的键：一条 storage.get 都不该多发。
+    const before = reads();
+    window.dispatchEvent(new window.MessageEvent('message', {
+      source: window.parent,
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'some/other', at: 'now' } },
+    }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(reads()).toBe(before);
+
+    // 是这个插件的键：立刻读一次（兜底是 15 秒，所以 1 秒内读到就说明事件起了作用）。
+    playTrack('七里香', '周杰伦');
+    window.dispatchEvent(new window.MessageEvent('message', {
+      source: window.parent,
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'outbox/media', at: 'now' } },
+    }));
+    expect(await until(() => reads() > before, 1000)).toBe(true);
+    expect(await until(() => JSON.parse(shares[shares.length - 1].value).title === '七里香', 1000)).toBe(true);
   });
 
   test('轮询：播放中 → share media-now + 徽标；没数据 → 什么都不发', async () => {

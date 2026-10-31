@@ -219,6 +219,16 @@ describe('app.js 行为（jsdom）', () => {
     shares = [];
     badges = [];
     storage = new Map();
+    // 辅助脚本写文件 → 宿主发 storage.changed。测试里同样模拟（轮询兜底已经是 15 秒）。
+    const rawSet = storage.set.bind(storage);
+    storage.set = (key, value) => {
+      rawSet(key, value);
+      window.dispatchEvent(new window.MessageEvent('message', {
+        source: window.parent,
+        data: { v: 1, type: 'event', name: 'storage.changed', payload: { key, at: 'now' } },
+      }));
+      return storage;
+    };
 
     const responses = {
       'config.get': () => ({ values: configValues || {} }),
@@ -327,6 +337,26 @@ describe('app.js 行为（jsdom）', () => {
     expect(shares.filter((s) => {
       try { return JSON.parse(s.value).high === false; } catch { return false; }
     }).length).toBe(lowCount);
+  });
+
+  test('storage.changed：自己关心的键一到就立刻读，别的键不动', async () => {
+    boot({ grantedNames: ['process', 'plugin.share', 'pet.surface', 'storage', 'plugin.config'] });
+    await new Promise((r) => setTimeout(r, 50));
+    const reads = () => outbound.filter((m) => m.method === 'storage.get').length;
+
+    const before = reads();
+    window.dispatchEvent(new window.MessageEvent('message', {
+      source: window.parent,
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'some/other', at: 'now' } },
+    }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(reads()).toBe(before);
+
+    window.dispatchEvent(new window.MessageEvent('message', {
+      source: window.parent,
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'outbox/system', at: 'now' } },
+    }));
+    expect(await until(() => reads() > before, 1000)).toBe(true);
   });
 
   test('DSH done → 徽标清除（空串也是一次 pet.badge）', async () => {

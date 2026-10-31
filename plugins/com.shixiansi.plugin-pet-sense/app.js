@@ -68,6 +68,9 @@ window.addEventListener('message', (event) => {
       else slot.reject(new Error(data.error || '宿主拒绝了这次调用'));
       break;
     }
+    case 'event':
+      onHostEvent(data);
+      break;
     case 'theme':
       document.documentElement.dataset.theme = data.theme === 'light' ? 'light' : 'dark';
       break;
@@ -178,24 +181,53 @@ async function pollOnce() {
 
 /** 轮询代数：stopPoll 之后旧的 tick 链全部失效（不靠 clearTimeout 猜时序）。 */
 let pollGen = 0;
+let pollTimer = 0;
+
+// 兜底间隔。
+//
+// 宿主会为"你的私有目录变了"发一条 storage.changed（手册 §7.2），所以这个定时器只负责
+// "事件丢了"这种情况。1 秒改成 15 秒之后，日志里那每秒一条 storage.get 就没了——
+// 2026-10-31 的日志里这个插件一天写了 660 行，全是同一个值。
+const POLL_FALLBACK_MS = 15000;
+// 这个插件真正关心的键（宿主给的是 storage.get 的键形状：/ 分隔、无扩展名）。
+const POLL_KEYS = ['outbox/system', 'outbox/load', 'outbox/dsh'];
+
+function schedule(delay) {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => {
+    pollTimer = 0;
+    void tick();
+  }, delay);
+}
+
+async function tick() {
+  const gen = pollGen;
+  try {
+    const snap = await pollOnce();
+    renderWorkshop(snap);
+  } catch {
+    // 一轮失败不算什么：下一轮再来。
+  }
+  if (gen === pollGen) schedule(POLL_FALLBACK_MS);
+}
 
 function startPollLoop() {
-  const gen = ++pollGen;
-  const tick = async () => {
-    if (gen !== pollGen) return;
-    try {
-      const snap = await pollOnce();
-      renderWorkshop(snap);
-    } catch {
-      // 一轮失败不算什么：下一轮再来。
-    }
-    if (gen === pollGen) setTimeout(tick, 1000);
-  };
-  tick();
+  pollGen += 1;
+  schedule(0);
 }
 
 function stopPoll() {
   pollGen += 1;
+  clearTimeout(pollTimer);
+  pollTimer = 0;
+}
+
+/** 宿主说"你的私有目录变了"（storage.changed）：立刻读一次，不等兜底定时器。 */
+function onHostEvent(data) {
+  if (!data || data.name !== 'storage.changed') return;
+  const key = data.payload && data.payload.key;
+  if (typeof key === 'string' && !POLL_KEYS.includes(key)) return;
+  schedule(0);
 }
 
 // --- plugin.call：别的插件问"现在怎么样" -----------------------------------------

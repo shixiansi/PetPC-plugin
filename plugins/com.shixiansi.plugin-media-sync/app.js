@@ -61,6 +61,9 @@ window.addEventListener('message', (event) => {
       else slot.reject(new Error(data.error || '宿主拒绝了这次调用'));
       break;
     }
+    case 'event':
+      onHostEvent(data);
+      break;
     case 'theme':
       document.documentElement.dataset.theme = data.theme === 'light' ? 'light' : 'dark';
       break;
@@ -137,24 +140,49 @@ async function pollOnce() {
 }
 
 let pollGen = 0;
+let pollTimer = 0;
+
+// 兜底间隔：宿主会为"你的私有目录变了"发 storage.changed（手册 §7.2），这个定时器只负责
+// "事件丢了"。1 秒 → 15 秒，日志里那每秒一条 storage.get 就没了（2026-10-31 一天 659 行）。
+const POLL_FALLBACK_MS = 15000;
+const POLL_KEYS = ['outbox/media'];
+
+function schedule(delay) {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(() => {
+    pollTimer = 0;
+    void tick();
+  }, delay);
+}
+
+async function tick() {
+  const gen = pollGen;
+  try {
+    const track = await pollOnce();
+    renderWorkshop(track);
+  } catch {
+    // 一轮失败不算什么。
+  }
+  if (gen === pollGen) schedule(POLL_FALLBACK_MS);
+}
 
 function startPollLoop() {
-  const gen = ++pollGen;
-  const tick = async () => {
-    if (gen !== pollGen) return;
-    try {
-      const track = await pollOnce();
-      renderWorkshop(track);
-    } catch {
-      // 一轮失败不算什么。
-    }
-    if (gen === pollGen) setTimeout(tick, 1000);
-  };
-  tick();
+  pollGen += 1;
+  schedule(0);
 }
 
 function stopPoll() {
   pollGen += 1;
+  clearTimeout(pollTimer);
+  pollTimer = 0;
+}
+
+/** 宿主说"你的私有目录变了"（storage.changed）：立刻读一次，不等兜底定时器。 */
+function onHostEvent(data) {
+  if (!data || data.name !== 'storage.changed') return;
+  const key = data.payload && data.payload.key;
+  if (typeof key === 'string' && !POLL_KEYS.includes(key)) return;
+  schedule(0);
 }
 
 // --- plugin.call：now_playing 工具 ----------------------------------------------

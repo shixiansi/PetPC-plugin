@@ -175,7 +175,18 @@ async function bootSettled(slot = 'workshop', granted = manifest.permissions) {
 beforeEach(() => {
   store = new Map();
   configValues = { alertCooldownMin: '10' };
-  outbox = {};
+  // 辅助脚本写文件 → 宿主发 storage.changed。测试里用 Proxy 模拟：`outbox.clipboard = …`
+  // 之后补一条事件，否则"等轮询捡到变化"的用例要等 15 秒兜底。
+  outbox = new Proxy({}, {
+    set(target, field, value) {
+      target[field] = value;
+      window.dispatchEvent(new window.MessageEvent('message', {
+        source: window.parent,
+        data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'outbox/' + String(field), at: 'now' } },
+      }));
+      return true;
+    },
+  });
   sharePublished = [];
   bubbles = [];
   launched = [];
@@ -236,6 +247,26 @@ describe('patterns: 识别与误杀防线', () => {
   beforeEach(async () => {
     await bootSettled('background');
     P = window.__privacy.patterns;
+  });
+
+  test('storage.changed：自己关心的键一到就立刻扫，别的键不动', async () => {
+    await bootSettled('background');
+    const reads = () => requests().filter((r) => r.method === 'storage.get').length;
+
+    const before = reads();
+    window.dispatchEvent(new window.MessageEvent('message', {
+      source: window.parent,
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'some/other', at: 'now' } },
+    }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(reads()).toBe(before);
+
+    window.dispatchEvent(new window.MessageEvent('message', {
+      source: window.parent,
+      data: { v: 1, type: 'event', name: 'storage.changed', payload: { key: 'outbox/clipboard', at: 'now' } },
+    }));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(reads()).toBeGreaterThan(before);
   });
 
   test('一段文本 5 类敏感信息 → 5 处发现，规则齐全', () => {

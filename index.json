@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-31T09:05:12Z",
+  "updatedAt": "2026-10-31T09:25:48Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -163,12 +163,12 @@
     {
       "id": "com.shixiansi.plugin-media-sync",
       "name": "媒体同步（正在播放）",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "author": "shixiansi",
       "description": "桌宠知道你正在听什么：由本机辅助脚本读 Windows SMTC（System Media Transport Controls）的当前曲目——歌名、歌手、专辑、播放状态。别的插件把用户「我在听什么」的问题用 plugin.call 问它的 now_playing，答案直接可放进模型上下文；宠物头顶也会挂「♪ 歌名 - 歌手」徽标。监听走 process.launch 启动的 PowerShell 脚本。",
       "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-media-sync-0.1.5.zip",
-      "sha256": "26b0520718a3d3afdb9452cd61168c21e6cb29c70b98c8bd32ae9328c2a997d1"
+      "download": "dist/com.shixiansi.plugin-media-sync-0.1.6.zip",
+      "sha256": "3ec2a69b18da5df3144a5b53d1567b410fd2ae2db1cfcb076ea325ffa184c3a0"
     },
     {
       "id": "com.shixiansi.plugin-memcore",
@@ -215,12 +215,12 @@
     {
       "id": "com.shixiansi.plugin-pet-sense",
       "name": "系统与 DSH 感知",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "author": "shixiansi",
       "description": "桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。采样与监听走本机辅助脚本（process.launch）。",
       "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
-      "download": "dist/com.shixiansi.plugin-pet-sense-0.1.4.zip",
-      "sha256": "777b86658dd45949636cd39ca10bc60855ffa938b9a876c4d7b4e336f0afc7e8"
+      "download": "dist/com.shixiansi.plugin-pet-sense-0.1.5.zip",
+      "sha256": "f3cfe16996f92325de6fd27dcc5a415edb935c7f0107c324ccb1402050cf4db0"
     },
     {
       "id": "com.shixiansi.plugin-pomodoro",
@@ -235,12 +235,12 @@
     {
       "id": "com.shixiansi.plugin-privacy-guard",
       "name": "隐私卫士（敏感信息监控与脱敏）",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "author": "shixiansi",
       "description": "盯着剪贴板和你的 .env/.txt 文件：身份证（带校验位）、手机号、银行卡（Luhn 校验）、sk- 开头的 API Key、邮箱、内网 IP 一出现就自动脱敏，桌宠弹窗提醒（同类告警 10 分钟节流）。扫描全在本机完成；告警只发布规则名与风险级别，不含原文。其他插件发文本前可以 plugin.call 让它先扫一遍。",
       "permissions": ["process", "storage", "plugin.config", "plugin.share", "plugin.call", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-privacy-guard-0.1.2.zip",
-      "sha256": "1559b0358bd4d23a3e4322b0a59837ecc269819920ae50a55c52f76772fc5742"
+      "download": "dist/com.shixiansi.plugin-privacy-guard-0.1.3.zip",
+      "sha256": "bc0eb85d7563a6e6b7b6cb69be038f292e0709c6006241c63b506e3c55c205e8"
     },
     {
       "id": "com.shixiansi.plugin-qq",
