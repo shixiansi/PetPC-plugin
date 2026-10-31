@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>记忆卡片</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔：
+      workshop    控制中心插件页：建卡/导入、复习会话（翻转卡）、进度、卡组列表。
+      background  桌宠常驻帧：每 5 分钟看一次到期数 → bubble.say 提醒，答 plugin.call。
+  -->
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">记忆卡片</span>
+        <span class="chip" id="chip-due">到期 0</span>
+      </div>
+      <p class="lede">
+        SuperMemo-2 间隔重复：正面 | 背面 建卡（支持 Markdown 与批量导入），
+        忘记/困难/良好/简单四键评分，算法自动安排下一张的复习时间；到点桌宠提醒你。
+      </p>
+    </header>
+
+    <section class="card" id="review-card">
+      <div class="card-head">
+        <h2>复习</h2>
+        <span class="muted" id="review-progress">0 / 0</span>
+      </div>
+      <div id="review-area" class="review-area hidden">
+        <!-- 翻转容器：3D transform 只在 workshop（无 surface 矩形）里使用 -->
+        <div id="card-flip" class="card-flip" role="button" tabindex="0" aria-label="点击翻转卡片">
+          <div class="card-face card-front">
+            <div id="face-front" class="face-text"></div>
+            <p class="hint flip-hint">点击卡片看答案</p>
+          </div>
+          <div class="card-face card-back">
+            <div id="face-back" class="face-text"></div>
+          </div>
+        </div>
+        <div id="grades" class="grades hidden">
+          <button class="btn danger" type="button" data-grade="forget">忘记</button>
+          <button class="btn" type="button" data-grade="hard">困难</button>
+          <button class="btn primary" type="button" data-grade="good">良好</button>
+          <button class="btn" type="button" data-grade="easy">简单</button>
+        </div>
+        <p id="next-interval" class="hint"></p>
+      </div>
+      <p id="review-empty" class="hint">现在没有到期的卡片。去建一张，或稍后再来。</p>
+      <div class="action-row">
+        <button id="review-start" class="btn primary" type="button">开始复习</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>建卡 / 导入</h2>
+      <p class="hint">一行一张：<code>正面 | 背面</code>（或 Tab 分隔）；<code>#标签</code> 行给下一张卡打标签。</p>
+      <textarea id="import-text" class="input textarea" rows="4" placeholder="什么是 SM-2 | 一个间隔重复算法&#10;DNA 的中文 | 脱氧核糖核酸"></textarea>
+      <div class="action-row">
+        <button id="import-run" class="btn primary" type="button">导入</button>
+        <button id="export-run" class="btn" type="button">导出全部</button>
+      </div>
+      <p id="import-report" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>卡组</h2>
+        <span class="muted" id="deck-count"></span>
+      </div>
+      <ul id="deck-list" class="deck-list" aria-label="卡组"></ul>
+      <p id="deck-empty" class="hint">卡组是空的。</p>
+    </section>
+
+    <p id="status" class="status"></p>
+    <p id="fatal" class="status danger hidden"></p>
+  </main>
+
+  <script src="lib/sm2.js"></script>
+  <script src="lib/deck.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

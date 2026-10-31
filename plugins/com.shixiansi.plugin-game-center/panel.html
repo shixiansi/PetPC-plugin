@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>游戏中心</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 浮层卡带不了共享 ui.css（它带阴影/位移，会被矩形裁掉）：调色在 style.css 里自带。 -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body id="root" data-surface="boot">
+  <!--
+    一张 surface 卡，三个互斥的面板（手册 §8.2b：同一时刻只有一组内容可见）：
+
+      menu      开始菜单：标题 + 玩法一句话 + 开始按钮。
+      board     游戏板：HUD（分数/生命/道具）+ 掉落区 + 篮子 + 暂停。
+      result    结算：得分 + 明细 + 桌宠的状态反应 + 再来一局。
+
+    浮层卡声明了 maxH，长高由宿主裁剪；三块的高度都在声明范围内。
+  -->
+  <main id="game-card" class="card game-card">
+    <header class="bar">
+      <span class="title">接金币</span>
+      <span id="status" class="status">等待宿主初始化…</span>
+    </header>
+
+    <section id="menu" class="panel" hidden>
+      <p class="lede">左右移动篮子，接住金币，躲开炸弹。道具会掉下来：磁铁、双倍、护盾。</p>
+      <p class="hint">←/→ 或 A/D 移动 · 空格开始 · 也可以用鼠标拖篮子。</p>
+      <button id="play" class="btn primary" type="button" disabled>开始游戏</button>
+      <p class="hint">每局得分会发布给桌宠生态（可在设置里关掉）；接得漂亮桌宠会欢呼，漏太多它会失落。</p>
+    </section>
+
+    <section id="board" class="panel board" hidden>
+      <div id="hud" class="hud">
+        <span id="hud-score">0 分</span>
+        <span id="hud-lives">♥♥♥</span>
+        <span id="hud-effects"></span>
+        <button id="pause" class="btn soft pause" type="button">暂停</button>
+      </div>
+      <div class="field">
+        <!-- 掉落物与篮子由 workshop.js 动态放入 -->
+      </div>
+    </section>
+
+    <section id="result" class="panel" hidden>
+      <h2 id="result-title" class="result-score">0 分</h2>
+      <p id="result-detail" class="result-detail"></p>
+      <p id="result-best" class="hint"></p>
+      <div class="actions">
+        <button id="again" class="btn primary" type="button">再来一局</button>
+      </div>
+    </section>
+  </main>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    引擎在前（不碰 DOM），渲染在后；加文件时同步 manifest.json 的 assets。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/engine.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

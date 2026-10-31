@@ -1,0 +1,149 @@
+/* style.css —— 记忆卡片的布局（颜色只来自 ui.css 的 token，禁止十六进制值） */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.6 var(--font);
+}
+
+.workshop {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+h2 { margin: 0 0 var(--space-2); font-size: 15px; }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.action-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.textarea {
+  height: auto;
+  resize: vertical;
+  margin-bottom: var(--space-2);
+}
+
+.status {
+  margin: var(--space-2) 0 0;
+  min-height: 1.2em;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.status.danger { color: var(--danger); }
+
+/* --- 翻转卡（workshop 面板里才有的 3D transform；插件无 surface 矩形，§8.4 例外） --- */
+
+.review-area { display: flex; flex-direction: column; gap: var(--space-3); }
+.review-area.hidden { display: none; }
+
+.card-flip {
+  position: relative;
+  min-height: 160px;
+  cursor: pointer;
+  perspective: 900px;
+}
+
+.card-flip .card-face {
+  backface-visibility: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background: var(--bg-raised);
+  padding: var(--space-5);
+  transition: opacity var(--dur-3) var(--ease), transform var(--dur-3) var(--ease);
+}
+
+.card-flip .card-back {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: rotateX(-8deg);
+}
+
+.card-flip.flipped .card-back {
+  opacity: 1;
+  transform: rotateX(0);
+}
+
+.card-flip.flipped .card-front {
+  opacity: 0.25;
+}
+
+.face-text {
+  font-size: 15px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.face-text code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.flip-hint { margin: var(--space-3) 0 0; text-align: right; }
+
+.grades {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.grades.hidden { display: none; }
+
+.deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 300px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.deck-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.deck-item:last-child { border-bottom: 0; }
+
+.deck-main { flex: 1; min-width: 0; }
+
+.deck-front {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.deck-meta .due-soon { color: var(--warning); }
+.deck-meta .due-now { color: var(--danger); }
+
+#deck-empty.hidden, #review-empty.hidden { display: none; }

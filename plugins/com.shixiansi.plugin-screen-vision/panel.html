@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>屏幕视觉</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，三副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：什么都不画，启动辅助脚本、答 plugin.call 的 analyze_screen。
+      surface      宠物旁的浮层卡：问题输入框 + 「看一眼屏幕」按钮 + 识别中状态。
+      workshop     控制中心插件页：只读（配置状态 + 最近识别记录）。
+
+    三段都写在标记里；不该出现的那两段由 app.js 按 slot 显隐。
+  -->
+  <div id="root" class="view-surface">
+    <main id="surface-card" class="card surface-card">
+      <header class="bar">
+        <span class="title">屏幕视觉</span>
+        <span id="status" class="status">等待宿主初始化…</span>
+      </header>
+      <input id="question" class="input" type="text"
+             placeholder="问屏幕上的什么？（可留空=概括）" maxlength="2000" />
+      <button id="look" class="btn primary" type="button" disabled>看一眼屏幕</button>
+      <p id="answer" class="answer" data-state="idle"></p>
+      <p id="answer-meta" class="hint"></p>
+    </main>
+
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-slot">屏幕视觉</span>
+          <span class="chip" id="chip-helper">辅助脚本：…</span>
+        </div>
+        <p class="lede">
+          给桌宠的眼睛：截图 → 上传 → 交给视觉模型解析。问答走记忆核心，所以它记得你问过的屏幕。
+        </p>
+      </header>
+
+      <section class="card">
+        <h2>最近识别</h2>
+        <table class="history">
+          <thead>
+            <tr><th>时间</th><th>问题</th><th>回答</th></tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+        <p id="history-empty" class="muted">还没有识别过。</p>
+        <p class="hint desktop-only hidden">
+          「看一眼屏幕」要在桌宠那边才能跑（控制中心不服务 process 与 plugin.call）。
+          别的插件 <code>plugin.call</code> 这个插件的 <code>analyze_screen</code> 就能拿到同一份解析。
+        </p>
+        <p class="hint">截图范围、上传地址与冷却时间在设置里调；上传地址会按你填的值加进网络白名单。</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>记录</h2>
+          <button id="history-clear" class="btn soft" type="button">清空记录</button>
+        </div>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/screenshot.js"></script>
+  <script src="lib/vision.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+/* style.css —— 壁纸联动插件的布局（颜色只来自 ui.css 的 token，禁止十六进制值） */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-4);
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.6 var(--font);
+}
+
+.workshop {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+h2 { margin: 0 0 var(--space-2); font-size: 15px; }
+
+.ambient-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.ambient-swatch {
+  width: 96px;
+  height: 60px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-sunken);
+  flex: none;
+}
+
+.ambient-info { min-width: 0; }
+
+.ambient-title {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  min-height: 32px;
+}
+
+.palette-swatch {
+  width: 44px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  position: relative;
+}
+
+.palette-swatch .share {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1.2em;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.action-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.status {
+  margin: var(--space-2) 0 0;
+  min-height: 1.2em;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.status.danger { color: var(--danger); }
+
+.blur-box {
+  margin-top: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.blur-img { display: block; width: 100%; height: auto; }
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.history-item:last-child { border-bottom: 0; }
+
+.history-swatch {
+  width: 28px;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  flex: none;
+}
+
+.history-main { flex: 1; min-width: 0; }
+
+.history-title {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+#history-empty.hidden, #blur-empty.hidden { display: none; }

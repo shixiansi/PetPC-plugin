@@ -1,0 +1,256 @@
+/*
+ * 游戏中心：这一页特有的东西——**自带的调色**。
+ *
+ * 这个文档挂在宠物旁的浮层卡（声明了 surface），窗口按矩形裁剪：box-shadow /
+ * filter / transform 一律不用（画出去会被切掉）。而共享的 ui.css 是给"只在控制中心
+ * 铺满面板"的插件用的——它带阴影与位移，浮层卡带不了它。所以与 todo / pomodoro
+ * 同一条路：自己声明一份 `--p-*` 调色，深浅两套，颜色不借宿主。
+ *
+ * 圆角、间距、字体仍然对齐设计系统：24px 卡、16px 控件、4 的倍数。
+ */
+
+:root {
+  --p-bg: #191b21;
+  --p-text: #e8eaf0;
+  --p-muted: #9aa3b2;
+  --p-line: #2c313c;
+  --p-card: #1d2027;
+  --p-well: #12141a;
+  --p-chip: #232733;
+  --p-accent: #2f6feb;
+  --p-accent-hover: #3b7cf7;
+  --p-good: #34a46a;
+  --p-bad: #d4574e;
+  --p-gold: #d9a13c;
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --p-bg: #ffffff;
+  --p-text: #16202e;
+  --p-muted: #5b6779;
+  --p-line: #d6dde9;
+  --p-card: #ffffff;
+  --p-well: #eef1f6;
+  --p-chip: #e4e9f2;
+  --p-accent: #2f6bea;
+  --p-accent-hover: #2459cc;
+  --p-good: #1e8a55;
+  --p-bad: #c0443c;
+  --p-gold: #b07c1c;
+  color-scheme: light;
+}
+
+/* 画布必须透明：浮层面矩形之外，宿主窗口是透出桌面的。 */
+:root {
+  background: transparent;
+}
+
+html[data-theme='light'] {
+  color-scheme: only light;
+}
+
+* { box-sizing: border-box; }
+
+.game-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--p-card);
+  border: 1px solid var(--p-line);
+  color: var(--p-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title {
+  font-weight: 600;
+}
+
+.status {
+  flex: 1;
+  text-align: right;
+  color: var(--p-muted);
+  font-size: 12px;
+  min-height: 1.5em;
+}
+
+.panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+
+.panel[hidden] {
+  display: none !important;
+}
+
+.lede {
+  margin: 0;
+  color: var(--p-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--p-muted);
+}
+
+/* 按钮：对齐设计系统的 38px 高、10px 圆角。 */
+
+.btn {
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--p-line);
+  border-radius: 10px;
+  background: var(--p-chip);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--p-accent);
+  border-color: var(--p-accent);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: var(--p-accent-hover);
+}
+
+.btn.soft {
+  background: transparent;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* HUD */
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hud #hud-score {
+  min-width: 6em;
+}
+
+.hud #hud-lives {
+  color: var(--p-bad);
+}
+
+.hud #hud-effects {
+  flex: 1;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--p-muted);
+}
+
+.pause {
+  height: 26px;
+  padding: 0 12px;
+}
+
+/* 游戏板：逻辑坐标 380×300，field 铺满剩余高度。 */
+
+.board {
+  gap: 8px;
+}
+
+.field {
+  position: relative;
+  flex: 1;
+  min-height: 180px;
+  border: 1px solid var(--p-line);
+  border-radius: 12px;
+  background: var(--p-well);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.item,
+.basket {
+  position: absolute;
+  display: block;
+}
+
+.item {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--p-line);
+}
+
+.item-coin {
+  background: var(--p-gold);
+  border-color: var(--p-gold);
+}
+
+.item-bomb {
+  background: var(--p-bad);
+  border-color: var(--p-bad);
+}
+
+.item-magnet {
+  background: var(--p-card);
+  border-color: var(--p-accent);
+  border-radius: 10px;
+}
+
+.item-double {
+  background: var(--p-good);
+  border-color: var(--p-good);
+  border-radius: 10px;
+}
+
+.item-shield {
+  background: var(--p-card);
+  border-color: var(--p-muted);
+  border-radius: 10px;
+}
+
+.basket {
+  width: 56px;
+  height: 14px;
+  bottom: 12px;
+  border-radius: 10px;
+  background: var(--p-text);
+  opacity: 0.85;
+}
+
+/* 结算 */
+
+.result-score {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.result-detail {
+  margin: 0;
+  color: var(--p-muted);
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}

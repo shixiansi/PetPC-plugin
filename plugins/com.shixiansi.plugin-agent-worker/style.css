@@ -1,0 +1,101 @@
+/*
+ * 后台任务执行器：这一页特有的东西。
+ * 颜色、字体、间距、圆角、阴影、按钮全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 纪律：这个文件里不许出现 #xxxxxx。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.search-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.search-row .input {
+  flex: 1;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.task {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.task-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.task-status {
+  font-size: 12px;
+  padding: 0 var(--space-2);
+  height: 22px;
+  line-height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+
+.task-status.st-running {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.task-status.st-done {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.task-status.st-failed {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.task-id {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.task-desc {
+  margin: 0;
+  word-break: break-all;
+}
+
+.task-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--text-dim);
+}

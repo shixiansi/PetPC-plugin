@@ -1,0 +1,58 @@
+{
+  "id": "com.shixiansi.plugin-expense-tracker",
+  "name": "自然语言记账与财务看板",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "对桌宠说「打车花了 25 块」：模型把话解析成结构化账目（金额/类型/分类/日期）自动入账，解析失败自动带着错误原因重试一次，绝不把猜测值写进账本；账本按月存 JSONL、坏行跳过。看板用纯 SVG 画分类环形图与每日趋势折线图，支持手动记账与月度切换。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "llm.chat",
+    "llm.borrow",
+    "pet.bubble"
+  ],
+  "serves": ["chat_on_message", "month", "stats"],
+  "background": true,
+  "config": [
+    {
+      "key": "llmBaseUrl",
+      "label": "接口地址（留空=借用对话插件的配置）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "llmModel",
+      "label": "模型（留空=借用对话插件的配置）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "llmApiKey",
+      "label": "API Key（留空=借用对话插件的配置）",
+      "type": "secret",
+      "secret": true
+    },
+    {
+      "key": "llmDailyBudget",
+      "label": "每日解析上限（次；解析失败也算一次尝试）",
+      "type": "number",
+      "default": "100"
+    },
+    {
+      "key": "bubbleOnRecord",
+      "label": "入账后桌宠确认一句（需要 pet.bubble）",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/parse.js",
+    "lib/ledger.js",
+    "lib/charts.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

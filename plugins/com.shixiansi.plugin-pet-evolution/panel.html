@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>养成面板</title>
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔：
+      workshop    控制中心插件页：属性雷达、经验条、技能树、喂食互动、存档迁移状态。
+      background  桌宠常驻帧：订阅番茄钟/晨报事件、经 memcore 的对话记经验、答 plugin.call。
+  -->
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip" id="chip-name">小宠</span>
+        <span class="chip" id="chip-level">Lv.1</span>
+        <span class="chip" id="chip-mood">状态：平静</span>
+      </div>
+      <p class="lede">
+        桌宠的 RPG 养成：聊天、互动、完成任务都会长经验。每级 3 点自由属性，智力影响对话深度、
+        体力影响互动次数、亲密影响好感成长。每 10 级解锁一个新外观。存档带版本迁移。
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>成长</h2>
+      <div class="exp-row">
+        <span id="level-label" class="level-label">Lv.1</span>
+        <div class="exp-track"><div id="exp-bar" class="exp-bar" style="width:0%"></div></div>
+        <span id="exp-label" class="exp-label">0/20</span>
+      </div>
+      <p class="hint" id="friendship-label">好感度 0/100</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>属性</h2>
+        <span class="muted" id="points-label">可用属性点 0</span>
+      </div>
+      <div class="stat-grid">
+        <svg id="radar" class="radar" viewBox="0 0 200 200" role="img" aria-label="属性雷达图"></svg>
+        <div class="stat-list" id="stat-list"></div>
+      </div>
+      <div class="action-row">
+        <button id="respec" class="btn tiny" type="button">重置属性点（全部退回）</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>互动</h2>
+      <p class="hint" id="effects-label"></p>
+      <div class="action-row">
+        <button id="feed" class="btn primary" type="button">喂食（+8 经验）</button>
+        <button id="play" class="btn" type="button">玩耍（+5 经验，消耗体力）</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>外观（每 10 级解锁）</h2>
+      <div id="skins" class="skins" aria-label="外观列表"></div>
+    </section>
+
+    <p id="fatal" class="status danger hidden"></p>
+  </main>
+
+  <script src="lib/engine.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

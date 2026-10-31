@@ -1,0 +1,45 @@
+{
+  "id": "com.shixiansi.plugin-pet-evolution",
+  "name": "桌宠养成（等级·属性·外观）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "给桌宠的 RPG 成长系统：满级 100 级的指数经验曲线，聊天/喂食/专注/完成任务都长经验；每级 3 点自由属性（智力=对话深度、体力=互动次数、亲密=好感倍率），每 10 级解锁一个新外观。存档带版本迁移链（v1→v2 自动补字段），其他插件经 plugin.call 发奖或查档案。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "plugin.call",
+    "plugin.share",
+    "pet.bubble"
+  ],
+  "serves": ["grant_exp", "profile", "respec"],
+  "background": true,
+  "shareRead": [
+    "com.shixiansi.plugin-pomodoro/phase-ended"
+  ],
+  "config": [
+    {
+      "key": "petName",
+      "label": "宠物的名字（存在养成存档里，改名不影响成长）",
+      "type": "text",
+      "default": "小宠"
+    },
+    {
+      "key": "chatExpPerTurn",
+      "label": "聊天插件每轮对话发多少经验（0=不发；发奖由聊天插件调 grant_exp）",
+      "type": "number",
+      "default": "12"
+    },
+    {
+      "key": "bubbleOnLevelUp",
+      "label": "升级时桌宠说一句（需要 pet.bubble）",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/engine.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

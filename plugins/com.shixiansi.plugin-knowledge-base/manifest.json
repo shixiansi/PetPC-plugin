@@ -1,0 +1,66 @@
+{
+  "id": "com.shixiansi.plugin-knowledge-base",
+  "name": "本地知识库（文档切片与检索问答）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "让桌宠「读」过你给它的文档：把 Markdown/TXT 粘进面板（或给一个 http(s) 地址让它抓取），文档按 500 字滑动窗口切片（50 字重叠防语义切断），建立纯 JS 的 TF-IDF 倒排索引；提问时按关键词检索相关度最高的 3 个切片注入 Prompt，经记忆核心作答——桌宠的回答就以你的文档为准。面板显示文档列表、切片数量与索引进度。",
+  "permissions": [
+    "net.fetch",
+    "plugin.call",
+    "storage",
+    "plugin.config",
+    "events"
+  ],
+  "serves": ["ask_kb"],
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "shareRead": [],
+  "background": true,
+  "netHosts": [
+    "raw.githubusercontent.com",
+    "gist.githubusercontent.com"
+  ],
+  "config": [
+    {
+      "key": "docUrls",
+      "label": "远程文档地址（每行一个 Markdown/TXT 的 http(s) 地址；域会加进网络白名单）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "chunkChars",
+      "label": "切片大小（字，200–1000；默认 500）",
+      "type": "number",
+      "default": "500"
+    },
+    {
+      "key": "chunkOverlap",
+      "label": "切片重叠（字，0–200；默认 50，防语义被切断）",
+      "type": "number",
+      "default": "50"
+    },
+    {
+      "key": "topK",
+      "label": "每次问答注入几个切片（1–5，默认 3）",
+      "type": "number",
+      "default": "3"
+    },
+    {
+      "key": "minScore",
+      "label": "相关度门槛（0–100；低于它桌宠会说「文档里没查到」而不是硬答）",
+      "type": "number",
+      "default": "20"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/chunker.js",
+    "lib/index.js",
+    "lib/qa.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

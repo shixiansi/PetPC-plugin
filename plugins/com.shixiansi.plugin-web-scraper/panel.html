@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>网页提取</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定）：
+      workshop    控制中心插件页：抓取输入框 + 进度 + Markdown 预览 + 文章库列表。
+      background  桌宠常驻帧：不画任何东西，只答别的插件的 scrape_one / library_list。
+  -->
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">网页提取</span>
+        <span class="chip" id="chip-library">文章库 0 篇</span>
+      </div>
+      <p class="lede">
+        输入一个网址：抓取页面、按段落密度与链接占比评分挑出正文、去掉导航与广告，
+        转成整洁的 Markdown 存进文章库，供你和其他插件（记忆核心、知识库）阅读引用。
+        抓取域名需要在下方白名单里。
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>抓一页</h2>
+      <div class="search-row">
+        <input id="url" class="input" type="text" placeholder="https://example.com/article" maxlength="300" />
+        <button id="go" class="btn primary" type="button">提取</button>
+      </div>
+      <p id="status" class="status" aria-live="polite"></p>
+      <div id="progress" class="progress hidden" aria-hidden="true">
+        <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+      </div>
+      <div id="picked" class="picked hidden"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Markdown 预览</h2>
+        <button id="send-pet" class="btn tiny" type="button" disabled>让桌宠读这篇</button>
+      </div>
+      <pre id="preview" class="preview">抓取之后，Markdown 会出现在这里。</pre>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>文章库</h2>
+        <span class="muted" id="lib-count"></span>
+      </div>
+      <ul id="lib-list" class="lib-list" aria-label="已保存的文章"></ul>
+      <p id="lib-empty" class="hint">还没有文章。抓一页试试。</p>
+    </section>
+
+    <section class="card">
+      <h2>抓取白名单</h2>
+      <p class="hint">
+        每行一个域名（或「用户设置里的地址」）：只有这里的域名会被抓。
+        端口要单独写（<code>example.com:8443</code> 是一条独立记录）。
+      </p>
+      <textarea id="hosts" class="input textarea" rows="4" placeholder="example.com&#10;blog.example.org"></textarea>
+      <button id="hosts-save" class="btn" type="button">保存白名单</button>
+      <p class="hint">
+        这里填的域会合并进网络白名单（manifest 的 netHosts 之外，用户可以自己加）。
+        保存后立即生效。
+      </p>
+    </section>
+
+    <p id="fatal" class="status danger hidden"></p>
+  </main>
+
+  <script src="lib/turndown.js"></script>
+  <script src="lib/extract.js"></script>
+  <script src="lib/tomd.js"></script>
+  <script src="lib/library.js"></script>
+  <script src="lib/scrape.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

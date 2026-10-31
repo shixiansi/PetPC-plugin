@@ -1,15 +1,55 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-30T16:04:59Z",
+  "updatedAt": "2026-10-30T19:58:32Z",
   "plugins": [
+    {
+      "id": "com.shixiansi.plugin-agent-worker",
+      "name": "后台任务执行器",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent/status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。",
+      "permissions": [
+        "plugin.call",
+        "plugin.share",
+        "storage",
+        "plugin.config",
+        "pet.bubble",
+        "events"
+      ],
+      "download": "dist/com.shixiansi.plugin-agent-worker-0.1.0.zip",
+      "sha256": "179bd5c584d6507054ec728f83a882c56268c2e34d8f262ad9c719c171bbdcb5"
+    },
     {
       "id": "com.shixiansi.plugin-bilibili",
       "name": "B 站刷视频插件",
       "version": "1.1.1",
       "author": "shixiansi",
       "description": "按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。",
-      "permissions": ["net.fetch", "net.credentials", "llm.chat", "llm.borrow", "storage", "plugin.config", "pet.bubble", "plugin.share", "plugin.call"],
-      "netHosts": ["api.bilibili.com", "passport.bilibili.com", "aisubtitle.hdslb.com", "i0.hdslb.com", "i1.hdslb.com", "i2.hdslb.com", "s1.hdslb.com", "www.bilibili.com", "m.bilibili.com", "b23.tv", "space.bilibili.com", "bili2233.cn"],
+      "permissions": [
+        "net.fetch",
+        "net.credentials",
+        "llm.chat",
+        "llm.borrow",
+        "storage",
+        "plugin.config",
+        "pet.bubble",
+        "plugin.share",
+        "plugin.call"
+      ],
+      "netHosts": [
+        "api.bilibili.com",
+        "passport.bilibili.com",
+        "aisubtitle.hdslb.com",
+        "i0.hdslb.com",
+        "i1.hdslb.com",
+        "i2.hdslb.com",
+        "s1.hdslb.com",
+        "www.bilibili.com",
+        "m.bilibili.com",
+        "b23.tv",
+        "space.bilibili.com",
+        "bili2233.cn"
+      ],
       "download": "dist/com.shixiansi.plugin-bilibili-1.1.1.zip",
       "sha256": "f3bef5a9c424b133005d09d5dc464fda499b99b7ae325327cd54a79146168f25"
     },
@@ -19,7 +59,13 @@
       "version": "1.9.0",
       "author": "shixiansi",
       "description": "在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。",
-      "permissions": ["llm.chat", "llm.borrow", "pet.surface", "plugin.config", "storage"],
+      "permissions": [
+        "llm.chat",
+        "llm.borrow",
+        "pet.surface",
+        "plugin.config",
+        "storage"
+      ],
       "download": "dist/com.shixiansi.plugin-chat-1.9.0.zip",
       "sha256": "e9fc17781c6b0bd1ee3d0550061f49c5cc59e5acd776b776d75584393f719f3c"
     },
@@ -29,7 +75,17 @@
       "version": "0.1.14",
       "author": "shixiansi",
       "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
-      "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
+      "permissions": [
+        "process",
+        "llm.chat",
+        "llm.borrow",
+        "storage",
+        "plugin.config",
+        "plugin.share",
+        "events",
+        "pet.surface",
+        "pet.bubble"
+      ],
       "download": "dist/com.shixiansi.plugin-clipask-0.1.14.zip",
       "sha256": "90a273df0bd57ded20e115b583d978684fdf017b3ca9cd858c4cb0d6f22647df"
     },
@@ -39,10 +95,71 @@
       "version": "0.1.0",
       "author": "shixiansi",
       "description": "把「点歌 晴天」变成一首歌：歌名、歌手、专辑、封面，和一条能直接播的直链。搜索走酷我（替它查的是 oiapi 那个公开接口），链接按码率逐档回退，并在域名可探测时验证一次能不能播。别的插件用 plugin.call 问它 song（按一句话找歌）或 song_link（已知歌名，要一条当下的链接）；记忆核心在用户点歌时调它，把直链原样给出来。插件页可以手动点一首。",
-      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
-      "netHosts": ["oiapi.net", "kw-er.kuwo.cn", "kw-lv.kuwo.cn"],
+      "permissions": [
+        "net.fetch",
+        "storage",
+        "plugin.config",
+        "plugin.call"
+      ],
+      "netHosts": [
+        "oiapi.net",
+        "kw-er.kuwo.cn",
+        "kw-lv.kuwo.cn"
+      ],
       "download": "dist/com.shixiansi.plugin-diange-0.1.0.zip",
       "sha256": "783645c9615c78b470f11746d1fd833e45f646db1753d05ccc172b0215cf2e10"
+    },
+    {
+      "id": "com.shixiansi.plugin-diary-writer",
+      "name": "日记（自动情绪追踪）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "每天 23:00（或手动触发）把当天的交互碎片写成一篇 ≤300 字、带情绪标签的日记：对话摘要来自记忆核心的 export-state、已完成待办来自待办插件的共享快照、专注时长来自番茄钟的共享状态。日记存进插件私有目录，并把「昨天写了什么」注入下一次生成时的 Prompt；可经 plugin.call 问 get_recent 让桌宠在对话里引用昨天的日记。",
+      "permissions": [
+        "plugin.call",
+        "plugin.share",
+        "storage",
+        "plugin.config",
+        "events",
+        "pet.bubble"
+      ],
+      "download": "dist/com.shixiansi.plugin-diary-writer-0.1.0.zip",
+      "sha256": "5a3c0a3c0e1acf5a9d29057e3643daa50f76d7bd61e2baf1605589c65282c687"
+    },
+    {
+      "id": "com.shixiansi.plugin-game-center",
+      "name": "游戏中心（接金币）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "宠物旁的轻量小游戏「接金币」：左右移动篮子接住掉落的金币与道具（磁铁、双倍、护盾），躲开炸弹。有开始菜单、实时计分板与结束结算面板；本局得分经 plugin.share 发给桌宠生态（亲密度/金币由记忆侧消费），游戏结束按胜负触发桌宠的欢呼或失落状态。逻辑引擎不依赖 DOM，面板只做渲染。",
+      "permissions": [
+        "plugin.share",
+        "pet.surface",
+        "storage",
+        "plugin.config"
+      ],
+      "download": "dist/com.shixiansi.plugin-game-center-0.1.0.zip",
+      "sha256": "d8c5d23fc0e265de1e8385ed5acdf2c4c13d9af31dceca3f60a97a08825076a7"
+    },
+    {
+      "id": "com.shixiansi.plugin-knowledge-base",
+      "name": "本地知识库（文档切片与检索问答）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "让桌宠「读」过你给它的文档：把 Markdown/TXT 粘进面板（或给一个 http(s) 地址让它抓取），文档按 500 字滑动窗口切片（50 字重叠防语义切断），建立纯 JS 的 TF-IDF 倒排索引；提问时按关键词检索相关度最高的 3 个切片注入 Prompt，经记忆核心作答——桌宠的回答就以你的文档为准。面板显示文档列表、切片数量与索引进度。",
+      "permissions": [
+        "net.fetch",
+        "plugin.call",
+        "storage",
+        "plugin.config",
+        "events"
+      ],
+      "netHosts": [
+        "raw.githubusercontent.com",
+        "gist.githubusercontent.com"
+      ],
+      "download": "dist/com.shixiansi.plugin-knowledge-base-0.1.0.zip",
+      "sha256": "03195a2e4bc20a0d5f921a4fc272b122d082e7541dbcf195158997099ae4dd5c"
     },
     {
       "id": "com.shixiansi.plugin-llmchannel",
@@ -50,8 +167,17 @@
       "version": "0.2.5",
       "author": "shixiansi",
       "description": "一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。",
-      "permissions": ["llm.chat", "plugin.config"],
-      "netHosts": ["api.openai.com", "api.moonshot.cn", "open.bigmodel.cn", "dashscope.aliyuncs.com", "127.0.0.1:11434"],
+      "permissions": [
+        "llm.chat",
+        "plugin.config"
+      ],
+      "netHosts": [
+        "api.openai.com",
+        "api.moonshot.cn",
+        "open.bigmodel.cn",
+        "dashscope.aliyuncs.com",
+        "127.0.0.1:11434"
+      ],
       "download": "dist/com.shixiansi.plugin-llmchannel-0.2.5.zip",
       "sha256": "f60f7560c8c12fdcd5df3a2a6f1314a4350a3b02403fb443f2537e3c07bec9c4"
     },
@@ -61,7 +187,14 @@
       "version": "0.1.2",
       "author": "shixiansi",
       "description": "桌宠知道你正在听什么：由本机辅助脚本读 Windows SMTC（System Media Transport Controls）的当前曲目——歌名、歌手、专辑、播放状态。别的插件把用户「我在听什么」的问题用 plugin.call 问它的 now_playing，答案直接可放进模型上下文；宠物头顶也会挂「♪ 歌名 - 歌手」徽标。监听走 process.launch 启动的 PowerShell 脚本。",
-      "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
+      "permissions": [
+        "process",
+        "plugin.share",
+        "plugin.call",
+        "pet.surface",
+        "storage",
+        "plugin.config"
+      ],
       "download": "dist/com.shixiansi.plugin-media-sync-0.1.2.zip",
       "sha256": "438bd6a49b534557481e9e9b7809e57f9efe954ffe5bf103893c2dcfff30c1fe"
     },
@@ -71,7 +204,13 @@
       "version": "0.6.5",
       "author": "shixiansi",
       "description": "人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。",
-      "permissions": ["plugin.call", "llm.chat", "llm.borrow", "storage", "plugin.config"],
+      "permissions": [
+        "plugin.call",
+        "llm.chat",
+        "llm.borrow",
+        "storage",
+        "plugin.config"
+      ],
       "download": "dist/com.shixiansi.plugin-memcore-0.6.5.zip",
       "sha256": "003e39627d4b22796b3a3cab933debcc0b6500e52a23cb23323fb462b453c53d"
     },
@@ -81,8 +220,15 @@
       "version": "0.1.7",
       "author": "shixiansi",
       "description": "查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。",
-      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
-      "netHosts": ["zh.moegirl.org.cn"],
+      "permissions": [
+        "net.fetch",
+        "storage",
+        "plugin.config",
+        "plugin.call"
+      ],
+      "netHosts": [
+        "zh.moegirl.org.cn"
+      ],
       "download": "dist/com.shixiansi.plugin-moegirl-0.1.7.zip",
       "sha256": "4ec4a7db7263b53633b32aa80fbc585c32ec77d1266f70de7cac6cd2a83027e8"
     },
@@ -92,8 +238,15 @@
       "version": "0.1.5",
       "author": "shixiansi",
       "description": "把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。",
-      "permissions": ["net.ws", "plugin.call", "storage", "plugin.config"],
-      "netHosts": ["127.0.0.1:3001"],
+      "permissions": [
+        "net.ws",
+        "plugin.call",
+        "storage",
+        "plugin.config"
+      ],
+      "netHosts": [
+        "127.0.0.1:3001"
+      ],
       "download": "dist/com.shixiansi.plugin-onebot-0.1.5.zip",
       "sha256": "5a0fb5c3501f923e3c5231bb8bcc8fb87cd23c29c71469fef9e8f513e21cf5fb"
     },
@@ -103,7 +256,14 @@
       "version": "0.1.2",
       "author": "shixiansi",
       "description": "桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。采样与监听走本机辅助脚本（process.launch）。",
-      "permissions": ["process", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
+      "permissions": [
+        "process",
+        "plugin.share",
+        "plugin.call",
+        "pet.surface",
+        "storage",
+        "plugin.config"
+      ],
       "download": "dist/com.shixiansi.plugin-pet-sense-0.1.2.zip",
       "sha256": "8710bff76523c1608ed0839b3be84a1a5956b14c220beea1abf91249aeb292f2"
     },
@@ -113,7 +273,14 @@
       "version": "2.3.12",
       "author": "shixiansi",
       "description": "桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。",
-      "permissions": ["storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
+      "permissions": [
+        "storage",
+        "plugin.config",
+        "plugin.share",
+        "events",
+        "pet.surface",
+        "pet.bubble"
+      ],
       "download": "dist/com.shixiansi.plugin-pomodoro-2.3.12.zip",
       "sha256": "bb0fc8bfea7e7efb0415029c031377a777d496fe0515a152147e827e6ecc69b0"
     },
@@ -123,8 +290,22 @@
       "version": "1.14.6",
       "author": "shixiansi",
       "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
-      "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "process", "plugin.share", "plugin.call"],
-      "netHosts": ["127.0.0.1:3000", "gchat.qpic.cn", "multimedia.nt.qq.com.cn"],
+      "permissions": [
+        "net.ws",
+        "net.fetch",
+        "llm.chat",
+        "llm.borrow",
+        "storage",
+        "plugin.config",
+        "process",
+        "plugin.share",
+        "plugin.call"
+      ],
+      "netHosts": [
+        "127.0.0.1:3000",
+        "gchat.qpic.cn",
+        "multimedia.nt.qq.com.cn"
+      ],
       "download": "dist/com.shixiansi.plugin-qq-1.14.6.zip",
       "sha256": "6b96964fd2051181dc55e83de6cde376a39287946baef96ca9829e34fa08eb3f"
     },
@@ -134,10 +315,61 @@
       "version": "1.0.3",
       "author": "shixiansi",
       "description": "把大模型接进 QQ 官方机器人（QQ 开放平台 q.qq.com）：WebSocket 网关收群聊 @ 消息与单聊消息，用被动回复接口答复。AppID 与 AppSecret 在开放平台管理端获取，模型默认借用对话插件的配置。",
-      "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config"],
-      "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
+      "permissions": [
+        "net.ws",
+        "net.fetch",
+        "llm.chat",
+        "llm.borrow",
+        "storage",
+        "plugin.config"
+      ],
+      "netHosts": [
+        "api.bot.qq.com",
+        "api.sgroup.qq.com"
+      ],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.3.zip",
       "sha256": "be314383702e732f5373b9b43492b48f184908123cec5c71993b1cd780d11a4c"
+    },
+    {
+      "id": "com.shixiansi.plugin-rss-reader",
+      "name": "晨报（RSS 订阅与语音播报）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "订阅 RSS/Atom 源，每 2 小时在后台抓一次新文章；把新内容交给记忆核心的模型总结成 3 句话（语气符合桌宠人设），再用语音插件的 speak 念出来。面板里可以添加/删除订阅源、立刻抓一次、看每条源的状态与最近摘要。",
+      "permissions": [
+        "net.fetch",
+        "plugin.call",
+        "plugin.share",
+        "storage",
+        "plugin.config",
+        "events",
+        "pet.bubble"
+      ],
+      "netHosts": [
+        "example.com",
+        "www.example.com",
+        "feed.example.com",
+        "rsshub.app"
+      ],
+      "download": "dist/com.shixiansi.plugin-rss-reader-0.1.0.zip",
+      "sha256": "d48707439e41370831190f84225686edfce48140b4cd235b5e343c38cea4735f"
+    },
+    {
+      "id": "com.shixiansi.plugin-screen-vision",
+      "name": "屏幕视觉",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "给桌宠的眼睛：用本机辅助脚本截取全屏或指定区域，把截图交给视觉模型解析。别的插件用 plugin.call 问 analyze_screen（一句话问题 → 一段看图后的回答）；面板上有「看一眼屏幕」按钮，显示识别进度，保留最近几次识别记录。问答走记忆核心（memcore/chat），截图 URL 会加进网络白名单。",
+      "permissions": [
+        "process",
+        "llm.borrow",
+        "plugin.call",
+        "plugin.share",
+        "storage",
+        "plugin.config"
+      ],
+      "download": "dist/com.shixiansi.plugin-screen-vision-0.1.0.zip",
+      "sha256": "e2e52efa288b01a1ea2ffee12065626a84114e58ee3babd4c548c1e21fe3df26"
     },
     {
       "id": "com.shixiansi.plugin-slang",
@@ -145,7 +377,11 @@
       "version": "0.2.0",
       "author": "shixiansi",
       "description": "认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。",
-      "permissions": ["storage", "plugin.config", "plugin.call"],
+      "permissions": [
+        "storage",
+        "plugin.config",
+        "plugin.call"
+      ],
       "download": "dist/com.shixiansi.plugin-slang-0.2.0.zip",
       "sha256": "e04148ccb94b0a4934a0398ca7729a3f65b17e007138cc434fa6eb6b35dc06f9"
     },
@@ -155,7 +391,14 @@
       "version": "1.2.1",
       "author": "shixiansi",
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
-      "permissions": ["storage", "plugin.config", "plugin.share", "pet.surface", "pet.bubble", "events"],
+      "permissions": [
+        "storage",
+        "plugin.config",
+        "plugin.share",
+        "pet.surface",
+        "pet.bubble",
+        "events"
+      ],
       "download": "dist/com.shixiansi.plugin-todo-1.2.1.zip",
       "sha256": "1390d36f9c65f0bef13782ab52cb4cc01df619301acc31df7dca39aa38d7f2c3"
     },
@@ -165,8 +408,17 @@
       "version": "1.0.2",
       "author": "shixiansi",
       "description": "让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。",
-      "permissions": ["audio", "events", "storage", "plugin.config", "net.fetch", "plugin.share"],
-      "netHosts": ["127.0.0.1:9880"],
+      "permissions": [
+        "audio",
+        "events",
+        "storage",
+        "plugin.config",
+        "net.fetch",
+        "plugin.share"
+      ],
+      "netHosts": [
+        "127.0.0.1:9880"
+      ],
       "download": "dist/com.shixiansi.plugin-voice-1.0.2.zip",
       "sha256": "9d8812cbccbb181d4497180ceb0134c2ee61cd3a10dca738877aacaf7f4f9720"
     },
@@ -176,8 +428,20 @@
       "version": "0.1.1",
       "author": "shixiansi",
       "description": "桌宠出门前提醒你带伞：默认接入 Open-Meteo 公开天气 API（免密钥），也可配置和风天气。get_weather(city) 工具让模型能回答任意城市的天气；下雨、雷雨、下雪、晴天高温时在桌宠头顶挂出提醒徽标，并经 plugin.share 推送 weather/now 与 weather/condition 状态事件（同一事件 3 小时只提醒一次，不刷屏）。",
-      "permissions": ["net.fetch", "plugin.share", "plugin.call", "pet.surface", "storage", "plugin.config"],
-      "netHosts": ["api.open-meteo.com", "geocoding-api.open-meteo.com", "geoapi.qweather.com", "devapi.qweather.com"],
+      "permissions": [
+        "net.fetch",
+        "plugin.share",
+        "plugin.call",
+        "pet.surface",
+        "storage",
+        "plugin.config"
+      ],
+      "netHosts": [
+        "api.open-meteo.com",
+        "geocoding-api.open-meteo.com",
+        "geoapi.qweather.com",
+        "devapi.qweather.com"
+      ],
       "download": "dist/com.shixiansi.plugin-weather-env-0.1.1.zip",
       "sha256": "06707d1aaa45451662c04265d0d0e1764bd289bef92c104f5492891f9922db97"
     },
@@ -187,8 +451,16 @@
       "version": "1.0.3",
       "author": "shixiansi",
       "description": "给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。",
-      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
-      "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
+      "permissions": [
+        "net.fetch",
+        "storage",
+        "plugin.config",
+        "plugin.call"
+      ],
+      "netHosts": [
+        "api.tavily.com",
+        "api.bing.microsoft.com"
+      ],
       "download": "dist/com.shixiansi.plugin-websearch-1.0.3.zip",
       "sha256": "8c87fc8fd724348e62f1edaadb96f0a63c1e8a7bb8d8836292bd9631faf9bafb"
     }

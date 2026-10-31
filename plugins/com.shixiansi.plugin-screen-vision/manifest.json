@@ -1,0 +1,78 @@
+{
+  "id": "com.shixiansi.plugin-screen-vision",
+  "name": "屏幕视觉",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "给桌宠的眼睛：用本机辅助脚本截取全屏或指定区域，把截图交给视觉模型解析。别的插件用 plugin.call 问 analyze_screen（一句话问题 → 一段看图后的回答）；面板上有「看一眼屏幕」按钮，显示识别进度，保留最近几次识别记录。问答走记忆核心（memcore/chat），截图 URL 会加进网络白名单。",
+  "permissions": [
+    "process",
+    "llm.borrow",
+    "plugin.call",
+    "plugin.share",
+    "storage",
+    "plugin.config"
+  ],
+  "serves": ["analyze_screen"],
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "shareRead": [],
+  "background": true,
+  "config": [
+    {
+      "key": "helperPath",
+      "label": "PowerShell 路径（powershell.exe 的绝对路径；留空=不启动截图辅助脚本）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "helperScript",
+      "label": "辅助脚本路径（安装目录里 vision-helper.ps1 的绝对路径）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "visionBaseUrl",
+      "label": "截图上传地址（http(s)，服务把图回挂到同一地址供模型拉取；会加进网络白名单）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "visionModel",
+      "label": "视觉模型名（可选；空=用记忆核心的默认模型，只要它本身多模态）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "region",
+      "label": "截图范围",
+      "type": "select",
+      "default": "full",
+      "options": [
+        { "value": "full", "label": "全屏（主显示器）" },
+        { "value": "primary", "label": "全屏并缩到 1280 宽（省流量）" }
+      ]
+    },
+    {
+      "key": "cooldownSec",
+      "label": "两次截图最小间隔（秒，防止连点刷屏）",
+      "type": "number",
+      "default": "10"
+    },
+    {
+      "key": "maxHistory",
+      "label": "识别记录留几条（0=不记录）",
+      "type": "number",
+      "default": "20"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "vision-helper.ps1",
+    "lib/screenshot.js",
+    "lib/vision.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

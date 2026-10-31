@@ -1,0 +1,61 @@
+{
+  "id": "com.shixiansi.plugin-agent-worker",
+  "name": "后台任务执行器",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent/status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。",
+  "permissions": [
+    "plugin.call",
+    "plugin.share",
+    "storage",
+    "plugin.config",
+    "pet.bubble",
+    "events"
+  ],
+  "serves": ["add_background_task", "queue_status"],
+  "callTargets": [
+    "com.shixiansi.plugin-memcore/chat"
+  ],
+  "shareRead": [],
+  "background": true,
+  "config": [
+    {
+      "key": "pollSec",
+      "label": "队列检查间隔（秒，60–3600；默认 300=5 分钟）",
+      "type": "number",
+      "default": "300"
+    },
+    {
+      "key": "maxTasks",
+      "label": "队列最多排几个任务（超出拒绝新任务）",
+      "type": "number",
+      "default": "20"
+    },
+    {
+      "key": "execTimeoutSec",
+      "label": "单个任务的执行超时（秒，30–600）",
+      "type": "number",
+      "default": "120"
+    },
+    {
+      "key": "announce",
+      "label": "任务完成/失败后经记忆核心播报一句",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "showStatus",
+      "label": "把执行状态发布到共享牌盘（桌宠显示「搬砖」状态）",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/queue.js",
+    "lib/runner.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}
