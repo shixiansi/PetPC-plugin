@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-clipask",
   "name": "剪贴板助手",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "author": "shixiansi",
   "description": "盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。",
   "permissions": [

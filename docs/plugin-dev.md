@@ -1181,6 +1181,25 @@ window.addEventListener('message', async (e) => {
 
 ---
 
+### 7.3 `storage.pressure` — 你的私有目录快到上限了
+
+```json
+{ "name": "storage.pressure", "payload": { "used": 53477376, "limit": 67108864, "at": "…" } }
+```
+
+只在**跨过 80%** 的那一刻发一次（回落到线下再跨过才会再发）。它出现时什么都还没坏：真正到
+上限是 `storage.set` 被拒（§6.3），那时只能在丢数据和丢用户的信任之间选。所以这条事件的唯一
+价值是「还来得及」——收到就删掉不用的键、丢掉旧素材，或者把大文件分片。
+
+收件人只有你自己（私有目录是你的），不需要任何声明。典型响应：
+
+```js
+if (data.name === 'storage.pressure') {
+  const p = data.payload || {};
+  logLine('warn', `私有目录已用 ${Math.round(p.used / 1048576)} MiB（上限 ${Math.round(p.limit / 1048576)} MiB）`);
+  void dropOldTakes();   // 你自己的清理逻辑
+}
+```
 ## 8. 界面与几何
 
 ### 8.1 浮层面的矩形是"声明"的，不是"算"的

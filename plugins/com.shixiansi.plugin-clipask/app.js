@@ -97,6 +97,10 @@ window.addEventListener('message', (event) => {
         void refreshConfig();
         break;
       }
+      if (data.name === 'storage.pressure') {
+        onStoragePressure(data.payload);
+        break;
+      }
       dispatchEvent(data.name, data.payload);
       break;
     default:
@@ -719,6 +723,20 @@ async function tick() {
   } finally {
     tickBusy = false;
   }
+}
+
+/**
+ * 宿主说"你的私有目录快到上限了"（storage.pressure，手册 §7.3）。
+ *
+ * 这条事件的全部价值是"还来得及"：真到上限就是 `storage.set` 被拒，那时只能在丢数据和丢
+ * 用户的信任之间选。这个插件的 `clip/inbox/` 会随每次复制长文件，所以它确实有可清理的东西。
+ */
+function onStoragePressure(payload) {
+  if (mySlot !== 'background') return;
+  const mib = (n) => Math.round((Number(n) || 0) / (1 << 20) * 10) / 10;
+  const note = `私有目录已用 ${mib(payload && payload.used)} MiB（上限 ${mib(payload && payload.limit)} MiB）：清理 clip/inbox 里的旧样本`;
+  void pushState(note);
+  void logLine('warn', note);
 }
 
 /**

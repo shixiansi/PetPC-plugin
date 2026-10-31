@@ -209,10 +209,12 @@ function withBothPlugins() {
 
 describe('manifest', () => {
   test('targets exactly the two stats plugins and memcore passthrough', () => {
+    // 两个 stats 带宽版本下限：那两个方法就是 2026-11 才加进来的（todo 1.2.2 / pomodoro 2.3.13），
+    // 对着老版本调用只会得到"没有声明会回答 stats"。memcore/chat 不写下限——它从第一个版本就在。
     expect(manifest.callTargets).toEqual([
       `${MEMCORE}/chat`,
-      `${TODO}/stats`,
-      `${POMODORO}/stats`,
+      `${TODO}/stats@>=1.2.2`,
+      `${POMODORO}/stats@>=2.3.13`,
     ]);
     expect(manifest.background).toBe(true);
   });
