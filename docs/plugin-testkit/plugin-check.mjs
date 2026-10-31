@@ -143,6 +143,8 @@ function checkManifest(report, manifest) {
   const entry = str(manifest.entry);
   const surface = Array.isArray(manifest.surface) ? manifest.surface : [];
   const hasBackground = manifest.background === true;
+  // 画桌宠本体：entry 那个文档就长在宠物那一格里（宿主不再画它自带的那张图）。
+  const hasBody = manifest.body === true;
   if (!entry) add('entry-missing', 'FAIL', '缺少必填字段 entry');
   else {
     if (entry.startsWith('/')) add('entry-absolute', 'FAIL', `entry 不能是绝对路径：${entry}`);
@@ -150,11 +152,14 @@ function checkManifest(report, manifest) {
     if (entry.includes('..')) add('entry-relative-escape', 'FAIL', `entry 不能包含 ..：${entry}`);
     if (!entry.endsWith('.html')) add('entry-html', 'FAIL', `entry 必须以 .html 结尾：${entry}`);
   }
-  if (manifest.panel !== true && surface.length === 0 && !hasBackground) {
-    add('no-mount-point', 'FAIL', '必须声明 panel / surface / background 之一：否则没有任何宿主会加载这个 entry');
+  if (manifest.panel !== true && surface.length === 0 && !hasBackground && !hasBody) {
+    add('no-mount-point', 'FAIL', '必须声明 panel / surface / background / body 之一：否则没有任何宿主会加载这个 entry');
   }
   if (hasBackground && !['events', 'net.ws', 'net.fetch', 'plugin.call'].some((p) => declared.has(p))) {
     add('background-without-permission', 'FAIL', 'background 需要 events / net.ws / net.fetch / plugin.call 之一（常驻帧的用途是无人看着时收发消息）');
+  }
+  if (hasBody && !declared.has('pet.surface')) {
+    add('body-without-permission', 'FAIL', 'body（画桌宠本体）必须同时申请 pet.surface', '宿主会拒绝这个清单：装它的人要在授权列表里看到"会显示自己的界面"这一句');
   }
 
   // panelSlot

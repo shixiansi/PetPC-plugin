@@ -46,6 +46,7 @@
 | `surface` 的一块 | 用户让你显示浮层面时 | manifest 每声明一块就是一个文档 |
 | `panel` | 宿主把你挂在某个固定槽位（今天只有"对话"槽） | 一个 |
 | `background` | 插件声明 `background` 且用户授予了相应权限时，**常驻**但不显示 | 一个 |
+| `body` | 插件声明 `body` 且被启用时，**常驻**在桌宠那一格里画宠物本体 | 一个（同一时间只有一个本体插件生效） |
 | `workshop` | 用户在**控制中心**打开你的插件页时 | 一个 |
 
 多个挂载之间**没有共享内存**，它们是彼此独立的文档、独立的 iframe。要传递数据只能：
@@ -56,14 +57,15 @@
 > 想知道对方在干什么，只能靠 `storage` 或 `plugin.share` 往返，或者用 `plugin.call`
 > 直接问（第 6.8 节）——但它问不了你自己：同一次安装的多个挂载之间没有调用通道。
 
-### 三种"界面落点"，至少要有一种
+### 四种"界面落点"，至少要有一种
 
-`entry` 这个 HTML 文件必须"有人会加载它"，所以 manifest 至少要声明下面三项之一，
+`entry` 这个 HTML 文件必须"有人会加载它"，所以 manifest 至少要声明下面四项之一，
 否则打包校验会拒绝（「插件至少要有一个界面落点」）：
 
 1. `panel: true` + `panelSlot`（占用宿主的一个固定槽位，今天只有 `chat`）；
 2. 至少一块 `surface`（宠物旁边的浮层矩形）；
-3. `background: true`（常驻帧；要求同时申请 `events` / `net.ws` / `net.fetch` / `plugin.call` 之一）。
+3. `background: true`（常驻帧；要求同时申请 `events` / `net.ws` / `net.fetch` / `plugin.call` 之一）；
+4. `body: true`（**画桌宠本体**：`entry` 就是你那张宠物，要求申请 `pet.surface`）。
 
 ---
 
@@ -353,7 +355,8 @@ body[data-surface='boot'] { background: transparent; }
 | `surface` | | ≤8 块 | 浮层面矩形，见第 8 节 |
 | `panel` | | bool | 占用一个固定槽位。今天只有 `panelSlot:"chat"` 有意义 |
 | `panelSlot` | | `""` / `"chat"` / `"todos"` / `"pomodoro"` | `"chat"` 要求 `panel:true`；`"todos"`/`"pomodoro"` 要求声明了 `surface`——它决定**右键菜单的那一格**打开谁 |
-| `background` | | bool | 要一个常驻无名帧；要求申请了 `events`、`net.ws`、`net.fetch` 之一 |
+| `background` | | bool | 要一个常驻无名帧；要求申请了 `events`、`net.ws`、`net.fetch`、`plugin.call` 之一 |
+| `body` | | bool | **你画桌宠本体**：`entry` 这个文档就长在宠物那一格里；要求申请了 `pet.surface`。见第 6.5 节的末尾 |
 | `config` | | ≤40 项 | 你的设置项，见第 4.2 节 |
 | `netHosts` | | ≤ 见规则 | `net.fetch`/`net.ws` 的白名单；声明了 `net.fetch` 就至少要一项 |
 | `shareRead` | | ≤8 项 | 你能读**别人**的哪些共享键，格式 `<插件id>/<名字>` |
@@ -363,7 +366,7 @@ body[data-surface='boot'] { background: transparent; }
 | `assets` | | ≤32 项 | 包里除入口与固定资源之外、需要按相对路径取用的文件（例如内置音频） |
 | `sidecar` | | 对象 | 你要宿主帮你启动的**辅助脚本**：`{script, args?}`。见本节末尾 |
 
-**至少要有一种界面落点**：`panel:true`、非空 `surface`、`background:true` 三者之一。
+**至少要有一种界面落点**：`panel:true`、非空 `surface`、`background:true`、`body:true` 四者之一。
 
 #### `sidecar` —— 让宿主托管你的辅助脚本
 
@@ -425,7 +428,7 @@ body[data-surface='boot'] { background: transparent; }
 | `net.fetch` | 访问网络（仅限插件声明的域名） | `net.fetch`，以及 `background` 的一个依据 |
 | `net.credentials` | 以你保存的网站登录凭据发请求（凭据本身不会显示给插件） | **不是独立方法**：`net.fetch` 携带 `credentials`/`referer`/`readCookies` 的第二道开关。声明了它就必须同时声明 `net.fetch` |
 | `storage` | 在自己的私有目录里保存数据 | `storage.get/set/remove/dir/stat/list/move`、`memory.read/append`、`plugin.log` |
-| `pet.surface` | 在桌宠旁显示自定义浮层面 | `surface.show/hide/blocks` |
+| `pet.surface` | 在桌宠身上或旁边显示你自己的界面（浮层面、头顶的一行字、宠物本体） | `surface.show/hide/blocks`、`pet.badge`，以及 manifest 的 `body`（画桌宠本体） |
 | `llm.chat` | 调用你已配置的大模型（流式返回） | `llm.chat` |
 | `plugin.config` | 保存你自己的插件配置 | `config.get/set` |
 | `audio` | 保存并播放音频（例如语音提醒） | `audio.save/import/list/remove/play/stop` |
@@ -436,6 +439,8 @@ body[data-surface='boot'] { background: transparent; }
 | `plugin.call` | 与其它插件互相调用（只能调用清单里点名的目标，也只能回答清单里声明的方法） | `plugin.call`。**调用方与被调用方都要有这一项**：调用方用 `callTargets` 点名要问谁，被调用方用 `serves` 点名自己答什么 |
 
 > **没有 `background` 权限**：常驻帧由 `events` / `net.ws` / `net.fetch` / `plugin.call` 之一门控。
+> **也没有 `pet.body` 权限**：画宠物本体的 `body` 由 `pet.surface` 门控——一个没有方法支撑的权限
+> 就是一个"用户被问了、却什么也不做"的开关，宿主的能力表拒绝这种词。
 >
 > 这张表就是全部。宿主**不认识任何具体插件**，所以也不存在"待办"或"番茄钟"这一类以业务
 > 命名的能力：待办列表、番茄钟状态都住在各自插件的私有目录里，别的插件要读只能走
@@ -506,6 +511,13 @@ body[data-surface='boot'] { background: transparent; }
 "surface": { "kind": "panel", "slot": "workshop" }
 // 常驻无名帧
 "surface": { "kind": "panel", "slot": "background" }
+// 桌宠本体（body:true）：宠物那一格，尺寸随「桌宠大小」变
+"surface": {
+  "kind": "body",
+  "slot": "body",
+  "rectIndex": 0, "rectCount": 1,
+  "rect": { "x": 0, "y": 0, "w": 150, "h": 200 }   // 相对你自己的左上角，永远是 0,0 起
+}
 // 浮层面的一块（每块一个文档）
 "surface": {
   "kind": "surface",
@@ -523,6 +535,7 @@ body[data-surface='boot'] { background: transparent; }
 
 `init.theme` 只在控制中心里有（桌宠是纯深色窗口，不发主题）。
 **别用 `kind` 判断自己在哪个窗口**：常驻帧与面板的 `kind` 都是 `panel`——用 `slot`。
+本体帧是唯一的例外，它两个都说明了（`kind` 与 `slot` 都是 `body`）。
 
 ### 5.2.1 `init` 的 `host` — 这个窗口到底服务哪些方法
 
@@ -734,6 +747,57 @@ else { /* 这一面没有这件事，说明它在哪 */ }
   区域，都会重新出现）。所以：**改可见性时才带 `hidden`，只长高就只发 `sizes`。**
 - 传空对象 `{}` = 全部按声明的样子显示（等于 `hidden: []`，但**尺寸也一并清空**）。
 - 每次调用都会重新裁剪窗口并推送新布局；**最多每 500 毫秒生效一次**（更频繁的调用会被合并——动画式地每帧调它没有意义）。
+
+#### `body` — 画桌宠本体
+
+桌宠自己的那个形象，也是一个插件的文档。声明它之后，你那张 `entry` 就长在**宠物那一格**里，
+宿主不再画它自带的那张图。
+
+```json
+{
+  "permissions": ["pet.surface", "storage", "plugin.config"],
+  "body": true,
+  "entry": "pet.html"
+}
+```
+
+| 规则 | 为什么 |
+| --- | --- |
+| 必须申请 `pet.surface` | 安装时用户要看到"这个插件会在桌宠身上画东西"。宿主拒绝一个没申请它的 `body` 清单 |
+| **同一时间只有一个 `body` 插件生效** | 只有一只宠物。多个都声明时按安装顺序取第一个，宿主在日志里点名 |
+| 没装（或停用、或撤销授权）时，宿主自己画内置那张图 | 这是回退，不是错误状态——桌宠永远得有张脸 |
+| 你的文档**收不到点击** | 见下面那条 |
+
+**几何**：帧就填满宠物那一格，所以 `init.surface.rect` 的 `x`/`y` 永远是 `0`/`0`，
+`w`/`h` 是宠物当前的大小（用户的「桌宠大小」可以把它变成 150×200、225×300……）。
+尺寸变化会通过 `surface` 消息再发给你（和浮层面同一套），别在 `init` 里把它记死：
+
+```js
+window.addEventListener('message', (e) => {
+  if (e.source !== window.parent || e.data?.v !== 1) return;
+  if (e.data.type === 'init') { draw(e.data.surface.rect); }
+  if (e.data.type === 'surface') { draw(e.data.rect); }   // 用户把桌宠调大了
+});
+```
+
+**三条硬要求**（每一条都对应一种"宠物看起来坏了"）：
+
+1. **透明**：帧里没画东西的地方 = 用户的桌面。给 `<html>` 或 `<body>` 铺底色，宠物就会变成
+   一块方块；`color-scheme: dark` 会让 Chromium 给**画布**铺 `#121212`，所以想用深色配色就必须
+   写 `:root { color-scheme: only light }`（写在 `:root` 上，写在 `html` 上会被吃掉）。
+2. **不要试图接收指针事件**：宿主把这一层设成 `pointer-events: none`，拖动桌宠、右键菜单、
+   悬停出现的对话按钮全都发生在这只宠物身上，而且是**宿主的手势**。想在宠物旁边放可点的东西，
+   用 `surface` 或 `pet.bubble`——别把宠物做成一个按钮。
+3. **只画在矩形以内**：那一格就是窗口被裁剪到的区域，画出去的部分会被 Windows 直接切掉
+   （看不到，但你会以为是自己画错了）。
+
+**什么时候该用 `body`**：换形象、加待机动画、让宠物随状态换表情、把养成等级画出来。宿主仍然
+负责宠物身上的另外两样东西——`pet.badge` 那行字（番茄钟倒计时）和右上角那个待办数——它们画在
+你的帧**上面**，你不需要给它们留位置，也不要去画它们。
+
+> 同一个 `entry` 文档也会被控制中心的「插件」页当成你的工作区挂起来（`init.surface.slot ===
+> 'workshop'`）。所以一张本体文档建议只画宠物，把这个窗口当成"预览 + 设置"来对待：
+> `slot === 'body'` 时铺满整格、透明；其它时候按正常页面排版。
 
 ### 6.6 `llm.chat` / `llm.borrow` — 用模型
 
@@ -1371,7 +1435,7 @@ Esc 关闭；焦点留在触发按钮上。
   只能收发消息（这是"用户关掉界面后还要办事"的唯一方式）。
 - 因此常驻帧里**不要**依赖布局、尺寸、焦点。
 - 桌宠给别的挂载的 `slot`：`chat`（对话槽）、`todos`/`pomodoro`（右键菜单的那一格打开你）、
-  `background`；控制中心给 `workshop`。
+  `body`（**桌宠本体**——你是那只宠物，见 6.5 末尾）、`background`；控制中心给 `workshop`。
 
 ---
 
