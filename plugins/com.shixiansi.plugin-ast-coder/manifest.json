@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-ast-coder",
   "name": "代码感知与重构助手",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "shixiansi",
   "description": "让桌宠看懂本地代码：按配置的目录监听 .js/.ts 文件（结构缓存在插件私有目录，不碰文件内容之外的东西），用轻量解析提取函数名、类名与导出项；选中一段代码就能让记忆核心以审查者的身份找 Bug、给重构建议；还能一键把大模型生成的测试用例写进同名 .test.js（先读后写，绝不覆盖原代码）。",
   "permissions": [

@@ -4,23 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PetPC 插件管理</title>
-<!--
-  The management page of the market repo: one row per plugin in the catalogue,
-  a running/disabled pill per row, and a sticky bottom bar with filters and
-  bulk actions.
-
-  Like index.html this page is STATIC BY PROMISE: no script, no external
-  resources. The status switch is pure CSS — a checkbox drives the knob slide
-  (160ms), the card dim, and which of the two pills shows. The filter chips at
-  the bottom bar are radios + the :has() selector on <body>, so "全部 / 运行中 /
-  已停用" filters the list without a single line of JS. The checkbox states are
-  the catalogue's shipped defaults (everything the host would enable); a real
-  runtime binds them to %AppData%\PetPC\plugins.json.
-
-  Design tokens: docs/ui/market.css — accent #7C3AED, card radius 18px,
-  card shadow var(--sh-xs), spacing in 4px multiples, 46x46 gradient icon tiles
-  with white SVG. Verified by tests/ui-market.test.js.
--->
 <style>
 /* ==== market.css (inline copy of docs/ui/market.css) ==== */
 /* market.css —— 市场两页（插件市场 index.html / 插件管理 manage.html）的设计令牌与原语。
@@ -83,7 +66,7 @@
   /* --- 图标：46×46 渐变方块，白色 SVG 由 .icon 的 color 提供 -------------- */
   --icon-size: 46px;
 
-  --font: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --mono: Consolas, "Courier New", monospace;
   --dur: 160ms;             /* 动效 120–320ms，只做位移/透明度/颜色/阴影 */
 }
@@ -406,26 +389,22 @@ code {
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation: none !important; }
 }
-/* ==== end market.css copy ==== */
 
-/* ==== manage.html 自有规则（不属于共享令牌） ==== */
-
-/* --- 管理页：插件行 -------------------------------------------------------- *
- * 一行一张卡：图标、名称与版本、状态胶囊、开关。名称与 id 占满剩余宽度，
- * 溢出省略——id 可能很长（96 字符上限）。 */
-
-.plugin-row { display: flex; align-items: center; gap: var(--space-3); }
-.plugin-row .titles .meta code { font-size: 11px; }
-.plugin-row .st { flex: none; }
-.plugin-row .switch { margin-left: var(--space-2); }
-
-/* --- 纯 CSS 筛选：radio 在 bar 里，列表在它前面，所以 body:has 能管到 ------- *
- * 选「运行中」→ 隐藏所有停用卡；选「已停用」→ 隐藏所有运行卡。
- * 「全部」不需要规则：没有命中筛选类的元素保持默认显示——之前的
- * body:has(#f-all) { display:flex } 会一直压着后面两条 hide 规则，删掉它筛选才生效。 */
-
-body:has(#f-on:checked) .plugin.hide-when-off { display: none; }
-body:has(#f-off:checked) .plugin.hide-when-on { display: none; }
+/* 生成出来的渐变（tools/render-pages.mjs 按 id 散列到 8 格之一）。
+   上一版是 36 个插件手写 36 条——加插件忘加一行，卡片就是灰的，而且没人会注意到。 */
+.g-0 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.g-1 { background: linear-gradient(135deg, #38bdf8, #0369a1); }
+.g-2 { background: linear-gradient(135deg, #34d399, #047857); }
+.g-3 { background: linear-gradient(135deg, #fbbf24, #b45309); }
+.g-4 { background: linear-gradient(135deg, #f472b6, #be1857); }
+.g-5 { background: linear-gradient(135deg, #a78bfa, #5b21b6); }
+.g-6 { background: linear-gradient(135deg, #22d3ee, #0e7490); }
+.g-7 { background: linear-gradient(135deg, #fb923c, #c2410c); }/* ==== end market.css copy ==== */
+/* ==== 生成器附加：分类筛选（纯 CSS） ==== */
+body:has(#f-official:checked) .is-community { display: none; }
+body:has(#f-community:checked) .is-official { display: none; }
+.page > .chips { margin-bottom: var(--space-4); }
+.icon { font-size: 16px; font-weight: 700; line-height: 1; }
 </style>
 </head>
 <body>
@@ -434,226 +413,345 @@ body:has(#f-off:checked) .plugin.hide-when-on { display: none; }
     <div class="head-row">
       <div>
         <h1>插件管理</h1>
-        <p class="lede">已安装 <strong>15</strong> 个插件 · 运行中 <strong>12</strong> · 已停用 <strong>3</strong>。开关是这张页面的全部控制：拨动即生效，无需确认。这里的启停对应宿主 <code>%AppData%\PetPC\plugins.json</code> 里的 <code>enabled</code>。</p>
+        <p class="lede">共 36 个插件（官方 36 · 社区 0）。<strong>启停与授权在控制中心里做</strong>（「插件」页：勾选即生效、逐项授权），这一页不假装知道它们——一张静态页读不到 <code>%AppData%\PetPC\plugins.json</code>，上一版在这里写死的「15 / 12 / 3」就是这么来的。</p>
       </div>
       <a class="btn ghost" href="index.html">← 插件市场</a>
     </div>
   </header>
 
-  <div class="grid" id="list">
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-chat" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4V6a2 2 0 0 1 2-2Zm4 6a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 8 10Zm4 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 12 10Zm4 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 16 10Z"/></svg></span>
-      <div class="titles">
-        <h2>对话插件</h2>
-        <div class="meta"><code>com.shixiansi.plugin-chat</code><span>·</span><span>v1.8.0</span><span>·</span><span>5 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 对话插件"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-mem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a7 7 0 0 1 7 7c0 2.4-1.2 4.4-3 5.7V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3C6.2 14.4 5 12.4 5 10a7 7 0 0 1 7-7Zm-3 6.2a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6Zm6 0a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6ZM10 21h4v1h-4v-1Z"/></svg></span>
-      <div class="titles">
-        <h2>记忆核心（人设 + 分层记忆）</h2>
-        <div class="meta"><code>com.shixiansi.plugin-memcore</code><span>·</span><span>v0.2.0</span><span>·</span><span>5 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 记忆核心"></label>
-    </section>
-    <section class="card plugin-row plugin hoverable hide-when-on" data-state="disabled" style="margin-bottom: var(--space-3)">
-      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.6 10.8l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg></span>
-      <div class="titles">
-        <h2>网络词词典</h2>
-        <div class="meta"><code>com.shixiansi.plugin-slang</code><span>·</span><span>v0.1.0</span><span>·</span><span>3 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" aria-label="启用或停用 网络词词典"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-llmchannel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h4v2H7v3h5V6h-2V4h4v2h-2v3h3a2 2 0 0 1 2 2v1h2v-2h2v6h-2v-2h-2v1a2 2 0 0 1-2 2h-3v3h2v2H9v-2h2v-3H7a2 2 0 0 1-2-2v-1H3v2H1v-6h2v2h2v-1a2 2 0 0 1 2-2h3V6H5V4Z"/></svg></span>
-      <div class="titles">
-        <h2>模型渠道（多渠道 / 多密钥 / 预设模型）</h2>
-        <div class="meta"><code>com.shixiansi.plugin-llmchannel</code><span>·</span><span>v0.2.5</span><span>·</span><span>2 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 模型渠道"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-todo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2.2 5.3a1 1 0 0 0-1.4 1.4l1.8 1.8a1 1 0 0 0 1.4 0l3.6-3.6a1 1 0 1 0-1.4-1.4L8.3 9.2 7.2 8.3Zm0 6a1 1 0 0 0-1.4 1.4l1.8 1.8a1 1 0 0 0 1.4 0l3.6-3.6a1 1 0 1 0-1.4-1.4l-2.9 2.7-1.1-.9ZM14 8h5v2h-5V8Zm0 6h5v2h-5v-2Z"/></svg></span>
-      <div class="titles">
-        <h2>待办插件</h2>
-        <div class="meta"><code>com.shixiansi.plugin-todo</code><span>·</span><span>v1.2.0</span><span>·</span><span>6 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 待办插件"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-pomodoro" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.1 0 2.1.2 3 .5V4c-.6-.2-1.3-.3-2-.4V5a8 8 0 1 1-2 0V3.6c-.7.1-1.4.2-2 .4V2.5c.9-.3 1.9-.5 3-.5Zm0 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm1 2v4.6l3 1.7-.8 1.4L11.2 14V9h1.8Z"/></svg></span>
-      <div class="titles">
-        <h2>番茄钟插件</h2>
-        <div class="meta"><code>com.shixiansi.plugin-pomodoro</code><span>·</span><span>v2.3.11</span><span>·</span><span>6 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 番茄钟插件"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-voice" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Zm-7 9a7 7 0 0 0 6 6.9V21H8v2h8v-2h-3v-2.1A7 7 0 0 0 19 12h-2a5 5 0 0 1-10 0H5Z"/></svg></span>
-      <div class="titles">
-        <h2>语音插件</h2>
-        <div class="meta"><code>com.shixiansi.plugin-voice</code><span>·</span><span>v1.0.2</span><span>·</span><span>6 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 语音插件"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-qq" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c4.4 0 8 2.9 8 6.6 0 1.5-.6 2.9-1.6 4 .3.9.9 1.9 1.9 2.6.4.3.2.9-.3 1-.9.1-2-.1-2.9-.6-.6.4-1.3.7-2.1.9l.9 3.2c.1.4-.2.8-.6.8h-2.6c-.3 0-.5-.2-.6-.4l-.7-2.6-.7 2.6c-.1.2-.3.4-.6.4H7.5c-.4 0-.7-.4-.6-.8l.9-3.2c-.8-.2-1.5-.5-2.1-.9-.9.5-2 .7-2.9.6-.5-.1-.7-.7-.3-1 1-.7 1.6-1.7 1.9-2.6A6.1 6.1 0 0 1 4 8.6C4 4.9 7.6 2 12 2Zm-3.2 5.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm6.4 0a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Z"/></svg></span>
-      <div class="titles">
-        <h2>QQ 群聊插件</h2>
-        <div class="meta"><code>com.shixiansi.plugin-qq</code><span>·</span><span>v1.13.2</span><span>·</span><span>9 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 QQ 群聊插件"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-qqbot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 1.5 3.3c2.9.6 5.2 2.2 6.3 4.7H22a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1.1c-.9 3.1-4.2 5-8.9 5s-8-1.9-8.9-5H2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h2.2c1.1-2.5 3.4-4.1 6.3-4.7A2 2 0 0 1 12 2Zm-4 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm8 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-6.9 5.6c1.9 1.3 3.9 1.3 5.8 0l.9 1.2c-2.4 1.7-5.2 1.7-7.6 0l.9-1.2Z"/></svg></span>
-      <div class="titles">
-        <h2>QQ 官方机器人</h2>
-        <div class="meta"><code>com.shixiansi.plugin-qqbot</code><span>·</span><span>v1.0.2</span><span>·</span><span>6 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 QQ 官方机器人"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-onebot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3L18.5 8 12 11.7 5.5 8 12 4.3ZM5 9.6l6 3.4v6.6l-6-3.4V9.6Zm8 10V13l6-3.4v6.6l-6 3.4Z"/></svg></span>
-      <div class="titles">
-        <h2>OneBot 接入端（薄适配器）</h2>
-        <div class="meta"><code>com.shixiansi.plugin-onebot</code><span>·</span><span>v0.1.5</span><span>·</span><span>4 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 OneBot 接入端"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.8A4.2 4.2 0 0 0 5.8 10h2A2.2 2.2 0 0 1 10 7.8v-2Z"/></svg></span>
-      <div class="titles">
-        <h2>联网搜索</h2>
-        <div class="meta"><code>com.shixiansi.plugin-websearch</code><span>·</span><span>v1.0.0</span><span>·</span><span>4 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 联网搜索"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-bilibili" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 2.3 8.4 5h7.2l2.7-2.7 1.4 1.4L17.6 5H19a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h1.4L4.3 3.7l1.4-1.4ZM5 7a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H5Zm3 3.5 3 2.5-3 2.5v-5Zm8 0v5l-3-2.5 3-2.5Z"/></svg></span>
-      <div class="titles">
-        <h2>B 站刷视频插件</h2>
-        <div class="meta"><code>com.shixiansi.plugin-bilibili</code><span>·</span><span>v1.0.0</span><span>·</span><span>8 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 B 站刷视频插件"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-off" data-state="running" style="margin-bottom: var(--space-3)">
-      <span class="icon g-clipask" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 2h6a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1a2 2 0 0 1 2-2Zm0 2a1 1 0 0 0-1 1H7a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1a1 1 0 0 0-1-1H9Zm1 2h4v1h-4V6Zm-.3 5.3a2.8 2.8 0 1 1 4.6 2.2c-.7.6-1.3 1-1.3 1.9h-2c0-1.7 1-2.4 1.6-3 .4-.4.5-.7.5-1.1a1 1 0 1 0-2 0h-1.8ZM11 17h2v2h-2v-2Z"/></svg></span>
-      <div class="titles">
-        <h2>剪贴板助手</h2>
-        <div class="meta"><code>com.shixiansi.plugin-clipask</code><span>·</span><span>v0.1.0</span><span>·</span><span>9 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="running"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" checked aria-label="启用或停用 剪贴板助手"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-on" data-state="disabled" style="margin-bottom: var(--space-3)">
-      <span class="icon g-sense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.5 0 10 3.8 10 8.5 0 2.9-1.7 5.4-4.3 6.9-.2 1.5-1.2 2.9-2.7 3.5l-.5.2v-2.3c-.8.2-1.6.2-2.5.2-5.5 0-10-3.8-10-8.5S6.5 2 12 2Zm-4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span>
-      <div class="titles">
-        <h2>系统与 DSH 感知</h2>
-        <div class="meta"><code>com.shixiansi.plugin-pet-sense</code><span>·</span><span>v0.1.0</span><span>·</span><span>6 项权限</span><span class="tag accent">新</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" aria-label="启用或停用 系统与 DSH 感知"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-on" data-state="disabled" style="margin-bottom: var(--space-3)">
-      <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-2 5v10l8-5-8-5Z"/></svg></span>
-      <div class="titles">
-        <h2>媒体同步（正在播放）</h2>
-        <div class="meta"><code>com.shixiansi.plugin-media-sync</code><span>·</span><span>v0.1.0</span><span>·</span><span>6 项权限</span><span class="tag accent">新</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" aria-label="启用或停用 媒体同步"></label>
-    </section>
-
-    <section class="card plugin-row plugin hoverable hide-when-on" data-state="disabled" style="margin-bottom: var(--space-3)">
-      <span class="icon g-weather" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 6a6 6 0 0 1 11.6 1.6A5 5 0 0 1 18 17.5H7a5.5 5.5 0 0 1-.6-11A6 6 0 0 1 7 6Zm-1 3.5A3.5 3.5 0 0 0 7 15.5h11a3 3 0 1 0-.7-5.9l-1.1.2-.2-1.1A4 4 0 0 0 8.3 7l-.5 1-1.2.2A3.5 3.5 0 0 0 6 9.5ZM5 19h14v2H5v-2Zm2 3h10v1.5H7V22Z"/></svg></span>
-      <div class="titles">
-        <h2>天气与环境感知</h2>
-        <div class="meta"><code>com.shixiansi.plugin-weather-env</code><span>·</span><span>v0.1.0</span><span>·</span><span>6 项权限</span><span class="tag accent">新</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" aria-label="启用或停用 天气与环境感知"></label>
-    </section>    <section class="card plugin-row plugin hoverable hide-when-on" data-state="disabled" style="margin-bottom: var(--space-3)">
-      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.6 10.8l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg></span>
-      <div class="titles">
-        <h2>萌娘百科</h2>
-        <div class="meta"><code>com.shixiansi.plugin-moegirl</code><span>·</span><span>v0.1.0</span><span>·</span><span>4 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" aria-label="启用或停用 萌娘百科"></label>
-    </section>
-    <section class="card plugin-row plugin hoverable hide-when-on" data-state="disabled" style="margin-bottom: var(--space-3)">
-      <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.6A4 4 0 1 0 14 17V7h4V3h-6Z"/></svg></span>
-      <div class="titles">
-        <h2>点歌</h2>
-        <div class="meta"><code>com.shixiansi.plugin-diange</code><span>·</span><span>v0.1.0</span><span>·</span><span>4 项权限</span></div>
-      </div>
-      <span class="st st-running status" data-state="running"><span class="dot"></span>运行中</span>
-      <span class="st st-disabled status" data-state="disabled"><span class="dot"></span>已禁用</span>
-      <label class="switch"><input type="checkbox" aria-label="启用或停用 点歌"></label>
-    </section>
-
-
-
-
-  </div>
-
-  <footer class="bar" id="bar">
     <div class="chips" role="radiogroup" aria-label="筛选">
-      <input type="radio" name="filter" id="f-all" checked><label for="f-all">全部 15</label>
-      <input type="radio" name="filter" id="f-on"><label for="f-on">运行中 12</label>
-      <input type="radio" name="filter" id="f-off"><label for="f-off">已停用 3</label>
+      <input type="radio" name="filter" id="f-all" checked><label for="f-all">全部 36</label>
+      <input type="radio" name="filter" id="f-official"><label for="f-official">官方 36</label>
+      <input type="radio" name="filter" id="f-community"><label for="f-community">社区 0</label>
     </div>
-    <span class="count" id="hint">开关即保存：启停写入 plugins.json，重启桌宠后保持</span>
-    <span class="spacer"></span>
-    <button class="btn ghost" type="button" data-action="check-updates" disabled title="由宿主程序提供">检查更新</button>
-    <a class="btn" href="index.html">打开市场</a>
-  </footer>
 
-  <p class="foot">本页与市场页共用一套设计令牌（<code>docs/ui/market.css</code>：主色 #7C3AED、卡片圆角 18px、阴影 var(--sh-xs)、间距 4px 倍数、46×46 渐变图标）。页面零脚本：开关、胶囊与筛选全部是 CSS（<code>:has()</code> + 兄弟选择器）；DOM 校验见 <code>tests/ui-market.test.js</code>。真实宿主里，开关状态绑定 <code>%AppData%\PetPC\plugins.json</code> 的 <code>enabled</code> 字段。</p>
+<div class="grid" id="list">
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">后</span>
+    <div class="titles">
+      <h2>后台任务执行器</h2>
+      <div class="meta"><code>com.shixiansi.plugin-agent-worker</code><span>·</span><span>v0.1.2</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-3" aria-hidden="true">代</span>
+    <div class="titles">
+      <h2>代码感知与重构助手</h2>
+      <div class="meta"><code>com.shixiansi.plugin-ast-coder</code><span>·</span><span>v1.0.4</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-7" aria-hidden="true">B</span>
+    <div class="titles">
+      <h2>B 站刷视频插件</h2>
+      <div class="meta"><code>com.shixiansi.plugin-bilibili</code><span>·</span><span>v1.1.2</span><span>·</span><span>9 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-7" aria-hidden="true">对</span>
+    <div class="titles">
+      <h2>对话插件</h2>
+      <div class="meta"><code>com.shixiansi.plugin-chat</code><span>·</span><span>v1.9.0</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-2" aria-hidden="true">剪</span>
+    <div class="titles">
+      <h2>剪贴板助手</h2>
+      <div class="meta"><code>com.shixiansi.plugin-clipask</code><span>·</span><span>v0.2.1</span><span>·</span><span>9 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-2" aria-hidden="true">壁</span>
+    <div class="titles">
+      <h2>壁纸联动（环境色合成）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-desktop-wallpaper</code><span>·</span><span>v0.1.1</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-7" aria-hidden="true">点</span>
+    <div class="titles">
+      <h2>点歌（酷我搜索 + 直链）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-diange</code><span>·</span><span>v0.1.2</span><span>·</span><span>4 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-4" aria-hidden="true">日</span>
+    <div class="titles">
+      <h2>日记（自动情绪追踪）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-diary-writer</code><span>·</span><span>v0.1.1</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-4" aria-hidden="true">邮</span>
+    <div class="titles">
+      <h2>邮件智能摘要</h2>
+      <div class="meta"><code>com.shixiansi.plugin-email-digest</code><span>·</span><span>v1.0.2</span><span>·</span><span>10 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-4" aria-hidden="true">自</span>
+    <div class="titles">
+      <h2>自然语言记账与财务看板</h2>
+      <div class="meta"><code>com.shixiansi.plugin-expense-tracker</code><span>·</span><span>v0.1.1</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-2" aria-hidden="true">记</span>
+    <div class="titles">
+      <h2>记忆卡片（SM-2 间隔重复）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-flashcards</code><span>·</span><span>v0.1.1</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-1" aria-hidden="true">游</span>
+    <div class="titles">
+      <h2>游戏中心（接金币）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-game-center</code><span>·</span><span>v0.1.1</span><span>·</span><span>4 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-7" aria-hidden="true">本</span>
+    <div class="titles">
+      <h2>本地知识库（文档切片与检索问答）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-knowledge-base</code><span>·</span><span>v0.1.1</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">直</span>
+    <div class="titles">
+      <h2>直播间弹幕互动</h2>
+      <div class="meta"><code>com.shixiansi.plugin-live-danmaku</code><span>·</span><span>v1.0.4</span><span>·</span><span>10 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">模</span>
+    <div class="titles">
+      <h2>模型渠道（多渠道 / 多密钥 / 预设模型）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-llmchannel</code><span>·</span><span>v0.2.7</span><span>·</span><span>2 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-3" aria-hidden="true">媒</span>
+    <div class="titles">
+      <h2>媒体同步（正在播放）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-media-sync</code><span>·</span><span>v0.1.9</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">记</span>
+    <div class="titles">
+      <h2>记忆核心（人设 + 分层记忆）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-memcore</code><span>·</span><span>v0.8.1</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-0" aria-hidden="true">萌</span>
+    <div class="titles">
+      <h2>萌娘百科</h2>
+      <div class="meta"><code>com.shixiansi.plugin-moegirl</code><span>·</span><span>v0.1.9</span><span>·</span><span>4 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-0" aria-hidden="true">O</span>
+    <div class="titles">
+      <h2>OneBot 接入端（薄适配器）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-onebot</code><span>·</span><span>v0.1.7</span><span>·</span><span>4 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-6" aria-hidden="true">桌</span>
+    <div class="titles">
+      <h2>桌宠养成（等级·属性·外观）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-pet-evolution</code><span>·</span><span>v0.1.3</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-1" aria-hidden="true">系</span>
+    <div class="titles">
+      <h2>系统与 DSH 感知</h2>
+      <div class="meta"><code>com.shixiansi.plugin-pet-sense</code><span>·</span><span>v0.1.9</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-0" aria-hidden="true">番</span>
+    <div class="titles">
+      <h2>番茄钟插件</h2>
+      <div class="meta"><code>com.shixiansi.plugin-pomodoro</code><span>·</span><span>v2.3.14</span><span>·</span><span>7 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-1" aria-hidden="true">隐</span>
+    <div class="titles">
+      <h2>隐私卫士（敏感信息监控与脱敏）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-privacy-guard</code><span>·</span><span>v0.1.5</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-7" aria-hidden="true">Q</span>
+    <div class="titles">
+      <h2>QQ 群聊插件</h2>
+      <div class="meta"><code>com.shixiansi.plugin-qq</code><span>·</span><span>v1.16.1</span><span>·</span><span>10 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-0" aria-hidden="true">Q</span>
+    <div class="titles">
+      <h2>QQ 官方机器人</h2>
+      <div class="meta"><code>com.shixiansi.plugin-qqbot</code><span>·</span><span>v1.0.3</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">晨</span>
+    <div class="titles">
+      <h2>晨报（RSS 订阅与语音播报）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-rss-reader</code><span>·</span><span>v0.1.1</span><span>·</span><span>7 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-2" aria-hidden="true">屏</span>
+    <div class="titles">
+      <h2>屏幕视觉</h2>
+      <div class="meta"><code>com.shixiansi.plugin-screen-vision</code><span>·</span><span>v0.1.5</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-2" aria-hidden="true">网</span>
+    <div class="titles">
+      <h2>网络词词典</h2>
+      <div class="meta"><code>com.shixiansi.plugin-slang</code><span>·</span><span>v0.2.2</span><span>·</span><span>3 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-7" aria-hidden="true">状</span>
+    <div class="titles">
+      <h2>状态时光机（记忆快照）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-state-snapshot</code><span>·</span><span>v1.0.2</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">待</span>
+    <div class="titles">
+      <h2>待办插件</h2>
+      <div class="meta"><code>com.shixiansi.plugin-todo</code><span>·</span><span>v1.2.3</span><span>·</span><span>7 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-3" aria-hidden="true">语</span>
+    <div class="titles">
+      <h2>语音插件</h2>
+      <div class="meta"><code>com.shixiansi.plugin-voice</code><span>·</span><span>v1.1.0</span><span>·</span><span>7 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-0" aria-hidden="true">实</span>
+    <div class="titles">
+      <h2>实时语音通话</h2>
+      <div class="meta"><code>com.shixiansi.plugin-voice-call</code><span>·</span><span>v1.0.3</span><span>·</span><span>9 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">天</span>
+    <div class="titles">
+      <h2>天气与环境感知</h2>
+      <div class="meta"><code>com.shixiansi.plugin-weather-env</code><span>·</span><span>v0.1.4</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-4" aria-hidden="true">桌</span>
+    <div class="titles">
+      <h2>桌宠状态看板</h2>
+      <div class="meta"><code>com.shixiansi.plugin-web-dashboard</code><span>·</span><span>v1.0.4</span><span>·</span><span>6 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-6" aria-hidden="true">网</span>
+    <div class="titles">
+      <h2>网页提取（正文评分转 Markdown）</h2>
+      <div class="meta"><code>com.shixiansi.plugin-web-scraper</code><span>·</span><span>v0.1.1</span><span>·</span><span>5 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+
+  <section class="card plugin-row plugin hoverable is-official" data-cat="official" style="margin-bottom: var(--space-3)">
+    <span class="icon g-5" aria-hidden="true">联</span>
+    <div class="titles">
+      <h2>联网搜索</h2>
+      <div class="meta"><code>com.shixiansi.plugin-websearch</code><span>·</span><span>v1.0.5</span><span>·</span><span>4 项权限</span></div>
+    </div>
+    <span class="tag">官方</span>
+  </section>
+</div>
+
+  <p class="foot">本页与市场页共用一套设计令牌（<code>docs/ui/market.css</code>：主色 #7C3AED、卡片圆角 18px、阴影 var(--sh-xs)、间距 4px 倍数、46×46 渐变图标）。页面零脚本：筛选是纯 CSS（radio + <code>body:has()</code>）；列表与计数由 <code>tools/render-pages.mjs</code> 从 <code>index.json</code> 生成，DOM 校验见 <code>tests/ui-market.test.js</code>。</p>
 </main>
 </body>
 </html>

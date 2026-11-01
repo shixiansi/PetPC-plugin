@@ -122,7 +122,7 @@
 
   --text: #e8edf5;
   --text-dim: #a8b4c6;
-  --text-faint: #7d8ba0;
+  --text-faint: #8e9bb0;
 
   --accent: #a78bfa;        /* violet-400：链接/强调文字，raised 上 5.8:1 */
   --accent-strong: #7c3aed; /* violet-600：按钮底色，白字 5.7:1（violet-500 只有 4.2） */
@@ -779,13 +779,13 @@ select.input::-ms-expand {
 
 .select-option[aria-selected="true"] {
   background: var(--accent-soft);
-  color: var(--accent-strong);
+  color: var(--accent-on-soft, var(--accent-strong));
   font-weight: 600;
 }
 
 .select-option .tick {
   opacity: 0;
-  color: var(--accent-strong);
+  color: var(--accent-on-soft, var(--accent-strong));
 }
 
 .select-option[aria-selected="true"] .tick {
@@ -799,5 +799,86 @@ select.input::-ms-expand {
   }
   .select-option {
     padding: 12px var(--space-3);
+  }
+}
+/* ==== 空状态与加载态 =====================================================
+ *
+ * 2026-11-01 的评审实测：共享层里 `\.empty` / `\.skeleton` **一条都没有**，而 30 个插件目录里都写着
+ * "还没有…"。于是每个插件自己写一行灰字，最差的那几个（记账、闪卡、游戏中心）是"一整块留白"或
+ * "整页黑底 + 一句等待宿主"，用户看不出该做什么。
+ *
+ * 空状态是每个插件都会撞上的界面，所以它属于共享层，不属于某一个插件。
+ *
+ * 用法（四件套，能省则省，但顺序别变）：
+ *   <div class="empty">
+ *     <div class="empty-glyph"><svg …/></div>
+ *     <div class="empty-title">这个月还没有账目</div>
+ *     <div class="empty-sub">对桌宠说一句"打车花了 25 块"，或在上面记一笔。</div>
+ *     <button class="btn primary empty-cta">记第一笔</button>
+ *   </div>
+ *
+ * 图标用 `stroke="currentColor"` 的线性 SVG：颜色跟着 --accent-on-soft（深色下自动变浅），
+ * 不需要为两套配色各画一份。
+ * ========================================================================== */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.empty-glyph {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  margin-bottom: var(--space-1);
+}
+
+.empty-glyph svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.empty-sub {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 40ch;
+}
+
+.empty-cta {
+  margin-top: var(--space-1);
+}
+
+/* 加载态：细线骨架。整块灰屏会让人以为界面坏了，一条会呼吸的线不会。 */
+.skeleton {
+  min-height: 14px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-sunken);
+  animation: petpc-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes petpc-pulse {
+  50% {
+    opacity: 0.55;
   }
 }

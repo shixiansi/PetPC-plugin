@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-onebot",
   "name": "OneBot 接入端（薄适配器）",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "author": "shixiansi",
   "description": "把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。",
   "permissions": ["net.ws", "plugin.call", "storage", "plugin.config"],

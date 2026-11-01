@@ -62,7 +62,7 @@ html[data-theme='light'] {
   background: var(--p-card);
   border: 1px solid var(--p-line);
   color: var(--p-text);
-  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font: 13px/1.5 "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 }
 
 .bar {
@@ -253,4 +253,42 @@ html[data-theme='light'] {
 .actions {
   display: flex;
   gap: 8px;
+}
+
+/* --- 启动态 ----------------------------------------------------------------
+ *
+ * 显隐靠 :has()：三个面板（menu / board / result）由 workshop.js 一次只显示一个，所以在第一屏
+ * 出来之前"没有一个是可见的"——那正是这张卡片在等宿主的时刻。用 :has() 而不是让 JS 去切
+ * `data-surface`，是因为这件事的判据本来就在 DOM 里，再引入一个状态只会多一个会不同步的东西。
+ *
+ * 老一点的 WebView2（Chromium < 105）没有 :has()：那时骨架不显示，退回"一行灰字"，不会坏。
+ */
+.boot {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 12px;
+}
+
+.game-card:not(:has(.panel:not([hidden]))) .boot {
+  display: flex;
+}
+
+.boot .skeleton {
+  height: 12px;
+  border-radius: 8px;
+  background: var(--p-chip);
+  animation: gc-pulse 1.4s ease-in-out infinite;
+}
+
+.boot .skeleton:nth-child(1) { width: 72%; }
+.boot .skeleton:nth-child(2) { width: 46%; }
+.boot .skeleton:nth-child(3) { width: 88%; }
+
+@keyframes gc-pulse {
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot .skeleton { animation: none; }
 }

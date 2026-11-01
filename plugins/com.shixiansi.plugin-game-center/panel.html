@@ -33,6 +33,18 @@
       <span id="status" class="status">等待宿主初始化…</span>
     </header>
 
+    <!--
+      启动态：宿主还没握手时，这块卡片不该是"一行灰字 + 一块黑"。三根会呼吸的骨架线至少让人看出
+      在等，而不是坏了。显隐是纯 CSS：只要三个面板都还没显示（workshop.js 每次只显示一个），它就是
+      visible 的；第一屏一出来它自己消失。
+    -->
+    <section class="boot" aria-hidden="true">
+      <span class="skeleton"></span>
+      <span class="skeleton"></span>
+      <span class="skeleton"></span>
+    </section>
+
+
     <section id="menu" class="panel" hidden>
       <p class="lede">左右移动篮子，接住金币，躲开炸弹。道具会掉下来：磁铁、双倍、护盾。</p>
       <p class="hint">←/→ 或 A/D 移动 · 空格开始 · 也可以用鼠标拖篮子。</p>

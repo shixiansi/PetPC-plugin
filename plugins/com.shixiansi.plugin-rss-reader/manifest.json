@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-rss-reader",
   "name": "晨报（RSS 订阅与语音播报）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "订阅 RSS/Atom 源，每 2 小时在后台抓一次新文章；把新内容交给记忆核心的模型总结成 3 句话（语气符合桌宠人设），再用语音插件的 speak 念出来。面板里可以添加/删除订阅源、立刻抓一次、看每条源的状态与最近摘要。",
   "permissions": [

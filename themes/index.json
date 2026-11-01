@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "mint",
+      "name": "薄荷气泡",
+      "version": "0.8.1",
+      "author": "社区 · Yue",
+      "description": "冷调薄荷绿：浅色是白底青边，深色是墨绿底加荧光薄荷点缀。",
+      "download": "themes/mint.json",
+      "sha256": "d1178318c30d300c5c0d6e9ad6aafecca2870ff5431be0dc7fd9951ca3b6d4f1"
+    },
+    {
+      "id": "sunset",
+      "name": "日落橙",
+      "version": "1.0.0",
+      "author": "社区 · Momo",
+      "description": "暖橙偏棕：浅色像晒过头的纸，深色像关灯后的台灯。",
+      "download": "themes/sunset.json",
+      "sha256": "12041148e984e9a34b967911c8255dc47a6bc11f25570caf5eb83f02a2ac2aef"
+    }
+  ]
+}

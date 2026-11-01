@@ -55,7 +55,11 @@
         </div>
         <p id="next-interval" class="hint"></p>
       </div>
-      <p id="review-empty" class="hint">现在没有到期的卡片。去建一张，或稍后再来。</p>
+      <div id="review-empty" class="empty">
+      <div class="empty-glyph"><svg viewBox="0 0 24 24"><path d="M5 4h14v16l-7-4-7 4z"/></svg></div>
+      <div class="empty-title">现在没有到期的卡片</div>
+      <div class="empty-sub">到期的卡片会出现在这里。先建一张，或者稍后再来——复习间隔由 SM-2 排。</div>
+    </div>
       <div class="action-row">
         <button id="review-start" class="btn primary" type="button">开始复习</button>
       </div>
@@ -78,7 +82,11 @@
         <span class="muted" id="deck-count"></span>
       </div>
       <ul id="deck-list" class="deck-list" aria-label="卡组"></ul>
-      <p id="deck-empty" class="hint">卡组是空的。</p>
+      <div id="deck-empty" class="empty">
+        <div class="empty-glyph"><svg viewBox="0 0 24 24"><path d="M4 7h11v13H4zM8 4h12v13"/></svg></div>
+        <div class="empty-title">卡组是空的</div>
+        <div class="empty-sub">在上面加一张卡：正面写问题、背面写答案，之后按复习间隔出现。</div>
+      </div>
     </section>
 
     <p id="status" class="status"></p>

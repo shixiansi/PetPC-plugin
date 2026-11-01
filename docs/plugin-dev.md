@@ -1354,6 +1354,20 @@ if (data.name === 'storage.pressure') {
 桌宠窗口是纯深色，**不发主题**（`init.theme` 为 `undefined`，URL 上没有 `?theme=`）——
 所以默认必须是深色。
 
+**主题包（2026-11-01 起）：你什么都不用做。** 宿主还可能在帧地址上带 `&pack=sakura|forest|…`，
+并在服务 entry 文档时把那个包的颜色**拼成一段 `<style>` 塞进你的 `</head>` 末尾**——
+选择器是 `:root:root`，专门为了压过你自己的 `:root[data-theme=…]` 调色板。所以：
+
+- 只要你的颜色来自 `var(--accent)` / `var(--bg)` 这些令牌，包自动生效；
+- 写死了十六进制的那几处不会跟着变（这是可接受的降级，不是错误）；
+- 包对**已经挂着的帧**在下次打开时生效：那段 CSS 是服务端拼进文档的，重挂才能换。
+
+### 8.3.1 共享组件：空状态与骨架
+
+`ui.css` 自带 `.empty`（四件套：`.empty-glyph` + `.empty-title` + `.empty-sub` + `.empty-cta`）与
+`.skeleton`。它们存在的原因很实际：30 个插件都要写"还没有…"，各写一行灰字的结果是记账插件留一整块
+白、游戏中心是一整页黑。用法与截图见 `docs/ui/petpc-ui.css` 的注释块。
+
 ### 8.4 CSS 纪律（每条都是踩过的）
 
 - **声明了 `surface` 的插件不许 `box-shadow` / `filter` / `transform`**：那些装饰在矩形之外绘制，

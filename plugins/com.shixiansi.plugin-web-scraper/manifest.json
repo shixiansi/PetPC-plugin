@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-web-scraper",
   "name": "网页提取（正文评分转 Markdown）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "输入一个网址：按段落密度、链接占比与类名关键词给页面上的容器评分，挑出真正的正文，去掉导航栏与广告，转成整洁的 Markdown 存进本地文章库。其他插件可以用 plugin.call 让它抓页面或读文章；抓完桌宠会弹一句。",
   "permissions": [

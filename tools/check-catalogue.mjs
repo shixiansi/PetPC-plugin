@@ -116,8 +116,78 @@ for (const id of byId.keys()) {
   if (!seen.has(id)) fail(`${id} 在 index.json 里，但 plugins/${id}/ 不存在`);
 }
 
+// ---------------------------------------------------------------------------
+// 主题商店的货架（themes/index.json）
+// ---------------------------------------------------------------------------
+//
+// A theme is one JSON file, so the checks differ from a package's, but the failure modes are the same
+// two: a row pointing at a file that is not there, and a file whose bytes are not the ones the row
+// hashed. The third is unique to themes and is why this section exists: a pack missing a scheme or a
+// skeleton token installs fine and then does nothing visible - the user sees "装好了" and the window
+// does not change.
+const themesIndexPath = join(repo, 'themes', 'index.json');
+const TOKEN_NAME = /^[a-z][a-z0-9-]{0,31}$/;
+const COLOUR = /^(#[0-9a-fA-F]{3,8}|rgba?\(\s*[0-9.]+%?\s*,\s*[0-9.]+%?\s*,\s*[0-9.]+%?\s*(?:,\s*[0-9.]+\s*)?\))$/;
+const SKELETON = ['bg', 'bg-raised', 'bg-sunken', 'text', 'text-dim', 'accent', 'accent-strong', 'accent-soft'];
+let themeCount = 0;
+
+if (existsSync(themesIndexPath)) {
+  let shelf = null;
+  try {
+    shelf = JSON.parse(readFileSync(themesIndexPath, 'utf8'));
+  } catch (err) {
+    fail(`themes/index.json 不是合法 JSON：${err.message}`);
+  }
+  for (const row of (shelf && shelf.themes) || []) {
+    if (!row || typeof row.id !== 'string' || !TOKEN_NAME.test(row.id)) {
+      fail(`主题商店里有一个条目没有合法的 id：${JSON.stringify(row)}`);
+      continue;
+    }
+    if (!row.download || typeof row.download !== 'string') {
+      fail(`主题包 ${row.id}: 条目没有 download`);
+      continue;
+    }
+    const file = join(repo, row.download);
+    if (!existsSync(file)) {
+      fail(`主题包 ${row.id}: 条目指向的文件不存在：${row.download}`);
+      continue;
+    }
+    const bytes = readFileSync(file);
+    const sum = createHash('sha256').update(bytes).digest('hex');
+    if (sum !== String(row.sha256 || '').toLowerCase()) {
+      fail(`主题包 ${row.id}: ${row.download} 的 sha256 与条目不一致`);
+    }
+    let pack = null;
+    try {
+      pack = JSON.parse(bytes.toString('utf8'));
+    } catch (err) {
+      fail(`主题包 ${row.id}: ${row.download} 不是合法 JSON：${err.message}`);
+      continue;
+    }
+    if (pack.id !== row.id) fail(`主题包 ${row.id}: 文件里的 id 是 ${pack.id}`);
+    themeCount += 1;
+    for (const scheme of ['light', 'dark']) {
+      const tokens = (pack.tokens || {})[scheme];
+      if (!tokens || typeof tokens !== 'object') {
+        fail(`主题包 ${row.id}: 缺少 tokens.${scheme}（两套都要写，只写一套的话切到另一侧就读不出来）`);
+        continue;
+      }
+      for (const name of SKELETON) {
+        if (!tokens[name]) fail(`主题包 ${row.id}: tokens.${scheme} 缺少骨架令牌 ${name}`);
+      }
+      for (const [name, value] of Object.entries(tokens)) {
+        if (!TOKEN_NAME.test(name)) fail(`主题包 ${row.id}: 令牌名不合法：${name}`);
+        if (typeof value !== 'string' || !COLOUR.test(value.trim())) {
+          fail(`主题包 ${row.id}: ${scheme} 的 ${name} 不是颜色字面量：${JSON.stringify(value)}`);
+        }
+      }
+    }
+  }
+}
+
 if (problems.length === 0) {
-  console.log(`OK：${dirs.length} 个插件、${byId.size} 个条目、包与摘要全部对得上`);
+  const shelfNote = themeCount > 0 ? `、主题包 ${themeCount} 个` : '';
+  console.log(`OK：${dirs.length} 个插件、${byId.size} 个条目${shelfNote}、包与摘要全部对得上`);
   process.exit(0);
 }
 console.error(`发现 ${problems.length} 个问题：`);

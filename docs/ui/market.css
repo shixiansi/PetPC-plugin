@@ -58,7 +58,7 @@
   /* --- 图标：46×46 渐变方块，白色 SVG 由 .icon 的 color 提供 -------------- */
   --icon-size: 46px;
 
-  --font: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --mono: Consolas, "Courier New", monospace;
   --dur: 160ms;             /* 动效 120–320ms，只做位移/透明度/颜色/阴影 */
 }
@@ -381,3 +381,14 @@ code {
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation: none !important; }
 }
+
+/* 生成出来的渐变（tools/render-pages.mjs 按 id 散列到 8 格之一）。
+   上一版是 36 个插件手写 36 条——加插件忘加一行，卡片就是灰的，而且没人会注意到。 */
+.g-0 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.g-1 { background: linear-gradient(135deg, #38bdf8, #0369a1); }
+.g-2 { background: linear-gradient(135deg, #34d399, #047857); }
+.g-3 { background: linear-gradient(135deg, #fbbf24, #b45309); }
+.g-4 { background: linear-gradient(135deg, #f472b6, #be1857); }
+.g-5 { background: linear-gradient(135deg, #a78bfa, #5b21b6); }
+.g-6 { background: linear-gradient(135deg, #22d3ee, #0e7490); }
+.g-7 { background: linear-gradient(135deg, #fb923c, #c2410c); }

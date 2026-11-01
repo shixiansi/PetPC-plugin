@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-desktop-wallpaper",
   "name": "壁纸联动（环境色合成）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "每天抓一次 Bing 每日壁纸，用 k-means 提取主色调、三次盒滤波生成毛玻璃底色，经 plugin.share 把环境快照（主色、渐变、mood）发布给桌宠：桌宠据此调整光影与主题色。面板里看色板、模糊预览与最近 30 天的历史；其他插件可以 plugin.call 问当前环境或触发重抓。",
   "permissions": [

@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-game-center",
   "name": "游戏中心（接金币）",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "shixiansi",
   "description": "宠物旁的轻量小游戏「接金币」：左右移动篮子接住掉落的金币与道具（磁铁、双倍、护盾），躲开炸弹。有开始菜单、实时计分板与结束结算面板；本局得分经 plugin.share 发给桌宠生态（亲密度/金币由记忆侧消费），游戏结束按胜负触发桌宠的欢呼或失落状态。逻辑引擎不依赖 DOM，面板只做渲染。",
   "permissions": [

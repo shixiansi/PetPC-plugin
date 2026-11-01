@@ -159,30 +159,46 @@ describe('index.html 市场页', () => {
     expect(externals, `发现外链：${externals.join(', ')}`).toEqual([]);
   });
 
-  test('每个插件卡片：46×46 渐变图标 + 白色 SVG + 卡片头 + 下载按钮', () => {
-    const cards = [...doc.querySelectorAll('section.card')];
-    expect(cards.length).toBeGreaterThanOrEqual(13);
-    let icons = 0;
+  // 列表与计数是**生成**的（tools/render-pages.mjs），所以这里不再数"应该有几张卡"，而是要求
+  // 页面与 index.json 说同一件事：条目数、id 集合、下载链接。上一版手写 18 张卡的时候，后加的
+  // 18 个插件在页面上根本不存在，而所有测试都是绿的——因为它们在数一个写死的 18。
+  const entries = JSON.parse(readFileSync(path.join(marketRoot, 'index.json'), 'utf8')).plugins;
+
+  test('每个插件一张卡：渐变字形图标 + 名称 + 版本 + 下载按钮，一个不缺', () => {
+    const cards = [...doc.querySelectorAll('section.card')].filter((c) => c.querySelector('.icon'));
+    expect(cards.length, '卡片数与 index.json 的条目数不一致').toBe(entries.length);
+    const shown = cards.map((c) => (c.querySelector('.titles .meta > code') || {}).textContent?.trim() ?? '');
+    expect(shown.sort()).toEqual(entries.map((p) => p.id).sort());
     for (const card of cards) {
       const icon = card.querySelector('.icon');
-      if (!icon) continue; // 「如何安装」一节没有图标
-      icons += 1;
-      // 渐变类落在 .icon 上
-      expect(icon.className).toMatch(/\bg-[a-z]+\b/);
-      // SVG 用 fill="currentColor"（色由 .icon 的白色 color 提供）
-      const svg = icon.querySelector('svg');
-      expect(svg, '图标里没有 SVG').not.toBeNull();
-      expect(svg.getAttribute('fill')).toBe('currentColor');
-      expect(svg.getAttribute('viewBox')).toBe('0 0 24 24');
+      // 渐变类是散列出来的（g-0 … g-7），不是每个插件手写一条
+      expect(icon.className).toMatch(/\bg-[0-7]\b/);
+      expect(icon.textContent.trim(), '图标里没有字形').not.toBe('');
+      expect(card.querySelector('a.btn.primary[download]'), '没有下载按钮').not.toBeNull();
     }
-    expect(icons).toBe(18);
   });
 
   test('图标渐变类都有对应规则，没有拼错的名字', () => {
-    const used = [...indexHtml.matchAll(/class="icon (g-[a-z]+)"/g)].map((m) => m[1]);
-    expect(used.length).toBe(18);
-    for (const g of used) {
+    const used = [...indexHtml.matchAll(/class="icon (g-[0-7])"/g)].map((m) => m[1]);
+    expect(used.length).toBe(entries.length);
+    expect(new Set(used).size, '所有卡片都用了同一个渐变色').toBeGreaterThan(1);
+    for (const g of new Set(used)) {
       expect(tokens).toMatch(new RegExp(`\\.${g}\\s*\\{`), `.${g} 在令牌文件里没有定义`);
+    }
+  });
+
+  test('官方 / 社区筛选是纯 CSS，分类与计数都来自 index.json', () => {
+    const official = entries.filter((p) => (p.author || '').trim() === 'shixiansi').length;
+    expect(indexHtml).toContain(`全部 ${entries.length}`);
+    expect(indexHtml).toContain(`官方 ${official}`);
+    expect(indexHtml).toContain(`社区 ${entries.length - official}`);
+    expect(indexHtml).toMatch(/body:has\(#f-official:checked\)\s+\.is-community\s*\{\s*display:\s*none/);
+    expect(indexHtml).toMatch(/body:has\(#f-community:checked\)\s+\.is-official\s*\{\s*display:\s*none/);
+    // 「全部」不能有 display 规则：它会以同等特异性压住上面两条（真实翻车过）。
+    expect(indexHtml).not.toMatch(/body:has\(#f-all:checked\)[^{]*\{[^}]*display/);
+    for (const card of doc.querySelectorAll('section.card .icon')) {
+      const section = card.closest('section');
+      expect(section.classList.contains('is-official') || section.classList.contains('is-community')).toBe(true);
     }
   });
 
@@ -192,21 +208,18 @@ describe('index.html 市场页', () => {
     expect(body).toMatch(/box-shadow:\s*var\(--sh-xs\)/);
   });
 
-  test('已打包插件的下载链接都指向 dist/ 里真实存在的包', () => {
-    // 三个新插件的包在阶段二收尾统一生成；这里只对已经打包的 12 个严格要求。
+  test('每个下载链接都指向 dist/ 里真实存在的包', () => {
     const links = [...doc.querySelectorAll('a[href^="dist/"]')].map((a) => a.getAttribute('href'));
-    expect(links.length).toBe(18);
-    const missing = links
-      .filter((href) => !href.includes('pet-sense') && !href.includes('media-sync') && !href.includes('weather-env'))
-      .filter((href) => !existsSync(path.join(marketRoot, href)));
+    expect(links.length, '下载链接数与插件数不一致').toBe(entries.length);
+    const missing = links.filter((href) => !existsSync(path.join(marketRoot, href)));
     expect(missing, `下载链接指向不存在的文件：${missing.join(', ')}`).toEqual([]);
   });
 
-  test('三个新插件都有自己的卡片与「新」标签', () => {
-    for (const id of ['com.shixiansi.plugin-pet-sense', 'com.shixiansi.plugin-media-sync', 'com.shixiansi.plugin-weather-env']) {
-      expect(indexHtml).toContain(`<code>${id}</code>`);
-    }
-    expect((indexHtml.match(/class="tag accent">新</g) || []).length).toBe(3);
+  test('每张卡都写出"这个包是什么时候打的"', () => {
+    // 用户判断"这个插件还活着吗"靠的就是这个日期；它来自 dist 里那个文件的 mtime，不是手写的。
+    const cards = [...doc.querySelectorAll('section.card')].filter((c) => c.querySelector('.icon'));
+    const without = cards.filter((c) => !/更新于 \d{2}-\d{2}/.test(c.textContent));
+    expect(without.length, `${without.length} 张卡没有更新日期`).toBe(0);
   });
 });
 
@@ -223,77 +236,40 @@ describe('manage.html 管理页', () => {
     expect(doc.querySelectorAll('[onclick], [onchange], [oninput]').length).toBe(0);
   });
 
-  test('插件行：图标 + 双状态胶囊 + 开关，一行不缺', () => {
+  // 这一版把"假开关"删掉了。上一版每一行都有开关、双状态胶囊和写死的 15/12/3——三个数字互相打架，
+  // 而且一张静态页根本读不到 plugins.json，那些"状态"是编的。现在的规则是：**页面只说自己知道的**
+  // （有哪些插件、什么版本、几项权限），启停与授权指向控制中心。
+  const entries = JSON.parse(readFileSync(path.join(marketRoot, 'index.json'), 'utf8')).plugins;
+
+  test('每一行对应 index.json 的一个插件，一个不缺', () => {
     const rows = [...doc.querySelectorAll('section.plugin')];
-    expect(rows.length).toBe(18);
-    // 目录里的 18 个全部在列；六个新插件以停用态出现（装完先看清权限再启用）。
-    expect(rows.filter((r) => r.dataset.state === 'running').length).toBe(12);
-    expect(rows.filter((r) => r.dataset.state === 'disabled').length).toBe(6);
+    expect(rows.length, '行数与 index.json 的条目数不一致').toBe(entries.length);
+    const shown = rows.map((r) => (r.querySelector('.titles code') || {}).textContent?.trim() ?? '');
+    expect(shown.sort()).toEqual(entries.map((p) => p.id).sort());
     for (const row of rows) {
-      expect(row.querySelector('.icon svg'), '行里没有图标 SVG').not.toBeNull();
-      expect(row.querySelector('.st-running'), '缺运行中胶囊').not.toBeNull();
-      expect(row.querySelector('.st-disabled'), '缺已禁用胶囊').not.toBeNull();
-      const input = row.querySelector('.switch input[type="checkbox"]');
-      expect(input, '缺开关').not.toBeNull();
-      // 胶囊声明静态初态：running 行有运行胶囊、disabled 行有停用胶囊
-      const state = row.dataset.state;
-      expect(['running', 'disabled']).toContain(state);
+      expect(row.querySelector('.icon'), '缺图标').not.toBeNull();
+      expect(row.querySelector('.tag'), '缺官方/社区标签').not.toBeNull();
+      // 分类与作者一致
+      const isOfficial = row.classList.contains('is-official');
+      expect(row.dataset.cat).toBe(isOfficial ? 'official' : 'community');
     }
   });
 
-  test('静态 data-state 与开关 checked 一致（首帧不闪）', () => {
-    for (const row of doc.querySelectorAll('section.plugin')) {
-      const checked = row.querySelector('.switch input').hasAttribute('checked');
-      expect(checked, `行 ${row.querySelector('h2').textContent} 的开关与 data-state 不一致`)
-        .toBe(row.dataset.state === 'running');
-    }
+  test('没有假开关、没有编出来的状态：静态页不知道启停', () => {
+    expect(doc.querySelectorAll('input[type="checkbox"]').length, '又出现了假装能用的开关').toBe(0);
+    expect(doc.querySelectorAll('[data-state]').length, '又出现了编出来的启停状态').toBe(0);
+    expect(doc.querySelectorAll('.st-running, .st-disabled').length).toBe(0);
+    // 这句话必须还在：它是"为什么这一页没有开关"的唯一解释。
+    expect(manageHtml).toContain('启停与授权在控制中心里做');
   });
 
-  test('胶囊切换规则在行内样式里：:has(input) 同时管两个胶囊与卡片透明度', () => {
-    const { body: copy } = inlineCopy(manageHtml);
-    expect(copy).toMatch(/\.plugin:has\(input:not\(:checked\)\)\s*\.st-running\s*\{\s*display:\s*none/);
-    expect(copy).toMatch(/\.plugin:has\(input:not\(:checked\)\)\s*\.st-disabled\s*\{\s*display:\s*inline-flex/);
-    expect(copy).toMatch(/\.plugin:has\(input:not\(:checked\)\)\s*\{\s*opacity:\s*0\.62/);
+  test('筛选是纯 CSS，计数来自 index.json', () => {
+    const official = entries.filter((p) => (p.author || '').trim() === 'shixiansi').length;
+    expect(manageHtml).toContain(`全部 ${entries.length}`);
+    expect(manageHtml).toContain(`官方 ${official}`);
+    expect(manageHtml).toMatch(/body:has\(#f-official:checked\)\s+\.is-community\s*\{\s*display:\s*none/);
+    expect(manageHtml).toMatch(/body:has\(#f-community:checked\)\s+\.is-official\s*\{\s*display:\s*none/);
   });
-
-  test('开关动效：滑块 transform 位移 18px，跟随 :checked', () => {
-    const { body: copy } = inlineCopy(manageHtml);
-    expect(copy).toMatch(/\.switch input::after\s*\{[\s\S]*?transition:\s*transform var\(--dur\) ease/);
-    expect(copy).toMatch(/\.switch input:checked::after\s*\{\s*transform:\s*translateX\(18px\)/);
-  });
-
-  test('底部交互栏：sticky、筛选 chips、批量动作齐全', () => {
-    const bar = doc.querySelector('footer.bar');
-    expect(bar, '没有底部交互栏').not.toBeNull();
-    const { body: copy } = inlineCopy(manageHtml);
-    expect(copy).toMatch(/\.bar\s*\{[^}]*position:\s*sticky/);
-    // 三个筛选 radio，配对到 label
-    const chips = bar.querySelectorAll('.chips input[type="radio"]');
-    expect(chips.length).toBe(3);
-    for (const input of chips) {
-      expect(bar.querySelector(`label[for="${input.id}"]`), `radio ${input.id} 没有 label`).not.toBeNull();
-    }
-    expect(bar.querySelector('a.btn')?.getAttribute('href')).toBe('index.html');
-  });
-
-  test('纯 CSS 筛选规则在页面自有样式里（jsdom 不支持 :has，静态核对）', () => {
-    // 筛选是管理页自有的规则，不属于共享令牌——所以在 manageHtml 全文里找。
-    expect(manageHtml).toMatch(/body:has\(#f-on:checked\)\s+\.plugin\.hide-when-off\s*\{\s*display:\s*none/);
-    expect(manageHtml).toMatch(/body:has\(#f-off:checked\)\s+\.plugin\.hide-when-on\s*\{\s*display:\s*none/);
-    // 「全部」不能有 display 规则——它会以同等特异性压住上面两条（真实翻车过）。
-    expect(manageHtml).not.toMatch(/body:has\(#f-all:checked\)[^{]*\{[^}]*display/);
-  });
-
-  test('每行都有筛选类（hide-when-off / hide-when-on 二选一）', () => {
-    const rows = [...doc.querySelectorAll('section.plugin')];
-    for (const row of rows) {
-      const on = row.classList.contains('hide-when-off');
-      const off = row.classList.contains('hide-when-on');
-      expect(on !== off, '筛选类必须二选一').toBe(true);
-      expect(on).toBe(row.dataset.state === 'running');
-    }
-  });
-
   test('颜色纪律：正文里不许有 style 属性写死颜色（脚注的设计说明文字豁免）', () => {
     const begin = manageHtml.indexOf(MASTER_END);
     const outside = manageHtml.slice(begin).replace(/<style>[\s\S]*?<\/style>/g, '');

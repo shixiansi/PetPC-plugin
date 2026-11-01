@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-voice-call",
   "name": "实时语音通话",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "shixiansi",
   "description": "实时双向语音对话：在桌宠的常驻帧里跑一个「听—想—说」状态机，音量阈值 VAD 检测说话与静音；用户开口立即打断桌宠正在播放的语音（audio.stop）；录到的音频切片交给流式 ASR（或本机桥的识别端点），识别文本经记忆核心生成回答，再用语音服务合成播放。所有音频处理都走宿主的 audio/net.fetch 能力；纯逻辑的状态机可以在没有麦克风的环境下完整测试。",
   "permissions": [

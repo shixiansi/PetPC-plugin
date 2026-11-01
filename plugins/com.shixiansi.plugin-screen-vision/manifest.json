@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-screen-vision",
   "name": "屏幕视觉",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": "shixiansi",
   "description": "给桌宠的眼睛：用本机辅助脚本截取全屏或指定区域，把截图交给视觉模型解析。别的插件用 plugin.call 问 analyze_screen（一句话问题 → 一段看图后的回答）；面板上有「看一眼屏幕」按钮，显示识别进度，保留最近几次识别记录。问答走记忆核心（memcore/chat），截图 URL 会加进网络白名单。",
   "permissions": [

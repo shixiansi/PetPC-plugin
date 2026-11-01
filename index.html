@@ -4,24 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PetPC 插件市场</title>
-<!--
-  A single self-contained page: no external stylesheet, no font CDN, and no
-  script at all. It lists what the catalogue currently offers and links to the
-  packaged zip next to it.
-
-  The "no script" part is a deliberate guarantee, not an oversight: the market
-  page and the plugin packages share a repository, so a scripted page would be
-  one more place a package could influence whoever is browsing the catalogue.
-  Everything here is static markup and inline style.
-
-  2026-10-30 redesign: the page now carries the market design tokens inline
-  (docs/ui/market.css is the readable master; the copy below is byte-for-byte
-  the same rules). Colours come only from tokens — no hex value appears outside
-  the token block or the icon gradients (the one exception, checked by
-  tests/ui-market.test.js). Plugin icons are 46x46 gradient tiles with a white
-  inline SVG; cards are 18px-rounded with var(--sh-xs) shadows; spacing is a
-  4px multiple everywhere.
--->
 <style>
 /* ==== market.css (inline copy of docs/ui/market.css) ==== */
 /* market.css —— 市场两页（插件市场 index.html / 插件管理 manage.html）的设计令牌与原语。
@@ -84,7 +66,7 @@
   /* --- 图标：46×46 渐变方块，白色 SVG 由 .icon 的 color 提供 -------------- */
   --icon-size: 46px;
 
-  --font: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --mono: Consolas, "Courier New", monospace;
   --dur: 160ms;             /* 动效 120–320ms，只做位移/透明度/颜色/阴影 */
 }
@@ -407,7 +389,22 @@ code {
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation: none !important; }
 }
-/* ==== end market.css copy ==== */
+
+/* 生成出来的渐变（tools/render-pages.mjs 按 id 散列到 8 格之一）。
+   上一版是 36 个插件手写 36 条——加插件忘加一行，卡片就是灰的，而且没人会注意到。 */
+.g-0 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.g-1 { background: linear-gradient(135deg, #38bdf8, #0369a1); }
+.g-2 { background: linear-gradient(135deg, #34d399, #047857); }
+.g-3 { background: linear-gradient(135deg, #fbbf24, #b45309); }
+.g-4 { background: linear-gradient(135deg, #f472b6, #be1857); }
+.g-5 { background: linear-gradient(135deg, #a78bfa, #5b21b6); }
+.g-6 { background: linear-gradient(135deg, #22d3ee, #0e7490); }
+.g-7 { background: linear-gradient(135deg, #fb923c, #c2410c); }/* ==== end market.css copy ==== */
+/* ==== 生成器附加：分类筛选（纯 CSS） ==== */
+body:has(#f-official:checked) .is-community { display: none; }
+body:has(#f-community:checked) .is-official { display: none; }
+.page > .chips { margin-bottom: var(--space-4); }
+.icon { font-size: 16px; font-weight: 700; line-height: 1; }
 </style>
 </head>
 <body>
@@ -416,71 +413,277 @@ code {
     <div class="head-row">
       <div>
         <h1>PetPC 插件市场</h1>
-        <p class="lede">桌宠 PetPC 的插件目录。每个插件就是一个目录（<code>manifest.json</code> + 前端资源），打包成 zip 后由桌宠安装。机器可读版本是同目录的 <a href="index.json">index.json</a>。</p>
+        <p class="lede">36 个插件（官方 36 · 社区 0）。每个插件就是一个目录（<code>manifest.json</code> + 前端资源），打包成 zip 后由宿主安装；机器可读版本是同目录的 <a href="index.json">index.json</a>。本页的列表与计数由 <code>tools/render-pages.mjs</code> 从 index.json 生成，不手维护。</p>
       </div>
       <a class="btn ghost" href="manage.html">插件管理 →</a>
     </div>
   </header>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+    <div class="chips" role="radiogroup" aria-label="筛选">
+      <input type="radio" name="filter" id="f-all" checked><label for="f-all">全部 36</label>
+      <input type="radio" name="filter" id="f-official"><label for="f-official">官方 36</label>
+      <input type="radio" name="filter" id="f-community"><label for="f-community">社区 0</label>
+    </div>
+
+<div class="grid" id="list">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-chat" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4V6a2 2 0 0 1 2-2Zm4 6a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 8 10Zm4 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 12 10Zm4 0a1.2 1.2 0 1 0 0 2.4A1.2 1.2 0 0 0 16 10Z"/></svg></span>
+      <span class="icon g-5" aria-hidden="true">后</span>
+      <div class="titles">
+        <h2>后台任务执行器</h2>
+        <div class="meta"><span>版本 <code>0.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-agent-worker</code></div>
+      </div>
+    </div>
+    <p class="desc">接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent-status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-agent-worker-0.1.2.zip" download>下载 0.1.2</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-agent-worker-0.1.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-3" aria-hidden="true">代</span>
+      <div class="titles">
+        <h2>代码感知与重构助手</h2>
+        <div class="meta"><span>版本 <code>1.0.4</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-ast-coder</code></div>
+      </div>
+    </div>
+    <p class="desc">让桌宠看懂本地代码：按配置的目录监听 .js/.ts 文件（结构缓存在插件私有目录，不碰文件内容之外的东西），用轻量解析提取函数名、类名与导出项；选中一段代码就能让记忆核心以审查者的身份找 Bug、给重构建议；还能一键把大模型生成的测试用例写进同名 .test.js（先读后写，绝不覆盖原代码）。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-ast-coder-1.0.4.zip" download>下载 1.0.4</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-ast-coder-1.0.4.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-7" aria-hidden="true">B</span>
+      <div class="titles">
+        <h2>B 站刷视频插件</h2>
+        <div class="meta"><span>版本 <code>1.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-bilibili</code></div>
+      </div>
+    </div>
+    <p class="desc">按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">net.credentials</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-bilibili-1.1.2.zip" download>下载 1.1.2</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-bilibili-1.1.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-7" aria-hidden="true">对</span>
       <div class="titles">
         <h2>对话插件</h2>
         <div class="meta"><span>版本 <code>1.9.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-chat</code></div>
       </div>
     </div>
-    <p class="desc">在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。带五级兜底链：主模型 → 上下文减半 → 备用模型 → 借来的渠道 → 本地兜底。</p>
+    <p class="desc">在面板里与桌宠旁和大模型对话的官方插件；自己的 AI 配置与密钥由自己保存。</p>
     <div class="tags">
       <span class="tag accent">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">pet.surface</span><span class="tag">plugin.config</span><span class="tag">storage</span>
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-chat-1.9.0.zip" download>下载 1.9.0</a>
-      <span class="meta">dist/com.shixiansi.plugin-chat-1.9.0.zip</span>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-chat-1.9.0.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-mem" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a7 7 0 0 1 7 7c0 2.4-1.2 4.4-3 5.7V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.3C6.2 14.4 5 12.4 5 10a7 7 0 0 1 7-7Zm-3 6.2a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6Zm6 0a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6ZM10 21h4v1h-4v-1Z"/></svg></span>
+      <span class="icon g-2" aria-hidden="true">剪</span>
       <div class="titles">
-        <h2>记忆核心（人设 + 分层记忆）</h2>
-        <div class="meta"><span>版本 <code>0.8.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-memcore</code></div>
+        <h2>剪贴板助手</h2>
+        <div class="meta"><span>版本 <code>0.2.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-clipask</code></div>
       </div>
     </div>
-    <p class="desc">人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。</p>
+    <p class="desc">盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走随包的辅助脚本（由宿主托管，manifest 的 sidecar），模型走 llm.borrow。</p>
     <div class="tags">
-      <span class="tag accent">plugin.call</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+      <span class="tag accent">process</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-memcore-0.8.0.zip" download>下载 0.8.0</a>
-      <span class="meta">dist/com.shixiansi.plugin-memcore-0.8.0.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-clipask-0.2.1.zip" download>下载 0.2.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-clipask-0.2.1.zip</span>
     </div>
   </section>
 
-    <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.6 10.8l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg></span>
+      <span class="icon g-2" aria-hidden="true">壁</span>
       <div class="titles">
-        <h2>网络词词典</h2>
-        <div class="meta"><span>版本 <code>0.2.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-slang</code></div>
+        <h2>壁纸联动（环境色合成）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-desktop-wallpaper</code></div>
       </div>
     </div>
-    <p class="desc">让桌宠认得出梗。它对外只提供一件事：<code>plugin.call</code> 的 <code>slang</code>——问一句「这个词什么意思」，答释义。自带 40 条高频词；想要上万条，在插件页导入 <code>chunks.jsonl</code>（Buzzword / astrbot-rag-kb 的格式），语料留在你自己的机器上。记忆核心会在**搜索之前**先问它：查得到就不必上网，也省掉那 20 秒。</p>
+    <p class="desc">每天抓一次 Bing 每日壁纸，用 k-means 提取主色调、三次盒滤波生成毛玻璃底色，经 plugin.share 把环境快照（主色、渐变、mood）发布给桌宠：桌宠据此调整光影与主题色。面板里看色板、模糊预览与最近 30 天的历史；其他插件可以 plugin.call 问当前环境或触发重抓。</p>
     <div class="tags">
-      <span class="tag accent">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.bubble</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-slang-0.2.1.zip" download>下载 0.2.1</a>
-      <span class="meta">dist/com.shixiansi.plugin-slang-0.2.1.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-desktop-wallpaper-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-desktop-wallpaper-0.1.1.zip</span>
     </div>
   </section>
-<section class="card hoverable" style="margin-bottom: var(--space-3)">
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-llmchannel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h4v2H7v3h5V6h-2V4h4v2h-2v3h3a2 2 0 0 1 2 2v1h2v-2h2v6h-2v-2h-2v1a2 2 0 0 1-2 2h-3v3h2v2H9v-2h2v-3H7a2 2 0 0 1-2-2v-1H3v2H1v-6h2v2h2v-1a2 2 0 0 1 2-2h3V6H5V4Z"/></svg></span>
+      <span class="icon g-7" aria-hidden="true">点</span>
+      <div class="titles">
+        <h2>点歌（酷我搜索 + 直链）</h2>
+        <div class="meta"><span>版本 <code>0.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-diange</code></div>
+      </div>
+    </div>
+    <p class="desc">把「点歌 晴天」变成一首歌：歌名、歌手、专辑、封面，和一条能直接播的直链。搜索走酷我（替它查的是 oiapi 那个公开接口），链接按码率逐档回退，并在域名可探测时验证一次能不能播。别的插件用 plugin.call 问它 song（按一句话找歌）或 song_link（已知歌名，要一条当下的链接）；记忆核心在用户点歌时调它，把直链原样给出来。插件页可以手动点一首。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-diange-0.1.2.zip" download>下载 0.1.2</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-diange-0.1.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">日</span>
+      <div class="titles">
+        <h2>日记（自动情绪追踪）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-diary-writer</code></div>
+      </div>
+    </div>
+    <p class="desc">每天 23:00（或手动触发）把当天的交互碎片写成一篇 ≤300 字、带情绪标签的日记：对话摘要来自记忆核心的 export-state、已完成待办来自待办插件的共享快照、专注时长来自番茄钟的共享状态。日记存进插件私有目录，并把「昨天写了什么」注入下一次生成时的 Prompt；可经 plugin.call 问 get_recent 让桌宠在对话里引用昨天的日记。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">events</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-diary-writer-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-diary-writer-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">邮</span>
+      <div class="titles">
+        <h2>邮件智能摘要</h2>
+        <div class="meta"><span>版本 <code>1.0.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-email-digest</code></div>
+      </div>
+    </div>
+    <p class="desc">本地邮件智能聚合：从一个本机邮件桥（IMAP 拉取交给桥做，插件拿到的已经是原始 RFC822 文本）抓最新未读邮件，自己解析 MIME——发件人、主题、纯文本正文（剥 HTML、解 Quoted-Printable 与 Base64）；把分类与摘要交给记忆核心（紧急/常规/垃圾三档，紧急的逐封总结）；每天早晨或手动触发时把摘要弹成气泡并交给语音播报。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">audio</span><span class="tag">pet.bubble</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-email-digest-1.0.2.zip" download>下载 1.0.2</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-email-digest-1.0.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">自</span>
+      <div class="titles">
+        <h2>自然语言记账与财务看板</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-expense-tracker</code></div>
+      </div>
+    </div>
+    <p class="desc">对桌宠说「打车花了 25 块」：模型把话解析成结构化账目（金额/类型/分类/日期）自动入账，解析失败自动带着错误原因重试一次，绝不把猜测值写进账本；账本按月存 JSONL、坏行跳过。看板用纯 SVG 画分类环形图与每日趋势折线图，支持手动记账与月度切换。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-expense-tracker-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-expense-tracker-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-2" aria-hidden="true">记</span>
+      <div class="titles">
+        <h2>记忆卡片（SM-2 间隔重复）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-flashcards</code></div>
+      </div>
+    </div>
+    <p class="desc">把笔记做成抽认卡：SuperMemo-2 算法按你的评分（忘记/困难/良好/简单）安排每张卡的下次复习时间，到点桌宠弹气泡提醒（每天最多 3 次）。正面 | 背面 一行一张批量导入，支持 Markdown 与正反面翻转；划词助手等插件可以 plugin.call 直接发卡进来。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-flashcards-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-flashcards-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-1" aria-hidden="true">游</span>
+      <div class="titles">
+        <h2>游戏中心（接金币）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-game-center</code></div>
+      </div>
+    </div>
+    <p class="desc">宠物旁的轻量小游戏「接金币」：左右移动篮子接住掉落的金币与道具（磁铁、双倍、护盾），躲开炸弹。有开始菜单、实时计分板与结束结算面板；本局得分经 plugin.share 发给桌宠生态（亲密度/金币由记忆侧消费），游戏结束按胜负触发桌宠的欢呼或失落状态。逻辑引擎不依赖 DOM，面板只做渲染。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.share</span><span class="tag">pet.surface</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-game-center-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-game-center-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-7" aria-hidden="true">本</span>
+      <div class="titles">
+        <h2>本地知识库（文档切片与检索问答）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-knowledge-base</code></div>
+      </div>
+    </div>
+    <p class="desc">让桌宠「读」过你给它的文档：把 Markdown/TXT 粘进面板（或给一个 http(s) 地址让它抓取），文档按 500 字滑动窗口切片（50 字重叠防语义切断），建立纯 JS 的 TF-IDF 倒排索引；提问时按关键词检索相关度最高的 3 个切片注入 Prompt，经记忆核心作答——桌宠的回答就以你的文档为准。面板显示文档列表、切片数量与索引进度。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-knowledge-base-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-knowledge-base-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">直</span>
+      <div class="titles">
+        <h2>直播间弹幕互动</h2>
+        <div class="meta"><span>版本 <code>1.0.4</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-live-danmaku</code></div>
+      </div>
+    </div>
+    <p class="desc">让桌宠化身为虚拟主播：接入直播平台的弹幕流（内置 Mock 桥与 B 站开放平台两种接法），内部用防抖队列把高频弹幕节流成「每几秒挑几条值得回的」，交给记忆核心生成回应，再用语音服务念出来或弹气泡；插件页实时显示直播间状态、在线人数与滚动的精简弹幕。</p>
+    <div class="tags">
+      <span class="tag accent">net.ws</span><span class="tag">net.fetch</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">audio</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-live-danmaku-1.0.4.zip" download>下载 1.0.4</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-live-danmaku-1.0.4.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">模</span>
       <div class="titles">
         <h2>模型渠道（多渠道 / 多密钥 / 预设模型）</h2>
-        <div class="meta"><span>版本 <code>0.2.6</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-llmchannel</code></div>
+        <div class="meta"><span>版本 <code>0.2.7</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-llmchannel</code></div>
       </div>
     </div>
     <p class="desc">一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。</p>
@@ -488,32 +691,122 @@ code {
       <span class="tag accent">llm.chat</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-llmchannel-0.2.6.zip" download>下载 0.2.6</a>
-      <span class="meta">dist/com.shixiansi.plugin-llmchannel-0.2.6.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-llmchannel-0.2.7.zip" download>下载 0.2.7</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-llmchannel-0.2.7.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-todo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2.2 5.3a1 1 0 0 0-1.4 1.4l1.8 1.8a1 1 0 0 0 1.4 0l3.6-3.6a1 1 0 1 0-1.4-1.4L8.3 9.2 7.2 8.3Zm0 6a1 1 0 0 0-1.4 1.4l1.8 1.8a1 1 0 0 0 1.4 0l3.6-3.6a1 1 0 1 0-1.4-1.4l-2.9 2.7-1.1-.9ZM14 8h5v2h-5V8Zm0 6h5v2h-5v-2Z"/></svg></span>
+      <span class="icon g-3" aria-hidden="true">媒</span>
       <div class="titles">
-        <h2>待办插件</h2>
-        <div class="meta"><span>版本 <code>1.2.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-todo</code></div>
+        <h2>媒体同步（正在播放）</h2>
+        <div class="meta"><span>版本 <code>0.1.9</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-media-sync</code></div>
       </div>
     </div>
-    <p class="desc">桌宠的待办与提醒：列表、勾选、到期提醒都在这里。</p>
+    <p class="desc">桌宠知道你正在听什么：由本机辅助脚本读 Windows SMTC（System Media Transport Controls）的当前曲目——歌名、歌手、专辑、播放状态。别的插件把用户「我在听什么」的问题用 plugin.call 问它的 now_playing，答案直接可放进模型上下文；宠物头顶也会挂「♪ 歌名 - 歌手」徽标。监听走 process.launch 启动的 PowerShell 脚本。</p>
     <div class="tags">
-      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span><span class="tag">events</span>
+      <span class="tag accent">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.surface</span><span class="tag">storage</span><span class="tag">plugin.config</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-todo-1.2.3.zip" download>下载 1.2.3</a>
-      <span class="meta">dist/com.shixiansi.plugin-todo-1.2.3.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-media-sync-0.1.9.zip" download>下载 0.1.9</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-media-sync-0.1.9.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-pomodoro" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.1 0 2.1.2 3 .5V4c-.6-.2-1.3-.3-2-.4V5a8 8 0 1 1-2 0V3.6c-.7.1-1.4.2-2 .4V2.5c.9-.3 1.9-.5 3-.5Zm0 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm1 2v4.6l3 1.7-.8 1.4L11.2 14V9h1.8Z"/></svg></span>
+      <span class="icon g-5" aria-hidden="true">记</span>
+      <div class="titles">
+        <h2>记忆核心（人设 + 分层记忆）</h2>
+        <div class="meta"><span>版本 <code>0.8.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-memcore</code></div>
+      </div>
+    </div>
+    <p class="desc">人设与记忆只在这里存一份：接入端插件（QQ、OneBot 等）把它收到的每句话用 plugin.call 交给这里，这里拼好上下文、问模型、把这一轮记下来再把回答交回去。装了联网搜索插件后，记忆答不上的问题它会先上网查资料再回答（auto / always / off 三档可调）。0.7.0 起提供 export-state / import-state：把全部分层记忆打包成 JSON 交给快照插件保存，或从快照原样恢复。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.call</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-memcore-0.8.1.zip" download>下载 0.8.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-memcore-0.8.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-0" aria-hidden="true">萌</span>
+      <div class="titles">
+        <h2>萌娘百科</h2>
+        <div class="meta"><span>版本 <code>0.1.9</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-moegirl</code></div>
+      </div>
+    </div>
+    <p class="desc">查萌娘百科：把「这个词/这个梗/这个角色是什么」变成一句能读的释义。对外提供 slang 与 wiki 两个方法，词库查不到时由记忆核心调它补位。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-moegirl-0.1.9.zip" download>下载 0.1.9</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-moegirl-0.1.9.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-0" aria-hidden="true">O</span>
+      <div class="titles">
+        <h2>OneBot 接入端（薄适配器）</h2>
+        <div class="meta"><span>版本 <code>0.1.7</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-onebot</code></div>
+      </div>
+    </div>
+    <p class="desc">把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。</p>
+    <div class="tags">
+      <span class="tag accent">net.ws</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-onebot-0.1.7.zip" download>下载 0.1.7</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-onebot-0.1.7.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-6" aria-hidden="true">桌</span>
+      <div class="titles">
+        <h2>桌宠养成（等级·属性·外观）</h2>
+        <div class="meta"><span>版本 <code>0.1.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pet-evolution</code></div>
+      </div>
+    </div>
+    <p class="desc">给桌宠的 RPG 成长系统：满级 100 级的指数经验曲线，聊天/喂食/专注/完成任务都长经验；每级 3 点自由属性（智力=对话深度、体力=互动次数、亲密=好感倍率），每 10 级解锁一个新外观。存档带版本迁移链（v1→v2 自动补字段），其他插件经 plugin.call 发奖或查档案。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-pet-evolution-0.1.3.zip" download>下载 0.1.3</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-pet-evolution-0.1.3.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-1" aria-hidden="true">系</span>
+      <div class="titles">
+        <h2>系统与 DSH 感知</h2>
+        <div class="meta"><span>版本 <code>0.1.9</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pet-sense</code></div>
+      </div>
+    </div>
+    <p class="desc">桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。采样与监听走本机辅助脚本（process.launch）。</p>
+    <div class="tags">
+      <span class="tag accent">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.surface</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-pet-sense-0.1.9.zip" download>下载 0.1.9</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-pet-sense-0.1.9.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-0" aria-hidden="true">番</span>
       <div class="titles">
         <h2>番茄钟插件</h2>
         <div class="meta"><span>版本 <code>2.3.14</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pomodoro</code></div>
@@ -521,35 +814,35 @@ code {
     </div>
     <p class="desc">桌宠旁的番茄钟：自己的状态机与记录，计时在常驻帧里跑，浮层面只是视图，记录在插件页里看。</p>
     <div class="tags">
-      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span>
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span>
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-pomodoro-2.3.14.zip" download>下载 2.3.14</a>
-      <span class="meta">dist/com.shixiansi.plugin-pomodoro-2.3.14.zip</span>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-pomodoro-2.3.14.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-voice" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Zm-7 9a7 7 0 0 0 6 6.9V21H8v2h8v-2h-3v-2.1A7 7 0 0 0 19 12h-2a5 5 0 0 1-10 0H5Z"/></svg></span>
+      <span class="icon g-1" aria-hidden="true">隐</span>
       <div class="titles">
-        <h2>语音插件</h2>
-        <div class="meta"><span>版本 <code>1.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-voice</code></div>
+        <h2>隐私卫士（敏感信息监控与脱敏）</h2>
+        <div class="meta"><span>版本 <code>0.1.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-privacy-guard</code></div>
       </div>
     </div>
-    <p class="desc">让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。</p>
+    <p class="desc">盯着剪贴板和你的 .env/.txt 文件：身份证（带校验位）、手机号、银行卡（Luhn 校验）、sk- 开头的 API Key、邮箱、内网 IP 一出现就自动脱敏，桌宠弹窗提醒（同类告警 10 分钟节流）。扫描全在本机完成；告警只发布规则名与风险级别，不含原文。其他插件发文本前可以 plugin.call 让它先扫一遍。</p>
     <div class="tags">
-      <span class="tag accent">audio</span><span class="tag">events</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">net.fetch</span><span class="tag">plugin.share</span>
+      <span class="tag accent">process</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.bubble</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-voice-1.1.0.zip" download>下载 1.1.0</a>
-      <span class="meta">dist/com.shixiansi.plugin-voice-1.1.0.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-privacy-guard-0.1.5.zip" download>下载 0.1.5</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-privacy-guard-0.1.5.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-qq" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c4.4 0 8 2.9 8 6.6 0 1.5-.6 2.9-1.6 4 .3.9.9 1.9 1.9 2.6.4.3.2.9-.3 1-.9.1-2-.1-2.9-.6-.6.4-1.3.7-2.1.9l.9 3.2c.1.4-.2.8-.6.8h-2.6c-.3 0-.5-.2-.6-.4l-.7-2.6-.7 2.6c-.1.2-.3.4-.6.4H7.5c-.4 0-.7-.4-.6-.8l.9-3.2c-.8-.2-1.5-.5-2.1-.9-.9.5-2 .7-2.9.6-.5-.1-.7-.7-.3-1 1-.7 1.6-1.7 1.9-2.6A6.1 6.1 0 0 1 4 8.6C4 4.9 7.6 2 12 2Zm-3.2 5.6a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Zm6.4 0a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8Z"/></svg></span>
+      <span class="icon g-7" aria-hidden="true">Q</span>
       <div class="titles">
         <h2>QQ 群聊插件</h2>
         <div class="meta"><span>版本 <code>1.16.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-qq</code></div>
@@ -557,17 +850,17 @@ code {
     </div>
     <p class="desc">把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。</p>
     <div class="tags">
-      <span class="tag accent">net.ws</span><span class="tag">net.fetch</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span>
+      <span class="tag accent">net.ws</span><span class="tag">net.fetch</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">events</span><span class="tag">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span>
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-qq-1.16.1.zip" download>下载 1.16.1</a>
-      <span class="meta">dist/com.shixiansi.plugin-qq-1.16.1.zip</span>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-qq-1.16.1.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-qqbot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 1.5 3.3c2.9.6 5.2 2.2 6.3 4.7H22a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1.1c-.9 3.1-4.2 5-8.9 5s-8-1.9-8.9-5H2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h2.2c1.1-2.5 3.4-4.1 6.3-4.7A2 2 0 0 1 12 2Zm-4 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm8 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-6.9 5.6c1.9 1.3 3.9 1.3 5.8 0l.9 1.2c-2.4 1.7-5.2 1.7-7.6 0l.9-1.2Z"/></svg></span>
+      <span class="icon g-0" aria-hidden="true">Q</span>
       <div class="titles">
         <h2>QQ 官方机器人</h2>
         <div class="meta"><span>版本 <code>1.0.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-qqbot</code></div>
@@ -579,34 +872,196 @@ code {
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-qqbot-1.0.3.zip" download>下载 1.0.3</a>
-      <span class="meta">dist/com.shixiansi.plugin-qqbot-1.0.3.zip</span>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-qqbot-1.0.3.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-onebot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.3L18.5 8 12 11.7 5.5 8 12 4.3ZM5 9.6l6 3.4v6.6l-6-3.4V9.6Zm8 10V13l6-3.4v6.6l-6 3.4Z"/></svg></span>
+      <span class="icon g-5" aria-hidden="true">晨</span>
       <div class="titles">
-        <h2>OneBot 接入端（薄适配器）</h2>
-        <div class="meta"><span>版本 <code>0.1.6</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-onebot</code></div>
+        <h2>晨报（RSS 订阅与语音播报）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-rss-reader</code></div>
       </div>
     </div>
-    <p class="desc">把 OneBot v11（NapCat / Lagrange 等）接进记忆核心：它只负责收发消息与「这句是不是在跟机器人说话」，人设与记忆一律用 plugin.call 问记忆核心。所以换一个接入端不用搬记忆，改人设也不用改这里。</p>
+    <p class="desc">订阅 RSS/Atom 源，每 2 小时在后台抓一次新文章；把新内容交给记忆核心的模型总结成 3 句话（语气符合桌宠人设），再用语音插件的 speak 念出来。面板里可以添加/删除订阅源、立刻抓一次、看每条源的状态与最近摘要。</p>
     <div class="tags">
-      <span class="tag accent">net.ws</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+      <span class="tag accent">net.fetch</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">events</span><span class="tag">pet.bubble</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-onebot-0.1.6.zip" download>下载 0.1.6</a>
-      <span class="meta">dist/com.shixiansi.plugin-onebot-0.1.6.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-rss-reader-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-rss-reader-0.1.1.zip</span>
     </div>
   </section>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
     <div class="card-head">
-      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2Zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm0 1.8A4.2 4.2 0 0 0 5.8 10h2A2.2 2.2 0 0 1 10 7.8v-2Z"/></svg></span>
+      <span class="icon g-2" aria-hidden="true">屏</span>
+      <div class="titles">
+        <h2>屏幕视觉</h2>
+        <div class="meta"><span>版本 <code>0.1.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-screen-vision</code></div>
+      </div>
+    </div>
+    <p class="desc">给桌宠的眼睛：用本机辅助脚本截取全屏或指定区域，把截图交给视觉模型解析。别的插件用 plugin.call 问 analyze_screen（一句话问题 → 一段看图后的回答）；面板上有「看一眼屏幕」按钮，显示识别进度，保留最近几次识别记录。问答走记忆核心（memcore/chat），截图 URL 会加进网络白名单。</p>
+    <div class="tags">
+      <span class="tag accent">process</span><span class="tag">llm.borrow</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-screen-vision-0.1.5.zip" download>下载 0.1.5</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-screen-vision-0.1.5.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-2" aria-hidden="true">网</span>
+      <div class="titles">
+        <h2>网络词词典</h2>
+        <div class="meta"><span>版本 <code>0.2.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-slang</code></div>
+      </div>
+    </div>
+    <p class="desc">认得出网络词：给桌宠一套本地词库，问到「尊嘟假嘟」「显眼包」时知道那是什么。词库可以导入（支持 Buzzword / astrbot-rag-kb 的 chunks.jsonl），也可以只用自带的小词表。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-slang-0.2.2.zip" download>下载 0.2.2</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-slang-0.2.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-7" aria-hidden="true">状</span>
+      <div class="titles">
+        <h2>状态时光机（记忆快照）</h2>
+        <div class="meta"><span>版本 <code>1.0.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-state-snapshot</code></div>
+      </div>
+    </div>
+    <p class="desc">给桌宠的记忆装一个游戏存档：调用记忆核心把当前的分层记忆（L1 往来、L2 摘要、L3 情节与长期摘要、全局事件链）整库打包成 JSON，保存在自己的快照库里；可以命名、列表、删除，随时回滚到任何一个历史快照——回滚是整库替换，恢复之后记忆就是那一刻的样子，没有脏数据。插件页以时间线展示全部快照并带恢复按钮。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-state-snapshot-1.0.2.zip" download>下载 1.0.2</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-state-snapshot-1.0.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">待</span>
+      <div class="titles">
+        <h2>待办插件</h2>
+        <div class="meta"><span>版本 <code>1.2.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-todo</code></div>
+      </div>
+    </div>
+    <p class="desc">桌宠的待办与提醒：列表、勾选、到期提醒都在这里。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-todo-1.2.3.zip" download>下载 1.2.3</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-todo-1.2.3.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-3" aria-hidden="true">语</span>
+      <div class="titles">
+        <h2>语音插件</h2>
+        <div class="meta"><span>版本 <code>1.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-voice</code></div>
+      </div>
+    </div>
+    <p class="desc">让桌宠在番茄钟结束与待办提醒时说话的官方插件；台词、音色与开关都由它自己管。1.1.0 起别的插件可以用 plugin.call 问 speak，把任意一段话交给语音引擎念出来。</p>
+    <div class="tags">
+      <span class="tag accent">audio</span><span class="tag">events</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">net.fetch</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-voice-1.1.0.zip" download>下载 1.1.0</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-voice-1.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-0" aria-hidden="true">实</span>
+      <div class="titles">
+        <h2>实时语音通话</h2>
+        <div class="meta"><span>版本 <code>1.0.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-voice-call</code></div>
+      </div>
+    </div>
+    <p class="desc">实时双向语音对话：在桌宠的常驻帧里跑一个「听—想—说」状态机，音量阈值 VAD 检测说话与静音；用户开口立即打断桌宠正在播放的语音（audio.stop）；录到的音频切片交给流式 ASR（或本机桥的识别端点），识别文本经记忆核心生成回答，再用语音服务合成播放。所有音频处理都走宿主的 audio/net.fetch 能力；纯逻辑的状态机可以在没有麦克风的环境下完整测试。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">audio</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">pet.bubble</span><span class="tag">pet.surface</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-voice-call-1.0.3.zip" download>下载 1.0.3</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-voice-call-1.0.3.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">天</span>
+      <div class="titles">
+        <h2>天气与环境感知</h2>
+        <div class="meta"><span>版本 <code>0.1.4</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-weather-env</code></div>
+      </div>
+    </div>
+    <p class="desc">桌宠出门前提醒你带伞：默认接入 Open-Meteo 公开天气 API（免密钥），也可配置和风天气。get_weather(city) 工具让模型能回答任意城市的天气；下雨、雷雨、下雪、晴天高温时在桌宠头顶挂出提醒徽标，并经 plugin.share 推送 weather-now 与 weather-condition 状态事件（同一事件 3 小时只提醒一次，不刷屏）。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.surface</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-weather-env-0.1.4.zip" download>下载 0.1.4</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-weather-env-0.1.4.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">桌</span>
+      <div class="titles">
+        <h2>桌宠状态看板</h2>
+        <div class="meta"><span>版本 <code>1.0.4</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-web-dashboard</code></div>
+      </div>
+    </div>
+    <p class="desc">在浏览器里打开的桌宠控制中心：本地 HTTP 服务聚合各插件的数据——对话次数（记忆核心）、待办完成率（todo）、专注时长（番茄钟）——用一个纯 CSS 柱状图与卡片网络展示，样式严格走宿主 token；页面上可以直接下发暂停/恢复命令（经共享键送到目标插件）。数据由各插件通过 plugin.call 的 stats 方法现答。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-web-dashboard-1.0.4.zip" download>下载 1.0.4</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-web-dashboard-1.0.4.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-6" aria-hidden="true">网</span>
+      <div class="titles">
+        <h2>网页提取（正文评分转 Markdown）</h2>
+        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-web-scraper</code></div>
+      </div>
+    </div>
+    <p class="desc">输入一个网址：按段落密度、链接占比与类名关键词给页面上的容器评分，挑出真正的正文，去掉导航栏与广告，转成整洁的 Markdown 存进本地文章库。其他插件可以用 plugin.call 让它抓页面或读文章；抓完桌宠会弹一句。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-web-scraper-0.1.1.zip" download>下载 0.1.1</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-web-scraper-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">联</span>
       <div class="titles">
         <h2>联网搜索</h2>
-        <div class="meta"><span>版本 <code>1.0.4</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-websearch</code></div>
+        <div class="meta"><span>版本 <code>1.0.5</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-websearch</code></div>
       </div>
     </div>
     <p class="desc">给桌宠的联网能力：可接 SearXNG（自建实例）、Tavily 或 Bing。别的插件用 plugin.call 问它 search，它把网页结果整理成标题、链接与摘要交回去；记忆核心在记忆答不上时用它先查再答。插件页可以手动搜索、看最近查过什么。</p>
@@ -614,136 +1069,13 @@ code {
       <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.call</span>
     </div>
     <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-websearch-1.0.4.zip" download>下载 1.0.4</a>
-      <span class="meta">dist/com.shixiansi.plugin-websearch-1.0.4.zip</span>
+      <a class="btn primary" href="dist/com.shixiansi.plugin-websearch-1.0.5.zip" download>下载 1.0.5</a>
+      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-websearch-1.0.5.zip</span>
     </div>
   </section>
+</div>
 
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-bilibili" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 2.3 8.4 5h7.2l2.7-2.7 1.4 1.4L17.6 5H19a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h1.4L4.3 3.7l1.4-1.4ZM5 7a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1H5Zm3 3.5 3 2.5-3 2.5v-5Zm8 0v5l-3-2.5 3-2.5Z"/></svg></span>
-      <div class="titles">
-        <h2>B 站刷视频插件</h2>
-        <div class="meta"><span>版本 <code>1.1.2</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-bilibili</code></div>
-      </div>
-    </div>
-    <p class="desc">按你指定的分区与偏好自己去刷 B 站：把字幕拉下来让大模型摘要、打分，觉得有用才叫桌宠弹一句，卡片留在收件箱；人设、条数、频率由你定，评论默认只出草稿。</p>
-    <div class="tags">
-      <span class="tag accent">net.fetch</span><span class="tag">net.credentials</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">plugin.share</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-bilibili-1.1.2.zip" download>下载 1.1.2</a>
-      <span class="meta">dist/com.shixiansi.plugin-bilibili-1.1.2.zip</span>
-    </div>
-  </section>
-
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-clipask" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 2h6a2 2 0 0 1 2 2h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1a2 2 0 0 1 2-2Zm0 2a1 1 0 0 0-1 1H7a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1a1 1 0 0 0-1-1H9Zm1 2h4v1h-4V6Zm-.3 5.3a2.8 2.8 0 1 1 4.6 2.2c-.7.6-1.3 1-1.3 1.9h-2c0-1.7 1-2.4 1.6-3 .4-.4.5-.7.5-1.1a1 1 0 1 0-2 0h-1.8ZM11 17h2v2h-2v-2Z"/></svg></span>
-      <div class="titles">
-        <h2>剪贴板助手</h2>
-        <div class="meta"><span>版本 <code>0.2.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-clipask</code></div>
-      </div>
-    </div>
-    <p class="desc">盯着剪贴板的划词助手：复制一段代码、一篇文章或一个外语单词，桌宠头顶弹出询问卡「翻译 / 总结 / 解释这段？」，点头就借对话插件或模型渠道的配置回答，结果显示在宠物旁的结果卡里。监听剪贴板走本机辅助脚本（process.launch），模型走 llm.borrow。</p>
-    <div class="tags">
-      <span class="tag accent">process</span><span class="tag">llm.chat</span><span class="tag">llm.borrow</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">plugin.share</span><span class="tag">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-clipask-0.2.1.zip" download>下载 0.2.1</a>
-      <span class="meta">dist/com.shixiansi.plugin-clipask-0.2.1.zip</span>
-    </div>
-  </section>
-
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-sense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.5 0 10 3.8 10 8.5 0 2.9-1.7 5.4-4.3 6.9-.2 1.5-1.2 2.9-2.7 3.5l-.5.2v-2.3c-.8.2-1.6.2-2.5.2-5.5 0-10-3.8-10-8.5S6.5 2 12 2Zm-4.5 7a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm4.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span>
-      <div class="titles">
-        <h2>系统与 DSH 感知</h2>
-        <div class="meta"><span>版本 <code>0.1.8</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-pet-sense</code><span class="tag accent">新</span></div>
-      </div>
-    </div>
-    <p class="desc">桌宠的眼睛与耳朵：每 5 秒采样系统 CPU / 内存，负载持续过高时在宠物头顶挂出提示、经 plugin.share 广播 system/load 快照；同时在 127.0.0.1:3210 起一个本地 HTTP 服务（POST /api/state），接收 DSH 推来的 thinking / tool / done / error 状态并映射成桌宠可见的状态卡与共享键。</p>
-    <div class="tags">
-      <span class="tag accent">process</span><span class="tag">plugin.share</span><span class="tag">plugin.call</span><span class="tag">pet.badge</span><span class="tag">storage</span><span class="tag">plugin.config</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-pet-sense-0.1.8.zip" download>下载 0.1.8</a>
-      <span class="meta">dist/com.shixiansi.plugin-pet-sense-0.1.8.zip</span>
-    </div>
-  </section>
-
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20Zm-2 5v10l8-5-8-5Z"/></svg></span>
-      <div class="titles">
-        <h2>媒体同步（正在播放）</h2>
-        <div class="meta"><span>版本 <code>0.1.8</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-media-sync</code><span class="tag accent">新</span></div>
-      </div>
-    </div>
-    <p class="desc">桌宠知道你正在听什么：由本机辅助脚本（Windows SMTC / macOS MediaControl）读出当前播放的歌曲、歌手与播放状态，桌宠问「我在听什么」时，模型经 now_playing 工具拿到答案；识别出的曲目也可以经 itunes_search 补全封面。监听与查询都在常驻帧里跑。</p>
-    <div class="tags">
-      <span class="tag accent">process</span><span class="tag">net.fetch</span><span class="tag">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.badge</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-media-sync-0.1.8.zip" download>下载 0.1.8</a>
-      <span class="meta">dist/com.shixiansi.plugin-media-sync-0.1.8.zip</span>
-    </div>
-  </section>
-
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-weather" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 6a6 6 0 0 1 11.6 1.6A5 5 0 0 1 18 17.5H7a5.5 5.5 0 0 1-.6-11A6 6 0 0 1 7 6Zm-1 3.5A3.5 3.5 0 0 0 7 15.5h11a3 3 0 1 0-.7-5.9l-1.1.2-.2-1.1A4 4 0 0 0 8.3 7l-.5 1-1.2.2A3.5 3.5 0 0 0 6 9.5ZM5 19h14v2H5v-2Zm2 3h10v1.5H7V22Z"/></svg></span>
-      <div class="titles">
-        <h2>天气与环境感知</h2>
-        <div class="meta"><span>版本 <code>0.1.3</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-weather-env</code><span class="tag accent">新</span></div>
-      </div>
-    </div>
-    <p class="desc">桌宠出门前提醒你带伞：接入 Open-Meteo 公开天气 API（可配和风天气），get_weather(city) 工具让模型能回答任意城市的天气；下雨 / 放晴 / 高温时在桌宠头顶挂出徽标并经 plugin.share 推送 weather-condition 状态，提醒自动静音 3 小时。</p>
-    <div class="tags">
-      <span class="tag accent">net.fetch</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.badge</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-weather-env-0.1.3.zip" download>下载 0.1.3</a>
-      <span class="meta">dist/com.shixiansi.plugin-weather-env-0.1.3.zip</span>
-    </div>
-  </section>
-
-    <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-websearch" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.6 10.8l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg></span>
-      <div class="titles">
-        <h2>萌娘百科</h2>
-        <div class="meta"><span>版本 <code>0.1.8</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-moegirl</code></div>
-      </div>
-    </div>
-    <p class="desc">查「这个词 / 这个梗 / 这个角色是什么」。对外提供 <code>slang</code> 与 <code>wiki</code>：记忆核心在本地词库查不到时会来问它。站点的搜索接口对匿名调用关闭了，所以先用 <code>opensearch</code> 把说法解析成条目名、再用 <code>extracts</code> 取序言——两步都必要。内容按 CC BY-NC-SA 3.0 CN 引用并标注来源。</p>
-    <div class="tags">
-      <span class="tag accent">plugin.call</span><span class="tag">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-moegirl-0.1.8.zip" download>下载 0.1.8</a>
-      <span class="meta">dist/com.shixiansi.plugin-moegirl-0.1.8.zip</span>
-    </div>
-  </section>
-  <section class="card hoverable" style="margin-bottom: var(--space-3)">
-    <div class="card-head">
-      <span class="icon g-media" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.6A4 4 0 1 0 14 17V7h4V3h-6Z"/></svg></span>
-      <div class="titles">
-        <h2>点歌（酷我搜索 + 直链）</h2>
-        <div class="meta"><span>版本 <code>0.1.1</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-diange</code></div>
-      </div>
-    </div>
-    <p class="desc">点一首歌：酷我搜索 + 按码率回退，验一下链接能不能播。常驻帧答 <code>plugin.call</code> 的 <code>song</code>（一句话找歌）与 <code>song_link</code>（歌名 + 歌手要链接），记忆核心按设置里的 <code>music</code> 档位决定要不要在回答前先问它。</p>
-    <div class="tags">
-      <span class="tag accent">plugin.call</span><span class="tag">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span>
-    </div>
-    <div class="actions">
-      <a class="btn primary" href="dist/com.shixiansi.plugin-diange-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">dist/com.shixiansi.plugin-diange-0.1.1.zip</span>
-    </div>
-  </section>
-<section class="card">
+  <section class="card" style="margin-top: var(--space-4)">
     <h2 style="margin:0 0 var(--space-2); font-size:16px">如何安装</h2>
     <ol style="margin:0; padding-left: var(--space-5)">
       <li>在桌宠里打开「插件」标签页，把市场地址填成你使用的基址（默认走镜像）；</li>
@@ -753,7 +1085,7 @@ code {
     <p class="meta" style="margin-top: var(--space-3)">离线也可以安装：桌宠内置了同一份插件包作为兜底源。完整的目录结构、打包发版步骤与镜像基址，见仓库根目录的 <a href="README.md">README.md</a>；每个插件声明的含义见 <a href="docs/plugin-dev.md">插件开发手册</a>。</p>
   </section>
 
-  <p class="foot">本页是仓库内的静态 HTML，不执行任何脚本、不加载任何外部资源；设计令牌见 <code>docs/ui/market.css</code>（主色 #7C3AED、卡片圆角 18px、阴影 var(--sh-xs)、间距 4px 倍数）。本页 DOM 有一条校验测试：<code>tests/ui-market.test.js</code>。</p>
+  <p class="foot">本页是仓库内的静态 HTML，不执行任何脚本、不加载任何外部资源；设计令牌见 <code>docs/ui/market.css</code>（主色 #7C3AED、卡片圆角 18px、阴影 var(--sh-xs)、间距 4px 倍数）。列表与计数由 <code>tools/render-pages.mjs</code> 从 <code>index.json</code> 生成，DOM 校验见 <code>tests/ui-market.test.js</code>。</p>
 </main>
 </body>
 </html>

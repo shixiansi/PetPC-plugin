@@ -34,8 +34,10 @@ market/                                    ← 本仓根目录（独立 git 仓�
 │   └── plugin-testkit/                    自检工具：plugin-check.mjs（一个文件）+ 它的 README
 ├── index.json                             市场目录：桌宠拉取的唯一入口
 ├── index.html                             人看的静态市场页（单文件、无脚本、无外链）
-├── manage.html                            插件管理页（纯 CSS 的启停开关/筛选，与市场页同一套令牌）
+├── manage.html                            插件管理页（由 tools/render-pages.mjs 从 index.json 生成；纯 CSS 筛选）
 ├── package.json / vitest.config.js        插件前端行为的测试（需要宿主仓的 node_modules）
+├── themes/                                主题商店的货架（index.json + 每个包一个 theme.json）
+├── tools/render-pages.mjs                 从 index.json 生成 index.html / manage.html（列表与计数不再手维护）
 ├── tools/package.ps1                      打包 + 算 sha256 + 回写 index.json + 复制进宿主内置源
 ├── tools/package.py                       上面的 Linux 等价（内容一致，压缩器不同）
 ├── tests/                                 每个有行为的插件一个测试文件（vitest + jsdom）

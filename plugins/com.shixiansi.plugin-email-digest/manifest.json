@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-email-digest",
   "name": "邮件智能摘要",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "shixiansi",
   "description": "本地邮件智能聚合：从一个本机邮件桥（IMAP 拉取交给桥做，插件拿到的已经是原始 RFC822 文本）抓最新未读邮件，自己解析 MIME——发件人、主题、纯文本正文（剥 HTML、解 Quoted-Printable 与 Base64）；把分类与摘要交给记忆核心（紧急/常规/垃圾三档，紧急的逐封总结）；每天早晨或手动触发时把摘要弹成气泡并交给语音播报。",
   "permissions": [

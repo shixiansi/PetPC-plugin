@@ -69,7 +69,11 @@
         <span class="muted" id="ledger-count"></span>
       </div>
       <ul id="ledger-list" class="ledger-list" aria-label="当月流水"></ul>
-      <p id="ledger-empty" class="hint">这个月还没有账目。</p>
+      <div id="ledger-empty" class="empty">
+        <div class="empty-glyph"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h10M4 19h7"/></svg></div>
+        <div class="empty-title">这个月还没有账目</div>
+        <div class="empty-sub">在上面记一笔，或者直接对桌宠说「打车花了 25 块」——图表和汇总会自动出来。</div>
+      </div>
     </section>
 
     <p id="status" class="status"></p>

@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-llmchannel",
   "name": "模型渠道（多渠道 / 多密钥 / 预设模型）",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "author": "shixiansi",
   "description": "一个插件管住所有模型连接：可以存多个渠道（OpenAI、Kimi、智谱、通义、本机 Ollama、任意 OpenAI 兼容地址），每个渠道可以存多个模型和多个密钥。它自己从不对话——别的插件申请 llm.borrow 就能借它，也可以用 llm.chat 的 provider + channel 点名。",
   "permissions": ["llm.chat", "plugin.config"],
