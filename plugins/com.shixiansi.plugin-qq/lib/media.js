@@ -1,65 +1,80 @@
-// lib/media.js —— media/ 的字节预算，由一个插件自己守。
+// lib/media.js —— 私有目录空间管理的**边界**。
 //
-// # 为什么需要它
+// ============================================================================
+// 这个文件的前三版都错，错在同一个地方：**替用户决定了什么可以删。**
+// ============================================================================
 //
-// 2026-10-31 的真机：这个插件的私有目录是 497.7 MiB，其中 media/ 占全部（391 个文件：表情
-// 原图 + 下载的视频）。宿主的上限是 64 MiB，而"超了就拒绝写入"在真机上直接把它卡死——连一个
-// 129 字节的账本都存不下去（宿主删不了它的数据，那是死锁，见 checkStorageBudget 的注释）。
+// 2026-10-31 第一版：按 `modified` 从旧到新删，真机上删掉 318 个图片文件（458 MiB），全是用户
+// 手工导入的。
+// 2026-11-01 第二版：补了"手工导入不许删"，但把"自动收集的表情"当成缓存继续删。
+// 2026-11-01 第三版：又把索引里的空记录删了——用户的原话是「28 KB 能清出什么内存」。
 //
-// 所以清理只能由插件自己做。这件事需要两样东西：一个预算，和一份"谁最旧"的答案。
-// `storage.list` 从 2026-10-31 起返回每个文件的 `modified`（毫秒），所以"删最旧的直到装得下"
-// 才真的可做——在那之前插件只能按文件名（没有意义）或者自己维护一份索引（497 MiB 证明没人维护）。
+// 第四版是最后一次，规则只剩一条，而且是用户定的：
 //
-// # 只删这三个目录
+//   **表情包是用户主动消费的数据。除非用户自己清，程序在任何时候都不能自动清它。**
+//   —— 手工导入的、自动收集的，一视同仁。CDN 链接早已过期，删掉就是永久消失。
 //
-// state/ memory/ history/ config.json 是**数据**，不是缓存，一个都不能碰。MEDIA_DIRS 是唯一的
-// 白名单，planEviction 只会从传进去的那份清单里选，而清单只由这三个目录装配。
+// 索引同理（它是识图花钱换来的，删掉等于让用户重付费），记忆/历史/状态更不用说。
 //
-// # 手工导入的表情是用户的，不是缓存的（2026-11-01 的教训）
+// 所以这个文件现在只做一件事：**清那些"删了能自动重新产生"的下载中间产物。** 白名单只有
+// two 个目录，而且都是"程序自己刚生出来的东西"，不是用户的东西。
 //
-// 第一版只按 `modified` 从旧到新删。真机上 10-31 21:59 那一次删掉了 318 个文件、458 MiB——
-// 而这 318 张**全是手工导入的**：用户 10-24/25 从合并转发里导进来，所以"最旧"；自动收集的是
-// 10-31 才收的，反而全活下来。索引里一条都没少（删除只动字节），于是插件以为图还在，
-// 选中它去发表情时才发现字节没了。
+// # 超额怎么办（这是前几版没回答的问题）
 //
-// 这条和 `stickers.js` 的 `pruneCollected` 是同一个道理，两份文件现在说的是同一句话：
-// **带 `collected` 标记的才是自动收集的，可以淘汰；没有标记的是用户自己的东西，轮不到清理
-// 替用户做决定**。所以 planEviction 收一份"受保护的键"（手工条目的字节键），永不选它们；
-// 预算不够时它宁可留着超出，也不动它们——超出只会让宿主记一条 WARN，动它们会让用户丢东西。
-const MEDIA_BUDGET_BYTES = 24 << 20; // 24 MiB：够放几百张表情，离宿主的 64 MiB 也还很远
-const MEDIA_DIRS = ['media/stickers/bytes', 'media/video', 'media/video/tmp'];
-/** 淘汰时要跳过的目录：里面的文件一律由索引说了算，不按字节预算删。 */
-const PROTECTED_PREFIX = 'media/stickers/bytes/';
+// 宿主的上限（64 MiB）确实存在，表情库真的可能把它撑满。那种情况下**正确的行为不是偷偷删**，
+// 而是：写不进去 → 告诉用户"装不下了，去工坊清理或搬走" → 把决定权交给用户。
+// 界面上要有入口（`mediaBreakdown()` 给的分级清单就是为此准备的）。
+// 让写入失败并说明原因，远好过让用户的图凭空少一半。
+//
+// 一句话：**这个文件永远不删表情包，也不删索引。** 加代码时请先读这一段。
 
 /**
- * 该删哪些键，才能让总量回到预算内。纯函数（测试直接喂数据）。
+ * 允许按大小淘汰的目录。加一条进来，必须先回答两个问题：
+ *   1. 它是程序自己生成的吗（而不是用户放进来的）？
+ *   2. 删了以后能自动重新产生吗？
+ * 两个都答"是"才能进这个白名单。表情包**永远不满足第 2 条**（原图链接已过期），别加它。
+ */
+const EVICTABLE_DIRS = [
+  // 视频下载的中间产物：合并完成后就没用了，程序自己产生的。
+  'media/video/tmp',
+];
+
+/**
+ * 可淘汰部分的预算。只管 EVICTABLE_DIRS 里的字节。
  *
- * 返回 `[]` 表示什么都不用删。
+ * 这个数不是"目录总容量上限"，是一个自我约束：中间产物别堆积到几十兆。
+ * 表情包**不在**这个预算的计算范围里——它们不计入、也永远不会因为超预算被删。
+ */
+const MEDIA_BUDGET_BYTES = 24 << 20;
+
+/** 表情包字节的目录（只读用途：体检、统计；**绝不**进淘汰候选）。 */
+const MEDIA_STICKER_DIR = 'media/stickers/bytes';
+
+/**
+ * 该删哪些键才能让可淘汰部分回到预算内。纯函数。
  *
- * 两条规则，顺序是硬的：
- *  1. `protectedKeys`（手工导入的字节键）**永远不进候选**，哪怕预算已经超了。用户的导入不是
- *     缓存，超出预算的代价（一条 WARN）远小于"图突然没了"。
- *  2. 其余按 `modified` 从旧到新——没有时间的（0）排在最前，因为"不知道多旧"在这种时候等于
- *     "最可能是遗留物"。
+ * `files` 只应包含 EVICTABLE_DIRS 里的文件，而且这里再做一次硬过滤——不依赖调用方"记得传对"。
+ * 返回 `[]` 表示什么都不删（含"超着也不删"）。
  */
 function planEviction(files, budget, protectedKeys) {
   const rows = Array.isArray(files) ? files : [];
   const protectedSet = new Set(
     Array.isArray(protectedKeys) ? protectedKeys.map((key) => String(key || '')).filter(Boolean) : [],
   );
-  const total = rows.reduce((n, file) => n + (Number(file && file.bytes) || 0), 0);
-  if (total <= budget) return [];
-  const oldestFirst = rows
+  const candidates = rows
     .map((file) => ({
       key: String((file && file.key) || ''),
+      dir: String((file && file.dir) || ''),
       bytes: Number(file && file.bytes) || 0,
       modified: Number(file && file.modified) || 0,
     }))
-    .filter((file) => file.key && !protectedSet.has(file.key))
-    .sort((a, b) => a.modified - b.modified);
+    .filter((file) => file.key && !protectedSet.has(file.key) && EVICTABLE_DIRS.includes(file.dir));
+  const total = candidates.reduce((n, file) => n + file.bytes, 0);
+  if (total <= budget) return [];
+  candidates.sort((a, b) => a.modified - b.modified);
   const out = [];
   let left = total;
-  for (const file of oldestFirst) {
+  for (const file of candidates) {
     if (left <= budget) break;
     out.push(file.key);
     left -= file.bytes;
@@ -67,70 +82,31 @@ function planEviction(files, budget, protectedKeys) {
   return out;
 }
 
-/** 列出白名单里某个目录的文件（键是 `<sub>/<name>`，和 storage.remove 要的形状一致）。 */
+/** 列出某个目录的文件（键是 `<sub>/<name>`，和 storage.remove 要的形状一致）。 */
 async function listMediaDir(sub) {
   const listing = await request('storage.list', { sub }).catch(() => null);
   if (!listing) return []; // 老宿主没有 storage.list：什么都不做，别把插件搞挂
   return ((listing && listing.files) || []).map((file) => ({
     key: `${sub}/${String((file && file.name) || '')}`,
+    dir: sub,
     bytes: Number(file && file.bytes) || 0,
     modified: Number(file && file.modified) || 0,
   }));
 }
 
 /**
- * 手工导入的表情的字节键——预算清理永远不许碰的那些。
+ * 清可淘汰的那部分。返回 `{deleted, freed, left, skipped}`。
  *
- * 判据与 `stickers.js` 的 `pruneCollected` 同源：索引里**没有** `collected` 标记的条目是用户
- * 自己导进来的。那份索引读不到就当"没有手工条目"，但那只发生在 storage.get 失败时，而那种情况下
- * 后面 listMediaDir 也必然失败——不会有任何键被删。读得到索引时，条目有 `collected` 才是自动的。
- */
-async function protectedStickerKeys() {
-  // DATA 由 lib/store.js 提供（它先加载）。这里仍然做一次兜底：万一有人改了加载顺序，
-  // "读不到键名"必须让清理**停手**，而不是当成"没有手工条目"去删——真机上那次事故正是
-  // 这个方向的错误。
-  const key = typeof DATA !== 'undefined' && DATA && DATA.stickerIndex ? DATA.stickerIndex : '';
-  if (!key) return null; // null = 不知道，调用方据此不做任何淘汰
-  let res = null;
-  try {
-    res = await request('storage.get', { key });
-  } catch {
-    return null;
-  }
-  let rows = [];
-  try {
-    const parsed = JSON.parse((res && res.value) || '[]');
-    if (Array.isArray(parsed)) rows = parsed;
-  } catch {
-    return null;
-  }
-  return rows
-    .filter((row) => row && row.hash && !row.collected)
-    .map((row) => `${PROTECTED_PREFIX}${String(row.hash).replace(/[^0-9A-Za-z_-]/g, '')}`)
-    .filter((key2) => key2 !== PROTECTED_PREFIX);
-}
-
-/**
- * 把 media/ 压回预算内。返回 `{deleted, freed, left, kept}`——调用方用它决定要不要说一句。
- *
- * `kept` 是"因为属于手工导入而没有删"的字节数：超出预算时它就是那句说明里的"还剩多少是用户的"。
- *
- * **读不到表情索引就完全不淘汰**（`protectedStickerKeys` 返回 null）：在不知道哪些是用户自己的
- * 时候删文件，正是 2026-10-31 在真机上删掉 318 张手工表情的那个方向。超预算本身只是宿主的一条
- * WARN，删错东西是用户的损失——这两者的量级不对等。
+ * 它列的是 EVICTABLE_DIRS，所以表情包字节根本不在射程内。这不是"调用时小心一点"，
+ * 是这个函数的定义域。
  */
 async function trimMedia() {
-  if (!granted.has('storage')) return { deleted: 0, freed: 0, left: 0, kept: 0, skipped: true };
+  if (!granted.has('storage')) return { deleted: 0, freed: 0, left: 0, skipped: true };
   const all = [];
-  for (const dir of MEDIA_DIRS) {
-    const rows = await listMediaDir(dir);
-    for (const row of rows) all.push(row);
+  for (const dir of EVICTABLE_DIRS) {
+    for (const row of await listMediaDir(dir)) all.push(row);
   }
-  const protectedKeys = await protectedStickerKeys();
-  if (protectedKeys === null) {
-    return { deleted: 0, freed: 0, left: all.reduce((n, f) => n + f.bytes, 0), kept: 0, skipped: true };
-  }
-  const plan = planEviction(all, MEDIA_BUDGET_BYTES, protectedKeys);
+  const plan = planEviction(all, MEDIA_BUDGET_BYTES, []);
   let deleted = 0;
   let freed = 0;
   for (const key of plan) {
@@ -144,32 +120,96 @@ async function trimMedia() {
     }
   }
   const total = all.reduce((n, file) => n + file.bytes, 0);
-  const protectedBytes = all
-    .filter((file) => protectedKeys.includes(file.key))
-    .reduce((n, file) => n + file.bytes, 0);
-  return { deleted, freed, left: total - freed, kept: protectedBytes, skipped: false };
+  return { deleted, freed, left: total - freed, skipped: false };
 }
 
-// 上一句"清理了多少"说过没有：一个会话里只说一次，别让每半小时的清理都变成一条日志。
+// 上一句"清理了多少"说过没有：一个会话里只说一次。
 let mediaTrimNoted = false;
 
 /**
- * 清理 + 说一句（一次会话一次）。接在启动整理和那个半小时的定时器后面。
+ * 清理 + 说一句（一次会话一次）。
  *
- * 那句话要能把"超预算但没删"讲清楚：预算不够时一个文件都不删，而"什么都没删"如果不说出来，
- * 用户只会看到宿主的 WARN，以为插件坏了。所以两种情况都说：删了 N 个；或者"全是手工导入的，
- * 留着"。
+ * 消息只说可淘汰那部分，并且明说"表情包与数据不在此列"——免得用户看到"清理了 N 个文件"，
+ * 又去检查自己的图库。前几版就是这句话说得含糊，才让人以为图被清过。
  */
 async function trimMediaAndNote() {
   const result = await trimMedia().catch(() => null);
-  if (!result || mediaTrimNoted) return result;
-  if (!result.deleted && !result.kept) return result;
+  if (!result || !result.deleted || mediaTrimNoted) return result;
   mediaTrimNoted = true;
   const mib = (n) => Math.round((Number(n) || 0) / (1 << 20) * 10) / 10;
-  const noteText = result.deleted
-    ? `清理了 media/ 里 ${result.deleted} 个旧文件，腾出 ${mib(result.freed)} MiB（剩 ${mib(result.left)} MiB，预算 ${mib(MEDIA_BUDGET_BYTES)} MiB）`
-    : `media/ 超出预算 ${mib(MEDIA_BUDGET_BYTES)} MiB，但里面 ${mib(result.kept)} MiB 是你自己导入的表情，不删；自动收集的已经清空`;
+  const noteText = `清理了 ${result.deleted} 个视频下载中间产物，腾出 ${mib(result.freed)} MiB。表情包与数据不在此列，从不自动清理。`;
   note(noteText);
   void request('plugin.log', { level: 'info', message: noteText }).catch(() => {});
   return result;
+}
+
+/**
+ * 私有目录体检：把每一块占多少、什么等级、删了能不能拿回来，摆给用户看。只读，不删。
+ *
+ * 这是"超额时把决定权交给用户"的那一半：插件自己不再动手，但用户需要知道能清什么。
+ * `grade` 是给界面用的三档，别把表情包标成 `evictable`。
+ */
+async function mediaBreakdown() {
+  const out = [];
+  for (const dir of EVICTABLE_DIRS) {
+    const rows = await listMediaDir(dir);
+    out.push({
+      key: dir,
+      bytes: rows.reduce((n, file) => n + file.bytes, 0),
+      count: rows.length,
+      grade: 'evictable',
+      gradeLabel: '中间产物（程序自己产生，可清理）',
+    });
+  }
+  const stickers = await listMediaDir(MEDIA_STICKER_DIR);
+  out.push({
+    key: MEDIA_STICKER_DIR,
+    bytes: stickers.reduce((n, file) => n + file.bytes, 0),
+    count: stickers.length,
+    grade: 'user-data',
+    gradeLabel: '你的表情包（删了拿不回来，只有你能清）',
+  });
+  return out;
+}
+
+/**
+ * 把分级写给宿主：`occupancy/hints`。
+ *
+ * 宿主能量出"这个目录占了多少字节"，但它**不知道**那是用户的图还是能重下的中间产物。
+ * 这件知识的唯一合法来源是插件自己（它知道 `media/stickers/bytes` 是 CDN 早就过期的原图、
+ * `media/video/tmp` 是下载中间产物）。所以这里把分级写成一个普通的值，控制中心的占用页读它。
+ *
+ * 格式见 internal/plugins/occupancy.go：`[{key, label, grade}]`，`grade` 只有
+ * `evictable` / `user-data` 两种有意义（别的会被宿主忽略，等于未知）。
+ *
+ * 幂等：内容没变就不写，免得每次开机都多一次写。等级错了的代价是界面给出错误的清理按钮，
+ * 所以**表情包永远是 `user-data`**，不给任何"可清理"的可能。
+ */
+const OCCUPANCY_HINTS_KEY = 'occupancy/hints';
+const OCCUPANCY_HINTS = [
+  { key: 'media/video/tmp', grade: 'evictable', label: '视频下载的中间产物（删了会自动重下）' },
+  { key: 'media/video', grade: 'evictable', label: '视频产物（发链接会重新生成）' },
+  // 这一条是这次事故的核心：表情包是用户的数据，删了永久拿不回（CDN 链接已过期）。
+  { key: 'media/stickers/bytes', grade: 'user-data', label: '你的表情包（删了拿不回来，只有你能清）' },
+  { key: 'media/stickers', grade: 'user-data', label: '表情包的索引与待收藏区（识图花掉的钱）' },
+  { key: 'state', grade: 'user-data', label: '运行状态与群设置' },
+  { key: 'history', grade: 'user-data', label: '群聊记忆的历史' },
+  { key: 'memory', grade: 'user-data', label: '好友与你相关的记忆' },
+];
+
+/** 写一次分级。内容与上次相同时不发写请求。 */
+async function publishOccupancyHints() {
+  if (!granted.has('storage')) return;
+  // 老宿主（1.10 的桌宠）拒绝带斜杠的键。`occupancy/hints` 是带斜杠的，写下去会被顶回来
+  // ——而顶回来的那一次会让 `migrateDataLayout` 判定"这台宿主不认目录"，把整个插件的布局
+  // 退回平铺键。为了一条可选的显示信息赌上整个数据布局，不值得：老宿主上不写就是了。
+  if (typeof useFolders !== 'undefined' && !useFolders) return;
+  const text = JSON.stringify(OCCUPANCY_HINTS);
+  const current = await readKeyText(OCCUPANCY_HINTS_KEY).catch(() => '');
+  if (current === text) return;
+  try {
+    await request('storage.set', { key: OCCUPANCY_HINTS_KEY, value: text });
+  } catch {
+    // 写不进去只是占用页少一份分级（那些目录会显示成"未分类"），不影响任何功能。
+  }
 }

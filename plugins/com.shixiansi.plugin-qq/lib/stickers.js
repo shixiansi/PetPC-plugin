@@ -147,11 +147,6 @@ const COLLECT_PENDING_MAX = 10;
 const COLLECT_PER_HOUR = 3;
 const COLLECT_MAX_BASE64 = 6_000_000;
 
-/** 自动收集的张数上限（手工导入的不算在内）。 */
-function collectMax() {
-  return number(state.cfg.collectMaxCount, 200, 0, 2000);
-}
-
 /** 待收藏区的索引：`[{hash, tag, description, at}]`。 */
 async function loadPending() {
   const raw = await readKeyText(COLLECT_PENDING_INDEX);
@@ -289,7 +284,10 @@ async function saveCollectedSticker(hash) {
       at: Date.now(),
     });
   }
-  await writeStickerIndex(await pruneCollected(index));
+  // 写进索引就完事——**不做任何"顺手修剪"**。这里曾经是 `pruneCollected(index)`，
+  // 也就是说用户点了一次"收进图库"，插件会顺手把另外几张按"用得少"删掉。
+  // 用户的决定只该影响用户指的那一张。
+  await writeStickerIndex(index);
   await savePending(pending.filter((item) => item.hash !== id));
   try {
     await request('storage.remove', { key: `${COLLECT_PENDING_DIR}/${id}` });
@@ -297,34 +295,6 @@ async function saveCollectedSticker(hash) {
     // 删不掉只是占一点空间，下次覆盖同一张时会写回同一个键。
   }
   return true;
-}
-
-/**
- * 超过 `collectMaxCount` 时淘汰自动收集的那些。
- *
- * 顺序是"用得少的先走，然后才是早收的"：一张常用的表情即使收得早也该留下，而手工导入的
- * 条目完全不动——那是用户自己的东西，轮不到自动清理来替它做决定。
- */
-async function pruneCollected(rows) {
-  const cap = collectMax();
-  const auto = rows.filter((row) => row && row.collected);
-  if (cap <= 0 || auto.length <= cap) return rows;
-  const drop = auto
-    .slice()
-    .sort((a, b) =>
-      (Number(a.usageCount) || 0) - (Number(b.usageCount) || 0) ||
-      (Number(a.at) || 0) - (Number(b.at) || 0))
-    .slice(0, auto.length - cap)
-    .map((row) => row.hash);
-  const gone = new Set(drop);
-  for (const hash of gone) {
-    try {
-      await request('storage.remove', { key: stickerBytesKey(hash) });
-    } catch {
-      // 同上：删不掉不会让索引变脏，下次还会再试。
-    }
-  }
-  return rows.filter((row) => !gone.has(row.hash));
 }
 
 /** Writes the whole sticker index back. One key, so it is one write. */
@@ -564,4 +534,3 @@ async function backfillTruncated() {
   if (changed) await writeStickerIndex(out);
   return changed;
 }
-

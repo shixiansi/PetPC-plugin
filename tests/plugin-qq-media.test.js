@@ -1,11 +1,21 @@
-// qq 的 media 字节预算（plugins/com.shixiansi.plugin-qq/lib/media.js）。
+// qq 的私有目录空间管理（plugins/com.shixiansi.plugin-qq/lib/media.js）。
 //
-// 背景：真机上这个目录长到 497.7 MiB（391 个文件），而宿主上限是 64 MiB —— 于是宿主拒绝写入，
-// 插件连 129 字节的账本都存不下去。清单由插件自己守，而这需要一份"谁最旧"的答案：
-// `storage.list` 从 2026-10-31 起返回 `modified`。
+// ============================================================================
+// 这个文件的每一节都对应一次真机事故，规则是用户定下的：
+// ============================================================================
 //
-// 这个文件用 new Function 把 lib/media.js 的源码载进来，注入 request/granted/note（插件里由
-// app.js / core.js 提供），所以测的是**真正会跑的那份源码**，不是它的复制品。
+//   **表情包是用户主动消费的数据。除非用户自己清，程序在任何时候都不能自动清它。**
+//   —— 手工导入的、自动收集的，一视同仁。CDN 链接早已过期，删掉就是永久消失。
+//
+// 事故时间线（都发生在这台机器上）：
+//   2026-10-31 21:59  按 modified 从旧到新删 → 删掉 318 张**手工导入**的图（458 MiB）
+//   2026-11-01 15:53  又去删索引里的空记录 → 删掉 318 条识图换来的 tag/描述（28 KB）
+//
+// 第二条尤其荒谬：28 KB 清不出任何空间，而它销毁的是花钱才得到的元数据。
+// 所以现在的 media.js **只有一个可淘汰目录**（视频中间产物），表情包字节连候选都不是。
+//
+// 这个文件用 new Function 载入 lib/media.js 的真实源码（注入 request/granted/note），
+// 所以测的是会跑的那一份，不是复制品。
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -29,7 +39,6 @@ function loadMedia({ files = {}, granted = ['storage'], stickerIndex = null } = 
       return { ok: true };
     }
     if (method === 'storage.get') {
-      // 表情索引：只有 trimMedia 会问它，用来找出"手工导入的，不许删"那批。
       if (payload.key === 'media/stickers/index') {
         return { key: payload.key, value: stickerIndex === null ? '' : JSON.stringify(stickerIndex) };
       }
@@ -42,203 +51,218 @@ function loadMedia({ files = {}, granted = ['storage'], stickerIndex = null } = 
     throw new Error('这个测试没有准备 ' + method);
   };
   const note = (text) => notes.push(String(text));
-  // media.js 用插件全局的 DATA 找表情索引的键名。真机上它由 lib/store.js 提供（加载顺序在
-  // media.js 之前），所以这里要给同一份形状——少了它，`protectedStickerKeys` 会读到 undefined
-  // 并保守地返回空清单，而那条"手工导入不许删"的规矩就整个不生效了。这正是本文件要防的事。
   const DATA = { stickerIndex: 'media/stickers/index' };
   const expose = new Function(
     'request', 'granted', 'note', 'DATA',
-    `${source}\n;return { planEviction, trimMedia, trimMediaAndNote, MEDIA_BUDGET_BYTES, MEDIA_DIRS };`,
+    `${source}\n;return { planEviction, trimMedia, trimMediaAndNote, mediaBreakdown, MEDIA_BUDGET_BYTES, EVICTABLE_DIRS, MEDIA_STICKER_DIR };`,
   );
   return { api: expose(request, new Set(granted), note, DATA), removed, logs, notes };
 }
 
-describe('手工导入的表情是用户的，不是缓存的（2026-11-01 的真机事故）', () => {
-  // 真机经过：10-31 21:59 一次删掉 318 个文件、458 MiB，全是**手工导入**的——用户 10-24/25
-  // 导的，所以按 modified 排序最旧；自动收集的 10-31 才收，反而全活下来。索引一条没少，
-  // 于是插件以为图还在，选中它去发时才发现字节没了。
-  //
-  // 下面这几条把这条规矩钉死：索引里没有 `collected` 的，预算超了也不许删。
-  const handPicked = [
-    { hash: 'aaaa1111', tag: '开心', description: '手工导入' },
-    { hash: 'bbbb2222', tag: '委屈', description: '手工导入' },
-  ];
-  const autoCollected = [{ hash: 'cccc3333', tag: '摸鱼', collected: true }];
+const MiB = 1 << 20;
 
-  test('planEviction 永远不选手工导入的字节键', () => {
-    const files = [
-      { key: 'media/stickers/bytes/aaaa1111', bytes: 20 * MiB, modified: 1000 },
-      { key: 'media/stickers/bytes/cccc3333', bytes: 20 * MiB, modified: 9000 },
-    ];
-    const protectedKeys = ['media/stickers/bytes/aaaa1111'];
-    // 40 MiB → 24 MiB：只有自动收集的那一张可以被选。
-    expect(loadMedia().api.planEviction(files, 24 * MiB, protectedKeys)).toEqual([
-      'media/stickers/bytes/cccc3333',
-    ]);
+// ---------------------------------------------------------------------------
+// 1. 表情包永远不是淘汰候选（用户定下的那条规矩）
+// ---------------------------------------------------------------------------
+
+describe('表情包不在淘汰的射程里', () => {
+  test('可淘汰目录清单里只有程序自己的中间产物，没有表情包', () => {
+    const { api } = loadMedia();
+    expect(api.EVICTABLE_DIRS).toEqual(['media/video/tmp']);
+    for (const dir of api.EVICTABLE_DIRS) {
+      expect(dir, '表情包目录绝不能进可淘汰清单').not.toContain('stickers');
+    }
   });
 
-  test('全是手工导入时一个都不删（宁可超预算，也不动用户的图）', () => {
+  test('planEviction 对表情包文件返回空计划（哪怕目录传错了）', () => {
+    // 即使调用方把表情包文件混进 files，硬过滤也应该拒绝它们——不依赖调用方记得传对。
     const files = [
-      { key: 'media/stickers/bytes/aaaa1111', bytes: 30 * MiB, modified: 1000 },
-      { key: 'media/stickers/bytes/bbbb2222', bytes: 30 * MiB, modified: 2000 },
+      { key: 'media/stickers/bytes/aaaa1111', dir: 'media/stickers/bytes', bytes: 40 * MiB, modified: 1 },
+      { key: 'media/video/tmp/part1', dir: 'media/video/tmp', bytes: 40 * MiB, modified: 2 },
     ];
-    const protectedKeys = ['media/stickers/bytes/aaaa1111', 'media/stickers/bytes/bbbb2222'];
-    expect(loadMedia().api.planEviction(files, 24 * MiB, protectedKeys)).toEqual([]);
+    const plan = loadMedia().api.planEviction(files, 24 * MiB, []);
+    expect(plan).toEqual(['media/video/tmp/part1']);
   });
 
-  test('trimMedia 从索引里认出"没有 collected 标记的"，只删自动收集的', async () => {
+  test('trimMedia 一次都不碰表情包目录（连列都不列它）', async () => {
     const { api, removed } = loadMedia({
-      stickerIndex: [...handPicked, ...autoCollected],
       files: {
-        'media/stickers/bytes': [
-          // 手工的排在更旧——正是真机上被错杀的那种形状
-          { name: 'aaaa1111', bytes: 20 * MiB, modified: 1000 },
-          { name: 'bbbb2222', bytes: 4 * MiB, modified: 1500 },
-          { name: 'cccc3333', bytes: 10 * MiB, modified: 9000 },
-        ],
+        // 表情包再大也不该被删
+        'media/stickers/bytes': [{ name: 'aaaa1111', bytes: 300 * MiB, modified: 1 }],
+        'media/video/tmp': [{ name: 'part1', bytes: 30 * MiB, modified: 2 }],
       },
     });
     const result = await api.trimMedia();
-    expect(removed).toEqual(['media/stickers/bytes/cccc3333']);
-    expect(result.deleted).toBe(1);
-    // 24 MiB 是手工那两张（被保护），所以"还剩多少"要如实算。
-    expect(result.kept).toBe(24 * MiB);
+    // 只有中间产物被删；表情包那 300 MiB 完好无损。
+    expect(removed).toEqual(['media/video/tmp/part1']);
+    expect(result.freed).toBe(30 * MiB);
   });
 
-  test('索引读不到时不清空任何东西（保守的那一侧）', async () => {
+  test('表情包占满全部空间时，节目录里一个文件都不删', async () => {
     const { api, removed } = loadMedia({
-      stickerIndex: null,
-      files: {
-        'media/stickers/bytes': [{ name: 'aaaa1111', bytes: 30 * MiB, modified: 1000 }],
-      },
+      files: { 'media/stickers/bytes': [{ name: 'aaaa1111', bytes: 999 * MiB, modified: 1 }] },
     });
-    // 索引读不到 → 没有任何键被标成"手工"，但也没法证明它是自动的。这时候删它
-    // 就是在"读不到索引"的情况下重演真机上那一幕，所以……见下一条断言：这里仍会按预算删
-    // （索引真的空时它确实该删），但测试要求的是**它不会因为索引解析失败而删得更多**。
     const result = await api.trimMedia();
-    expect(result.deleted).toBeLessThanOrEqual(1);
-    expect(removed.length).toBeLessThanOrEqual(1);
-  });
-
-  test('手工导入占满预算时，说明里写的是"不删"，不是"清理了 0 个"', async () => {
-    const { api, notes, logs } = loadMedia({
-      stickerIndex: handPicked,
-      files: {
-        'media/stickers/bytes': [
-          { name: 'aaaa1111', bytes: 20 * MiB, modified: 1000 },
-          { name: 'bbbb2222', bytes: 10 * MiB, modified: 2000 },
-        ],
-      },
-    });
-    const result = await api.trimMediaAndNote();
+    expect(removed).toEqual([]);
     expect(result.deleted).toBe(0);
-    expect(notes).toHaveLength(1);
-    expect(notes[0]).toContain('是你自己导入的表情');
-    expect(logs).toHaveLength(1);
-    expect(String(logs[0].message)).not.toContain('清理了 media/');
   });
 });
 
-const MiB = 1 << 20;
+// ---------------------------------------------------------------------------
+// 2. 可淘汰部分：只删自己的中间产物
+// ---------------------------------------------------------------------------
 
-describe('planEviction（纯函数）', () => {
+describe('可淘汰部分的淘汰规则', () => {
   test('在预算内一个都不删', () => {
-    const files = [{ key: 'media/video/a', bytes: 10 * MiB, modified: 1 }];
-    expect(loadMedia().api.planEviction(files, 24 * MiB)).toEqual([]);
+    const files = [{ key: 'media/video/tmp/a', dir: 'media/video/tmp', bytes: 10 * MiB, modified: 1 }];
+    expect(loadMedia().api.planEviction(files, 24 * MiB, [])).toEqual([]);
   });
 
   test('超预算时从最旧的删起，删到装得下为止', () => {
     const files = [
-      { key: 'media/video/newest', bytes: 8 * MiB, modified: 3000 },
-      { key: 'media/video/oldest', bytes: 10 * MiB, modified: 1000 },
-      { key: 'media/video/middle', bytes: 10 * MiB, modified: 2000 },
+      { key: 'media/video/tmp/newest', dir: 'media/video/tmp', bytes: 8 * MiB, modified: 3000 },
+      { key: 'media/video/tmp/oldest', dir: 'media/video/tmp', bytes: 10 * MiB, modified: 1000 },
+      { key: 'media/video/tmp/middle', dir: 'media/video/tmp', bytes: 10 * MiB, modified: 2000 },
     ];
-    // 28 MiB → 预算 24 MiB：删掉最旧的一个（10 MiB）就够了。
-    expect(loadMedia().api.planEviction(files, 24 * MiB)).toEqual(['media/video/oldest']);
-  });
-
-  test('没有 modified 的排在最前（不知道多旧 = 最可能是遗留物）', () => {
-    const files = [
-      { key: 'media/video/a', bytes: 10 * MiB, modified: 0 },
-      { key: 'media/video/b', bytes: 10 * MiB, modified: 5000 },
-      { key: 'media/video/c', bytes: 10 * MiB, modified: 9000 },
-    ];
-    expect(loadMedia().api.planEviction(files, 20 * MiB)).toEqual(['media/video/a']);
-  });
-});
-
-describe('trimMedia（对着假的宿主跑）', () => {
-  test('只删白名单目录里的文件，数据一个都不碰', async () => {
-    const { api, removed } = loadMedia({
-      files: {
-        // 白名单里的三个目录
-        'media/stickers/bytes': [{ name: 'h1', bytes: 20 * MiB, modified: 1000 }],
-        'media/video': [{ name: 'v1', bytes: 10 * MiB, modified: 2000 }],
-        'media/video/tmp': [],
-      },
-    });
-    const result = await api.trimMedia();
-    // 30 MiB → 24 MiB：删最旧的 h1（20 MiB）。
-    expect(removed).toEqual(['media/stickers/bytes/h1']);
-    expect(result.deleted).toBe(1);
-    expect(result.freed).toBe(20 * MiB);
-    expect(result.left).toBe(10 * MiB);
-  });
-
-  test('预算内一次 storage.remove 都不发', async () => {
-    const { api, removed } = loadMedia({
-      files: { 'media/video': [{ name: 'v1', bytes: 1 * MiB, modified: 1 }] },
-    });
-    await api.trimMedia();
-    expect(removed).toEqual([]);
+    expect(loadMedia().api.planEviction(files, 24 * MiB, [])).toEqual(['media/video/tmp/oldest']);
   });
 
   test('没有 storage 权限时什么都不做', async () => {
     const { api, removed } = loadMedia({
       granted: [],
-      files: { 'media/video': [{ name: 'big', bytes: 99 * MiB, modified: 1 }] },
+      files: { 'media/video/tmp': [{ name: 'big', bytes: 99 * MiB, modified: 1 }] },
     });
     const result = await api.trimMedia();
     expect(removed).toEqual([]);
     expect(result.deleted).toBe(0);
   });
-
-  test('白名单是唯一的来源：目录清单里没有 state/ memory/ 这些', () => {
-    const { api } = loadMedia();
-    expect(api.MEDIA_DIRS).toEqual(['media/stickers/bytes', 'media/video', 'media/video/tmp']);
-    for (const dir of api.MEDIA_DIRS) expect(dir.startsWith('media/')).toBe(true);
-  });
 });
 
-describe('trimMediaAndNote（说一句，而且只说一次）', () => {
-  const overBudget = {
-    files: { 'media/video': [{ name: 'v1', bytes: 30 * MiB, modified: 1000 }] },
-  };
+// ---------------------------------------------------------------------------
+// 3. 那句话必须只说可淘汰部分（前几版含糊在这里）
+// ---------------------------------------------------------------------------
 
-  test('删了东西就说一句：note + plugin.log 各一条', async () => {
-    const { api, notes, logs } = loadMedia(overBudget);
+describe('清理后的说明', () => {
+  test('删了东西就说一句，并且明说表情包不在此列', async () => {
+    const { api, notes, logs } = loadMedia({
+      files: { 'media/video/tmp': [{ name: 'v1', bytes: 30 * MiB, modified: 1000 }] },
+    });
     await api.trimMediaAndNote();
     expect(notes).toHaveLength(1);
-    expect(notes[0]).toContain('清理了 media/');
+    expect(notes[0]).toContain('中间产物');
+    expect(notes[0], '这句话必须让人不用担心自己的图库').toContain('表情包');
     expect(logs).toHaveLength(1);
-    expect(logs[0].level).toBe('info');
-    expect(String(logs[0].message)).toContain('预算');
   });
 
   test('同一个会话里第二次不再吵', async () => {
-    const { api, notes, logs } = loadMedia(overBudget);
+    const { api, notes } = loadMedia({
+      files: { 'media/video/tmp': [{ name: 'v1', bytes: 30 * MiB, modified: 1000 }] },
+    });
     await api.trimMediaAndNote();
     await api.trimMediaAndNote();
     expect(notes).toHaveLength(1);
-    expect(logs).toHaveLength(1);
   });
 
   test('没删东西就一句话都不说', async () => {
     const { api, notes, logs } = loadMedia({
-      files: { 'media/video': [{ name: 'small', bytes: 1 * MiB, modified: 1 }] },
+      files: { 'media/video/tmp': [{ name: 'small', bytes: 1 * MiB, modified: 1 }] },
     });
     await api.trimMediaAndNote();
     expect(notes).toEqual([]);
     expect(logs).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. 体检：把"占多少"和"能不能删"分开摆给用户（超额时的决定权交给用户）
+// ---------------------------------------------------------------------------
+
+describe('mediaBreakdown（只读体检）', () => {
+  test('表情包被标成用户数据，不是可清理', async () => {
+    const { api } = loadMedia({
+      files: {
+        'media/stickers/bytes': [{ name: 'aaaa1111', bytes: 50 * MiB, modified: 1 }],
+        'media/video/tmp': [{ name: 'part1', bytes: 5 * MiB, modified: 2 }],
+      },
+    });
+    const rows = await api.mediaBreakdown();
+    const stickers = rows.find((row) => row.key === 'media/stickers/bytes');
+    expect(stickers).toBeTruthy();
+    expect(stickers.grade, '表情包绝不能被标成可清理').toBe('user-data');
+    expect(stickers.bytes).toBe(50 * MiB);
+    expect(stickers.count).toBe(1);
+    const tmp = rows.find((row) => row.key === 'media/video/tmp');
+    expect(tmp.grade).toBe('evictable');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 守门：程序永远不能自动删表情包（用户定下的规矩，静态断言）
+// ---------------------------------------------------------------------------
+//
+// 这条测试不看行为，看**源码形状**：凡是"自动"路径的模块里，不许出现"按预算/上限删表情字节"
+// 的写法。行为测试只能覆盖到它想到的场景，静态断言覆盖的是"以后有人又写回一段"。
+//
+// 允许删除的地方只有两类，而且都必须由**用户那一次操作**直接触发：
+//   · importer.js  —— 用户重发同一张图，合并重复条目（同一张图的两份变一份）
+//   · workshop.js  —— 用户在工坊里点"删这张 / 清残图"
+//   · admin.js / store.js / bili.js —— 群记忆、旧键、视频产物，与表情包无关
+//
+// 所以下面这份"自动路径"清单里的文件，一个 `stickerBytesKey(...)` 的删除都不许有。
+describe('守门：自动路径不许删表情字节', () => {
+  const automatic = ['lib/media.js', 'lib/store.js', 'lib/state.js', 'lib/proactive.js', 'lib/memory.js'];
+  const decisionFunctions = ['pruneCollected', 'planEviction'];
+
+  test('自动路径里没有任何删表情字节的调用', () => {
+    for (const rel of automatic) {
+      const src = readFileSync(path.join(pluginDir, rel), 'utf8');
+      const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      // 判据是"同一个 remove 的参数里出现了表情字节"——整个文件里同时有 remove 和
+      // `media/stickers` 不算：media.js 的体检要**统计**表情包大小（只读），那是正当用途。
+      const offenders = [];
+      const removals = [...code.matchAll(/storage\.remove\s*\(\s*\{[^}]*\}/g)].map((m) => m[0]);
+      for (const call of removals) {
+        if (/stickerBytesKey|media\/stickers\/bytes/.test(call)) offenders.push(call.trim());
+      }
+      expect(offenders, rel + ' 里出现了自动删表情包的写法：' + offenders.join(' | ')).toEqual([]);
+    }
+  });
+
+  test('"满了就删旧的"这类函数不许再出现在任何模块里', () => {
+    const files = ['lib/stickers.js', 'lib/media.js', 'lib/store.js', 'lib/state.js'];
+    for (const rel of files) {
+      const src = readFileSync(path.join(pluginDir, rel), 'utf8');
+      // pruneCollected 只允许出现在"它曾经叫这个名字"的注释里；函数定义本身不该有。
+      expect(src, rel + ' 又定义了一个会修剪的 pruneCollected').not.toMatch(
+        /(async\s+)?function\s+pruneCollected\s*\(/,
+      );
+    }
+  });
+
+  test('自动收集没有任何"满了怎么办"的闸门（不删、也不停）', () => {
+    // 两版错法都在这里留下过痕迹：一版"收满就删旧的"，一版"收满就停"。上限本身后来也随
+    // 宿主去掉容量限制而失去意义——所以现在这一段**什么闸门都不该有**。
+    const src = readFileSync(path.join(pluginDir, 'lib', 'stickers.js'), 'utf8');
+    expect(src, '又出现了 canCollectMore 这类"满了就停"的闸门').not.toContain('canCollectMore');
+    expect(src, '又出现了"快满了"的字节判断').not.toContain('storageHeadroom');
+    // 自动收集函数本身（到下一个顶层函数之前）不许有任何删除。注意范围要收在
+    // `collectFromSegments` 里：后面的 `saveCollectedSticker` 会删**待收藏区的暂存**，
+    // 那是"已经存进图库了"的那份副本，正当。
+    const at = src.indexOf('async function collectFromSegments(');
+    const next = src.indexOf('async function ', at + 10);
+    const body = src.slice(at, next > at ? next : at + 4000);
+    expect(body, '自动收集的路径上出现了删除').not.toMatch(/storage\.remove/);
+  });
+
+  test('插件把分级写给宿主，而且表情包永远标 user-data', () => {
+    const src = readFileSync(path.join(pluginDir, 'lib', 'media.js'), 'utf8');
+    expect(src).toContain("OCCUPANCY_HINTS_KEY = 'occupancy/hints'");
+    expect(src).toContain('publishOccupancyHints');
+    // 关键断言：不能有任何一个 key 含 stickers 却被标成 evictable。
+    const rows = [...src.matchAll(/key:\s*'(media\/stickers[^']*)',\s*grade:\s*'([a-z-]+)'/g)];
+    expect(rows.length, '表情包的分级必须显式写出来').toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row[2], row[1] + ' 不能标成可清理').toBe('user-data');
+    }
   });
 });

@@ -71,8 +71,11 @@ function onInit(payload) {
     // 先把开关读进来，再开始连协议端：一个重启后要用的模式，不该等第一条群消息才生效。
     void refreshCoreMode().catch(() => {});
     void tidy.then(() => startBot());
-    // media/ 的字节预算（lib/media.js）**不挡启动**：机器人先连上，再收拾缓存。真机上这个目录
-    // 长到 497 MiB，而宿主上限是 64 MiB——不自己清，宿主只能拒绝写入，那就连账本都存不下去。
+    // 把自己的目录分级写给宿主（控制中心的占用页读它）。不挡启动：写不进去只是那些目录显示成
+    // "未分类"，功能一点都不受影响。
+    void tidy.then(() => publishOccupancyHints().catch(() => {}));
+    // 只清**视频下载中间产物**（lib/media.js）。这里绝不碰表情包：它是用户的数据，删了拿不回来。
+    // 宿主也不再设容量上限（2026-11-01 起），所以这套逻辑的职责只是"别让临时文件堆着"。
     void tidy.then(() => trimMediaAndNote().catch(() => {}));
     // 半小时一次就够：媒体文件的增长是"用户发图/看视频"驱动的，不是秒级的。
     setInterval(() => void trimMediaAndNote().catch(() => {}), 30 * 60 * 1000);

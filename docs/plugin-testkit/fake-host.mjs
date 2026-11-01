@@ -45,7 +45,8 @@ export const METHODS = {
   'storage.dir': { perm: 'storage', where: 'both' },
   'storage.list': { perm: 'storage', where: 'both' },
   'storage.move': { perm: 'storage', where: 'both' },
-  // 私有目录用了多少 / 上限是多少 —— 收到 storage.pressure 之后用它算"还要删多少"。
+  // 私有目录用了多少 / 多少个文件 / 按目录拆开。**没有上限**：宿主不限制插件存多少东西
+  // （2026-11-01 删掉了那道 64 MiB），用它做展示，不要用它算"该删多少"。
   'storage.usage': { perm: 'storage', where: 'both' },
   'memory.read': { perm: 'storage', where: 'pet' },
   'memory.append': { perm: 'storage', where: 'pet' },
@@ -120,7 +121,7 @@ export function okResult(method) {
     case 'storage.dir': return { dir: 'C:\\模拟\\plugin-data\\example' };
     case 'storage.list': return { dir: 'C:\\模拟', files: [{ name: '举例', bytes: 12, modified: Date.now() - 3600000 }], dirs: [] };
     case 'storage.move': return { ok: true, moved: true };
-    case 'storage.usage': return { used: 0, limit: 67108864 };
+    case 'storage.usage': return { used: 0, files: 0, folders: {}, limit: -1 };
     case 'config.get': return { values: {}, secrets: {} };
     case 'llm.profile': return { ownReady: false, borrowAllowed: false, ready: false, source: 'none', model: '' };
     case 'llm.providers': return { providers: [], default: '', own: { ready: false, model: '' } };

@@ -4235,46 +4235,60 @@ describe('变化通知', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 索引里有、字节文件没有的表情包（2026-10-31 那次 media/ 淘汰的废墟）
+// 索引里有、字节没了：**标记，不删**（2026-11-01 事故的最终形态）
 // ---------------------------------------------------------------------------
 //
-// The real-machine sequence: the plugin's media budget deleted 318 byte files (458 MiB) while
-// the sticker INDEX kept all 359 rows. Every random pick that lands on one of those 318 now
-// reads an empty byte file and silently skips - the user sees a library that is full and an
-// assistant that never sends the picture.
+// 用户的话把这条钉死了：「索引才占多少内存，你就是把全部索引都删了都清不出内存」
+// 「表情包也不能删啊……程序什么时候都不能自动清」。
 //
-// So startup has one more step: drop the rows whose bytes are gone. It must be conservative -
-// an empty byte listing means "I could not tell", not "everything is missing" - because the
-// expensive failure here is deleting a sticker that is still fine.
-describe('没有字节的表情包记录', () => {
-  test('启动整理会把字节已经不在的条目去掉，留下还有图的', async () => {
+// 索引条目是识图花钱换来的 tag 与描述，**不可再生**；而且它是"重扫免费"的凭据：
+// importStickers 里 `if (known.has(hash)) continue;` —— 条目在，用户重发同一张图就
+// 不必再识一遍。所以启动整理对空条目只做一件事：标上 `orphaned`，让界面说得清"这张的图没了"。
+describe('没有字节的表情包记录：标记而不是删除', () => {
+  test('图没了的条目留在索引里，只是带上 orphaned 标记', async () => {
     storageMap.set('media/stickers/index', JSON.stringify([
       { hash: 'keptAAAA', tag: '开心', description: '还在' },
-      { hash: 'goneBBBB', tag: '无语', description: '图已经没了' },
+      { hash: 'goneBBBB', tag: '无语', description: '图已经不在了' },
     ]));
     storageMap.set('media/stickers/bytes/keptAAAA', 'AAAA');
     await bootBot();
     const after = JSON.parse(storageMap.get('media/stickers/index') || '[]');
-    expect(after.map((row) => row.hash)).toEqual(['keptAAAA']);
+    // 两条都还在——一条没删。这也是"重发不用重新识图"的前提。
+    expect(after.map((row) => row.hash)).toEqual(['keptAAAA', 'goneBBBB']);
+    const gone = after.find((row) => row.hash === 'goneBBBB');
+    const kept = after.find((row) => row.hash === 'keptAAAA');
+    expect(gone.orphaned, '图没了的那条应当被标记').toBe(true);
+    expect(kept.orphaned, '还有图的不该被标记').toBeUndefined();
   });
 
-  test('一条都不剩时不写空库（"清空"是另一个决定）', async () => {
+  test('全部条目都没有字节时，索引一个字都不改（不是"清空"的理由）', async () => {
     storageMap.set('media/stickers/index', JSON.stringify([
-      { hash: 'goneAAAA', tag: '开心', description: '图已经没了' },
+      { hash: 'goneAAAA', tag: '开心' },
+      { hash: 'goneBBBB', tag: '无语' },
+    ]));
+    await bootBot();
+    const after = JSON.parse(storageMap.get('media/stickers/index') || '[]');
+    expect(after.length, '一条都不许少').toBe(2);
+    for (const row of after) expect(row.orphaned).toBe(true);
+  });
+
+  test('标记是幂等的：第二次启动不会重复写，也不会因为标记而删', async () => {
+    storageMap.set('media/stickers/index', JSON.stringify([
+      { hash: 'goneAAAA', tag: '开心', orphaned: true },
     ]));
     const before = storageMap.get('media/stickers/index');
     await bootBot();
     expect(storageMap.get('media/stickers/index')).toBe(before);
   });
 
-  test('字节目录为空、索引非空时也不动索引', async () => {
+  test('图补回来了就把标记清掉（重发同一张图不必再识）', async () => {
     storageMap.set('media/stickers/index', JSON.stringify([
-      { hash: 'goneAAAA', tag: '开心' },
-      { hash: 'goneBBBB', tag: '无语' },
+      { hash: 'backAAAA', tag: '开心', description: '补齐了', orphaned: true },
     ]));
+    storageMap.set('media/stickers/bytes/backAAAA', 'AAAA');
     await bootBot();
-    // 整批都"缺字节"是"我判断不了"的形状（可能只是列表没拿到），不是"全删掉"的理由。
     const after = JSON.parse(storageMap.get('media/stickers/index') || '[]');
-    expect(after.length).toBe(2);
+    expect(after[0].orphaned, '有字节了就不该再标').toBeUndefined();
+    expect(after.length).toBe(1);
   });
 });

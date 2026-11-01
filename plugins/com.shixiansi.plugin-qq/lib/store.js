@@ -372,11 +372,11 @@ async function tidyLeftovers() {
   // 旧上限时代留下的残图没有标记，靠字节数认一次（见 backfillTruncated）。
   const cut = await backfillTruncated();
   if (cut) note(`标出了 ${cut} 张被旧上限截断过的表情包（工坊里可以按「残图」筛出来）`);
-  // 索引里有、字节没有的条目：2026-10-31 那次 media/ 淘汰留下的废墟（删了 318 个字节文件，
-  // 一条索引都没删）。不清理的话，插件每次随机抽到其中一条就静默失败一次，而用户在图库里看到
-  // 的是"图还在、就是发不出来"——比直接没有更费解。
-  const orphaned = await dropOrphanStickers();
-  if (orphaned) note(`清掉了 ${orphaned} 条没有字节的表情包记录（图片文件已经不在了）`);
+  // 索引里有、字节没有的条目：**只标记，绝不删**（删过一次，是错的，见 markOrphanStickers 的
+  // 注释）。标记让界面能说清"这张图没了"，同时保留那条 hash —— 它是用户重发那批图时
+  // "已见过、不必再识图"的凭据。
+  const orphaned = await markOrphanStickers();
+  if (orphaned) note(`有 ${orphaned} 张表情包的图已经不在了（记录保留，重发同一张图不需要重新识别）`);
   // 磁盘上的 group 索引刚被改过，而内存里那份（如果已经读过）现在是旧的：下一次
   // `persistNow` 会拿它把刚合并进来的东西盖掉。读过就重读一遍，没读过就交给 startBot。
   if ((absorbed || seeded || swept.histories) && state.groupsLoaded) await loadGroupsIndex();
@@ -387,22 +387,35 @@ async function tidyLeftovers() {
 }
 
 /**
- * 索引里有、字节文件已经没有的表情包条目——安静地去掉。
+ * 索引里有、字节文件已经没有的表情包条目——**标记它们，绝不删。**
  *
- * 来源是 2026-10-31 那次 `media/` 字节预算淘汰：它按最旧删了 318 个字节文件，而索引一条没动
- * （那时候的 planEviction 不认识"手工导入"这回事）。留着这些空条目没有任何好处：
- * 随机抽到它只会走到 `readKeyText` 返回空、然后跳过——用户看到的是"库里有图、就是发不出来"。
+ * ## 这里曾经有一个 `dropOrphanStickers`，它删掉了用户 318 条记录，是错的
  *
- * 一次 `storage.list` 就能判：在字节目录里的才留。列表拿不到（老宿主没有 storage.list）就
- * **什么都不做**——猜错了会把好好的图删掉，这正是这个函数存在的教训。
+ * 2026-11-01 我写了那个函数，理由是"空条目留着只会让人抽到发不出来的图"。用户的反应是
+ * 「索引才占多少内存，你就是把全部索引都删了都清不出内存」「你给我索引清了全部又要再重新识
+ * 一遍图」。两句都对：删 28 KB 元数据的收益约等于零，而它销毁的东西是**花钱识图换来的**
+ * tag 与描述，且不可再生。
+ *
+ * ## 为什么保留"标记"这个动作
+ *
+ * 空条目确实不能拿去发表情（`readKeyText` 返回空，插件会跳过），所以它需要一个状态让界面
+ * 能说清楚：这一张的图没了、但它的认识还在。
+ *
+ * 更重要的是：**它同时是重扫免费的凭据**。`importStickers` 的逻辑是
+ * `if (known.has(hash)) continue;` —— 索引里有这个 hash，用户下次把那批图重新发一遍时，
+ * 插件会算出同一个内容哈希、判定"已见过"、直接跳过识图。条目一旦被删，重扫就得重新花钱。
+ * 所以对用户而言，"留着一条空条目"比"删掉它"有用得多。
+ *
+ * 标记写进 `orphaned: true`（不是 `truncated`，那是"字节被宿主截断"的另一个含义）。
+ * 标记是幂等的，而且**只加不减**：图补回来的时候才清掉标记（见 importStickers 的"残图补齐"分支）。
  */
-async function dropOrphanStickers() {
+async function markOrphanStickers() {
   if (!useFolders || !granted.has('storage')) return 0;
   let listing = null;
   try {
     listing = await request('storage.list', { sub: STICKER_BYTES_DIR });
   } catch {
-    return 0;
+    return 0; // 判断不了 → 不动（这是这个文件里所有"拿不到信息"分支的统一答案）
   }
   if (!listing) return 0;
   const present = new Set(
@@ -410,13 +423,24 @@ async function dropOrphanStickers() {
   );
   const index = await loadStickerIndex().catch(() => []);
   if (!Array.isArray(index) || !index.length) return 0;
-  // 没有字节的条目：全部收走之后如果一个都不剩，就什么都不写（空库不是"清空"，那是另一个决定）。
-  const kept = index.filter((row) => row && row.hash && present.has(cleanSegment(row.hash)));
-  if (kept.length === index.length) return 0;
-  if (!kept.length) return 0;
-  await writeStickerIndex(kept);
-  return index.length - kept.length;
+  let marked = 0;
+  let unmarked = 0;
+  for (const row of index) {
+    if (!row || !row.hash) continue;
+    const hasBytes = present.has(cleanSegment(row.hash));
+    if (!hasBytes && !row.orphaned) {
+      row.orphaned = true;
+      marked += 1;
+    } else if (hasBytes && row.orphaned) {
+      // 图回来了（用户重发、或者补齐了残图）：标记失效。
+      delete row.orphaned;
+      unmarked += 1;
+    }
+  }
+  if (marked || unmarked) await writeStickerIndex(index);
+  return marked;
 }
+
 
 /**
  * 把 1.10 的平铺文件搬进各自的文件夹。**一次性、幂等、可中断。**

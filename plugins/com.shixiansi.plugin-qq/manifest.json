@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-qq",
   "name": "QQ 群聊插件",
-  "version": "1.16.2",
+  "version": "1.16.3",
   "author": "shixiansi",
   "description": "把大模型接进 QQ 群：用 Milky 协议端（Yogurt 等）的长连接接收群消息，被 @ 时借用对话插件的模型配置回答。它会记群里的要点和群友、有高低的社交能量、会自己挑表情包并收藏群里的新图。",
   "permissions": ["net.ws", "net.fetch", "llm.chat", "llm.borrow", "storage", "plugin.config", "events", "process", "plugin.share", "plugin.call"],
