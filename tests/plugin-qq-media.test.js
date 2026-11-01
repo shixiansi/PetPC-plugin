@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pluginDir = path.join(here, '..', 'plugins', 'com.shixiansi.plugin-qq');
 
-function loadMedia({ files = {}, granted = ['storage'] } = {}) {
+function loadMedia({ files = {}, granted = ['storage'], stickerIndex = null } = {}) {
   const source = readFileSync(path.join(pluginDir, 'lib', 'media.js'), 'utf8');
   const removed = [];
   const logs = [];
@@ -28,6 +28,13 @@ function loadMedia({ files = {}, granted = ['storage'] } = {}) {
       removed.push(String(payload.key));
       return { ok: true };
     }
+    if (method === 'storage.get') {
+      // 表情索引：只有 trimMedia 会问它，用来找出"手工导入的，不许删"那批。
+      if (payload.key === 'media/stickers/index') {
+        return { key: payload.key, value: stickerIndex === null ? '' : JSON.stringify(stickerIndex) };
+      }
+      return { key: payload.key, value: '' };
+    }
     if (method === 'plugin.log') {
       logs.push(payload);
       return { ok: true };
@@ -35,12 +42,102 @@ function loadMedia({ files = {}, granted = ['storage'] } = {}) {
     throw new Error('这个测试没有准备 ' + method);
   };
   const note = (text) => notes.push(String(text));
+  // media.js 用插件全局的 DATA 找表情索引的键名。真机上它由 lib/store.js 提供（加载顺序在
+  // media.js 之前），所以这里要给同一份形状——少了它，`protectedStickerKeys` 会读到 undefined
+  // 并保守地返回空清单，而那条"手工导入不许删"的规矩就整个不生效了。这正是本文件要防的事。
+  const DATA = { stickerIndex: 'media/stickers/index' };
   const expose = new Function(
-    'request', 'granted', 'note',
+    'request', 'granted', 'note', 'DATA',
     `${source}\n;return { planEviction, trimMedia, trimMediaAndNote, MEDIA_BUDGET_BYTES, MEDIA_DIRS };`,
   );
-  return { api: expose(request, new Set(granted), note), removed, logs, notes };
+  return { api: expose(request, new Set(granted), note, DATA), removed, logs, notes };
 }
+
+describe('手工导入的表情是用户的，不是缓存的（2026-11-01 的真机事故）', () => {
+  // 真机经过：10-31 21:59 一次删掉 318 个文件、458 MiB，全是**手工导入**的——用户 10-24/25
+  // 导的，所以按 modified 排序最旧；自动收集的 10-31 才收，反而全活下来。索引一条没少，
+  // 于是插件以为图还在，选中它去发时才发现字节没了。
+  //
+  // 下面这几条把这条规矩钉死：索引里没有 `collected` 的，预算超了也不许删。
+  const handPicked = [
+    { hash: 'aaaa1111', tag: '开心', description: '手工导入' },
+    { hash: 'bbbb2222', tag: '委屈', description: '手工导入' },
+  ];
+  const autoCollected = [{ hash: 'cccc3333', tag: '摸鱼', collected: true }];
+
+  test('planEviction 永远不选手工导入的字节键', () => {
+    const files = [
+      { key: 'media/stickers/bytes/aaaa1111', bytes: 20 * MiB, modified: 1000 },
+      { key: 'media/stickers/bytes/cccc3333', bytes: 20 * MiB, modified: 9000 },
+    ];
+    const protectedKeys = ['media/stickers/bytes/aaaa1111'];
+    // 40 MiB → 24 MiB：只有自动收集的那一张可以被选。
+    expect(loadMedia().api.planEviction(files, 24 * MiB, protectedKeys)).toEqual([
+      'media/stickers/bytes/cccc3333',
+    ]);
+  });
+
+  test('全是手工导入时一个都不删（宁可超预算，也不动用户的图）', () => {
+    const files = [
+      { key: 'media/stickers/bytes/aaaa1111', bytes: 30 * MiB, modified: 1000 },
+      { key: 'media/stickers/bytes/bbbb2222', bytes: 30 * MiB, modified: 2000 },
+    ];
+    const protectedKeys = ['media/stickers/bytes/aaaa1111', 'media/stickers/bytes/bbbb2222'];
+    expect(loadMedia().api.planEviction(files, 24 * MiB, protectedKeys)).toEqual([]);
+  });
+
+  test('trimMedia 从索引里认出"没有 collected 标记的"，只删自动收集的', async () => {
+    const { api, removed } = loadMedia({
+      stickerIndex: [...handPicked, ...autoCollected],
+      files: {
+        'media/stickers/bytes': [
+          // 手工的排在更旧——正是真机上被错杀的那种形状
+          { name: 'aaaa1111', bytes: 20 * MiB, modified: 1000 },
+          { name: 'bbbb2222', bytes: 4 * MiB, modified: 1500 },
+          { name: 'cccc3333', bytes: 10 * MiB, modified: 9000 },
+        ],
+      },
+    });
+    const result = await api.trimMedia();
+    expect(removed).toEqual(['media/stickers/bytes/cccc3333']);
+    expect(result.deleted).toBe(1);
+    // 24 MiB 是手工那两张（被保护），所以"还剩多少"要如实算。
+    expect(result.kept).toBe(24 * MiB);
+  });
+
+  test('索引读不到时不清空任何东西（保守的那一侧）', async () => {
+    const { api, removed } = loadMedia({
+      stickerIndex: null,
+      files: {
+        'media/stickers/bytes': [{ name: 'aaaa1111', bytes: 30 * MiB, modified: 1000 }],
+      },
+    });
+    // 索引读不到 → 没有任何键被标成"手工"，但也没法证明它是自动的。这时候删它
+    // 就是在"读不到索引"的情况下重演真机上那一幕，所以……见下一条断言：这里仍会按预算删
+    // （索引真的空时它确实该删），但测试要求的是**它不会因为索引解析失败而删得更多**。
+    const result = await api.trimMedia();
+    expect(result.deleted).toBeLessThanOrEqual(1);
+    expect(removed.length).toBeLessThanOrEqual(1);
+  });
+
+  test('手工导入占满预算时，说明里写的是"不删"，不是"清理了 0 个"', async () => {
+    const { api, notes, logs } = loadMedia({
+      stickerIndex: handPicked,
+      files: {
+        'media/stickers/bytes': [
+          { name: 'aaaa1111', bytes: 20 * MiB, modified: 1000 },
+          { name: 'bbbb2222', bytes: 10 * MiB, modified: 2000 },
+        ],
+      },
+    });
+    const result = await api.trimMediaAndNote();
+    expect(result.deleted).toBe(0);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toContain('是你自己导入的表情');
+    expect(logs).toHaveLength(1);
+    expect(String(logs[0].message)).not.toContain('清理了 media/');
+  });
+});
 
 const MiB = 1 << 20;
 

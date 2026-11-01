@@ -372,13 +372,50 @@ async function tidyLeftovers() {
   // 旧上限时代留下的残图没有标记，靠字节数认一次（见 backfillTruncated）。
   const cut = await backfillTruncated();
   if (cut) note(`标出了 ${cut} 张被旧上限截断过的表情包（工坊里可以按「残图」筛出来）`);
+  // 索引里有、字节没有的条目：2026-10-31 那次 media/ 淘汰留下的废墟（删了 318 个字节文件，
+  // 一条索引都没删）。不清理的话，插件每次随机抽到其中一条就静默失败一次，而用户在图库里看到
+  // 的是"图还在、就是发不出来"——比直接没有更费解。
+  const orphaned = await dropOrphanStickers();
+  if (orphaned) note(`清掉了 ${orphaned} 条没有字节的表情包记录（图片文件已经不在了）`);
   // 磁盘上的 group 索引刚被改过，而内存里那份（如果已经读过）现在是旧的：下一次
   // `persistNow` 会拿它把刚合并进来的东西盖掉。读过就重读一遍，没读过就交给 startBot。
   if ((absorbed || seeded || swept.histories) && state.groupsLoaded) await loadGroupsIndex();
-  if (absorbed || swept.products || swept.histories || swept.stickers || seeded) {
+  if (absorbed || swept.products || swept.histories || swept.stickers || seeded || orphaned) {
     note(`又整理了一次：${absorbed} 个旧键、${swept.histories} 份群记忆、${swept.stickers} 张表情包、${swept.products} 个视频产物，补回 ${seeded} 个群`);
   }
-  return { absorbed, swept, seeded };
+  return { absorbed, swept, seeded, orphaned };
+}
+
+/**
+ * 索引里有、字节文件已经没有的表情包条目——安静地去掉。
+ *
+ * 来源是 2026-10-31 那次 `media/` 字节预算淘汰：它按最旧删了 318 个字节文件，而索引一条没动
+ * （那时候的 planEviction 不认识"手工导入"这回事）。留着这些空条目没有任何好处：
+ * 随机抽到它只会走到 `readKeyText` 返回空、然后跳过——用户看到的是"库里有图、就是发不出来"。
+ *
+ * 一次 `storage.list` 就能判：在字节目录里的才留。列表拿不到（老宿主没有 storage.list）就
+ * **什么都不做**——猜错了会把好好的图删掉，这正是这个函数存在的教训。
+ */
+async function dropOrphanStickers() {
+  if (!useFolders || !granted.has('storage')) return 0;
+  let listing = null;
+  try {
+    listing = await request('storage.list', { sub: STICKER_BYTES_DIR });
+  } catch {
+    return 0;
+  }
+  if (!listing) return 0;
+  const present = new Set(
+    ((listing && listing.files) || []).map((file) => String((file && file.name) || '')),
+  );
+  const index = await loadStickerIndex().catch(() => []);
+  if (!Array.isArray(index) || !index.length) return 0;
+  // 没有字节的条目：全部收走之后如果一个都不剩，就什么都不写（空库不是"清空"，那是另一个决定）。
+  const kept = index.filter((row) => row && row.hash && present.has(cleanSegment(row.hash)));
+  if (kept.length === index.length) return 0;
+  if (!kept.length) return 0;
+  await writeStickerIndex(kept);
+  return index.length - kept.length;
 }
 
 /**

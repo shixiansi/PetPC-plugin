@@ -503,15 +503,18 @@ function hostEmits(name, payload) {
 /**
  * Boots the background frame far enough to have a socket.
  *
- * 24 ticks rather than 12: startup now begins with the data-layout tidy (a `storage.stat`
- * for the migration marker, then one `storage.list`), and waiting for the socket is what
- * every test here assumes has happened by the time bootBot returns.
+ * 30 ticks rather than 12: startup begins with the data-layout tidy (a `storage.stat` for the
+ * migration marker, then a `storage.list`), then the orphan-sticker sweep (ONE more
+ * `storage.list` in `media/stickers/bytes`), and waiting for the socket is what every test
+ * here assumes has happened by the time bootBot returns. Raising this is the honest cost of
+ * adding a startup step; lowering it again without removing a step would make the socket tests
+ * flaky instead of failing.
  */
 async function bootBot({ values = {}, granted = ALL_GRANTED } = {}) {
   bootValues = values;
   await loadApp();
   hostSends(initFrame({ slot: 'background', granted }));
-  await pump(24);
+  await pump(30);
 }
 
 /** Drives an inbound Milky frame through the socket event. */
@@ -4228,5 +4231,50 @@ describe('变化通知', () => {
     expect(proactive, '设置兜底又变回 10 秒了').toContain('const CONFIG_POLL_MS = 60_000;');
     const admin = readFileSync(path.join(pluginDir, 'lib', 'admin.js'), 'utf8');
     expect(admin, 'B 站桥兜底又变回 5 秒了').toMatch(/\}, 30_000\);/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 索引里有、字节文件没有的表情包（2026-10-31 那次 media/ 淘汰的废墟）
+// ---------------------------------------------------------------------------
+//
+// The real-machine sequence: the plugin's media budget deleted 318 byte files (458 MiB) while
+// the sticker INDEX kept all 359 rows. Every random pick that lands on one of those 318 now
+// reads an empty byte file and silently skips - the user sees a library that is full and an
+// assistant that never sends the picture.
+//
+// So startup has one more step: drop the rows whose bytes are gone. It must be conservative -
+// an empty byte listing means "I could not tell", not "everything is missing" - because the
+// expensive failure here is deleting a sticker that is still fine.
+describe('没有字节的表情包记录', () => {
+  test('启动整理会把字节已经不在的条目去掉，留下还有图的', async () => {
+    storageMap.set('media/stickers/index', JSON.stringify([
+      { hash: 'keptAAAA', tag: '开心', description: '还在' },
+      { hash: 'goneBBBB', tag: '无语', description: '图已经没了' },
+    ]));
+    storageMap.set('media/stickers/bytes/keptAAAA', 'AAAA');
+    await bootBot();
+    const after = JSON.parse(storageMap.get('media/stickers/index') || '[]');
+    expect(after.map((row) => row.hash)).toEqual(['keptAAAA']);
+  });
+
+  test('一条都不剩时不写空库（"清空"是另一个决定）', async () => {
+    storageMap.set('media/stickers/index', JSON.stringify([
+      { hash: 'goneAAAA', tag: '开心', description: '图已经没了' },
+    ]));
+    const before = storageMap.get('media/stickers/index');
+    await bootBot();
+    expect(storageMap.get('media/stickers/index')).toBe(before);
+  });
+
+  test('字节目录为空、索引非空时也不动索引', async () => {
+    storageMap.set('media/stickers/index', JSON.stringify([
+      { hash: 'goneAAAA', tag: '开心' },
+      { hash: 'goneBBBB', tag: '无语' },
+    ]));
+    await bootBot();
+    // 整批都"缺字节"是"我判断不了"的形状（可能只是列表没拿到），不是"全删掉"的理由。
+    const after = JSON.parse(storageMap.get('media/stickers/index') || '[]');
+    expect(after.length).toBe(2);
   });
 });
