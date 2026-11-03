@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-knowledge-base",
   "name": "本地知识库（文档切片与检索问答）",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "shixiansi",
   "description": "让桌宠「读」过你给它的文档：把 Markdown/TXT 粘进面板（或给一个 http(s) 地址让它抓取），文档按 500 字滑动窗口切片（50 字重叠防语义切断），建立纯 JS 的 TF-IDF 倒排索引；提问时按关键词检索相关度最高的 3 个切片注入 Prompt，经记忆核心作答——桌宠的回答就以你的文档为准。面板显示文档列表、切片数量与索引进度。",
   "permissions": [

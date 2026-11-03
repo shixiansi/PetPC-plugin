@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-diary-writer",
   "name": "日记（自动情绪追踪）",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "shixiansi",
   "description": "每天 23:00（或手动触发）把当天的交互碎片写成一篇 ≤300 字、带情绪标签的日记：对话摘要来自记忆核心的 export-state、已完成待办来自待办插件的共享快照、专注时长来自番茄钟的共享状态。日记存进插件私有目录，并把「昨天写了什么」注入下一次生成时的 Prompt；可经 plugin.call 问 get_recent 让桌宠在对话里引用昨天的日记。",
   "permissions": [

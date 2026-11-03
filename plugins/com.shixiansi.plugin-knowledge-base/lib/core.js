@@ -23,9 +23,14 @@ const PROTOCOL = 1;
 let nextRequestID = 1;
 const pending = new Map();
 
+/**
+ * 出站**必须**打在 `window.parent` 上。`window.postMessage` 的收件人是"被调用的那个 window"，
+ * 写在 `window` 上等于把 ready / request 发给了自己：宿主（父文档）一条都收不到，帧永远拿不到
+ * init。jsdom 里假宿主与插件文档同住一个 window，所以这条错误只在真浏览器的 iframe 拓扑里现形。
+ */
 function postToHost(message) {
   if (!window.parent) return;
-  window.postMessage({ v: PROTOCOL, ...message }, '*');
+  window.parent.postMessage({ v: PROTOCOL, ...message }, '*');
 }
 
 function request(method, payload) {
