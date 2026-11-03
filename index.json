@@ -1,16 +1,26 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-01T08:51:22Z",
+  "updatedAt": "2026-11-03T05:34:59Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
       "name": "后台任务执行器",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "author": "shixiansi",
       "description": "接受复杂长指令，交给记忆核心拆成可执行的小任务，进一个基于数组的串行队列：常驻帧每 5 分钟检查一次，执行第一个未完成任务；执行期间经 plugin.share 发布 agent-status（桌宠据此显示「搬砖」），失败自动重试 1 次，成功后经记忆核心播报结果。重启后队列从 storage 恢复，未完成任务继续跑。",
       "permissions": ["plugin.call", "plugin.share", "storage", "plugin.config", "pet.bubble", "events"],
-      "download": "dist/com.shixiansi.plugin-agent-worker-0.1.2.zip",
-      "sha256": "fd2de6731abc6f1df9cbc5d40b31f169bbcfdc54db464c38dd8810866feb764d"
+      "download": "dist/com.shixiansi.plugin-agent-worker-0.1.3.zip",
+      "sha256": "5fff08547b0f6bb20b807ec7b8ba780981c3ec6b1f9454ee026de954425c1493"
+    },
+    {
+      "id": "com.shixiansi.plugin-anniversary",
+      "name": "纪念日倒计时",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "生日、结婚纪念日、入职多少年：写下几个日期（可以设「每年重复」），桌宠头顶就一直挂着最近那一个「还有 N 天」，当天换成「今天」并让桌宠说一句（一天只说一次）。宠物旁边还有一张 280×132 的紧凑卡片，列最近三条；控制中心的插件页里是完整清单（加、删、空状态）。别的插件可以用 plugin.call 问 next。日期一律按本机日历的整天差算，2 月 29 日只在闰年出现（平年跳过，不折算到 3 月 1 日）。",
+      "permissions": ["storage", "plugin.config", "pet.surface", "pet.bubble", "plugin.call"],
+      "download": "dist/com.shixiansi.plugin-anniversary-0.1.0.zip",
+      "sha256": "d21819fcaff7f7d4a0a06ae028b1d339dfea38cca684216eed40c3c65f7d94d7"
     },
     {
       "id": "com.shixiansi.plugin-ast-coder",
@@ -35,6 +45,17 @@
       "sha256": "b59bc5cdf44adccd4c0ed40b162a72e16442eee3cf8452ab6a017b989c56d75f"
     },
     {
+      "id": "com.shixiansi.plugin-calendar",
+      "name": "日程日历",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "订阅一条公开的日历链接（Google / Outlook / 飞书「导出日历」给出的 .ics 都行），把事件读进桌宠：会前 10 分钟让桌宠说一句提醒（提前几分钟、要不要提醒都能改），断网时用上一次抓到的内容顶上并在界面上注明是缓存。桌宠旁边有一张紧凑卡片显示下一场，控制中心的插件页里按天看最近一周。别的插件也能用 plugin.call 问它今天 / 下一场 / 某一段时间的日程。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.bubble", "pet.surface", "events", "plugin.call"],
+      "netHosts": ["calendar.google.com", "outlook.live.com"],
+      "download": "dist/com.shixiansi.plugin-calendar-0.1.0.zip",
+      "sha256": "83d5445ac9c389b5cb98cd268dd28637f0f7d67cf1a555a6de6aca4873826858"
+    },
+    {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
       "version": "1.9.0",
@@ -53,6 +74,16 @@
       "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
       "download": "dist/com.shixiansi.plugin-clipask-0.2.1.zip",
       "sha256": "b23d65b9000b95c099d3c92dfac048c6aca24f113f4d0c760abb54e063e5ca1c"
+    },
+    {
+      "id": "com.shixiansi.plugin-convert-kit",
+      "name": "换算工具（单位 / 时区 / 进制 / 汇率）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "一个完全离线的换算器：长度、重量、体积、温度、速度、时区、进制，外加一份内置的汇率静态快照。在控制中心的插件页里输一个数、选两组单位就拿到结果，最近几次换算留在这一页。它不联网、不上传、不读你的文件，也只在控制中心里占一页——桌宠身上不会多出任何东西。别的插件（以及以后的模型工具）也可以用 plugin.call 问它 convert：给一个数和两组单位，拿回结果。",
+      "permissions": ["plugin.call", "storage", "plugin.config"],
+      "download": "dist/com.shixiansi.plugin-convert-kit-0.1.0.zip",
+      "sha256": "b105158ba21020b5610132aa575781f390d80608057cf6ab42224ff18d8d39ae"
     },
     {
       "id": "com.shixiansi.plugin-desktop-wallpaper",
@@ -79,12 +110,12 @@
     {
       "id": "com.shixiansi.plugin-diary-writer",
       "name": "日记（自动情绪追踪）",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "每天 23:00（或手动触发）把当天的交互碎片写成一篇 ≤300 字、带情绪标签的日记：对话摘要来自记忆核心的 export-state、已完成待办来自待办插件的共享快照、专注时长来自番茄钟的共享状态。日记存进插件私有目录，并把「昨天写了什么」注入下一次生成时的 Prompt；可经 plugin.call 问 get_recent 让桌宠在对话里引用昨天的日记。",
       "permissions": ["plugin.call", "plugin.share", "storage", "plugin.config", "events", "pet.bubble"],
-      "download": "dist/com.shixiansi.plugin-diary-writer-0.1.1.zip",
-      "sha256": "66cfb38b70b5b162f754f8e86906f251045368e693d15804a85d1a8077cdc937"
+      "download": "dist/com.shixiansi.plugin-diary-writer-0.1.2.zip",
+      "sha256": "c86db133e5aea8db1a8a7d4159742acd5711204c5581d3cb6b3fc468e569fb1e"
     },
     {
       "id": "com.shixiansi.plugin-email-digest",
@@ -108,6 +139,17 @@
       "sha256": "67daca947542899aaee6b586c754094a83c7564802f8b94ec383bdaed92de15f"
     },
     {
+      "id": "com.shixiansi.plugin-finance-board",
+      "name": "行情看板",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "宠物旁边一张 300×150 的小卡片：最多三个标的，每个一行「代码 · 现价 · ±x%」加一条 SVG sparkline；控制中心的插件页里是完整列表（最多 8 个）、周期选择与行情源切换。行情来自 Yahoo 财经（股票/基金/汇率）、币安（加密）与 CoinGecko（第三个备选源），三个源的响应都归一化成同一个形状。周末的股票不刷新、不上网，只在表格里写「休市」并保留上一次的收盘价；取数失败或被限流(429)时保留上一次的快照，并注明「上次成功是 X 前」。刷新间隔最少 10 分钟。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.surface"],
+      "netHosts": ["query1.finance.yahoo.com", "api.binance.com", "api.coingecko.com"],
+      "download": "dist/com.shixiansi.plugin-finance-board-0.1.0.zip",
+      "sha256": "87e3e67777e961656bd3242620aec782515301f8e15db900e2ec00d613d3fef4"
+    },
+    {
       "id": "com.shixiansi.plugin-flashcards",
       "name": "记忆卡片（SM-2 间隔重复）",
       "version": "0.1.1",
@@ -128,15 +170,57 @@
       "sha256": "8c09a966de62a2d1a3cb6779f69f38bd27b98b11d09f5fddabac19e2457e0ef4"
     },
     {
+      "id": "com.shixiansi.plugin-github-notify",
+      "name": "GitHub 通知",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "盯住几个 GitHub 仓库的 PR / Issue / CI：有新动静就让桌宠说一句摘要（一句里带仓库名与事件类型，不是一串标题），宠物头顶的徽标挂着未读数；插件页里是完整的事件列表与轮询设置。按事件 id 去重——同一个事件只提醒一次；内容没变（304）就一句都不说。token 过期、被限流、仓库不存在各有各的中文说法，全部落在界面上而不是只写进 console。数据来自 api.github.com 的仓库事件接口。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.surface", "pet.bubble"],
+      "netHosts": ["api.github.com"],
+      "download": "dist/com.shixiansi.plugin-github-notify-0.1.0.zip",
+      "sha256": "fdc58563313478f868ccdfa875ed95fe89e9b0f20d09896adcb169c034a845a2"
+    },
+    {
+      "id": "com.shixiansi.plugin-habits",
+      "name": "习惯打卡",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "每天点一下就打卡的习惯清单（早读、喝水、练琴…）：宠物头顶那行字显示「连续 12 天」或「今天还差 2 件」，宠物旁边一块小卡片列出今天还没打的习惯，控制中心的插件页里管习惯。换日按本机 04:00 算（03:59 仍属于前一天），同一份状态重复计算只会结算一次，跨月跨年都算连续。到点还没打完会提醒一次（同一天只提醒一次）。纯本地，不联网。",
+      "permissions": ["storage", "plugin.config", "pet.surface", "events", "plugin.call"],
+      "download": "dist/com.shixiansi.plugin-habits-0.1.0.zip",
+      "sha256": "f77630525740dc850f6e3ff92cfc0d0c9b94ca6cd55ba6142f96fdee6cf63817"
+    },
+    {
+      "id": "com.shixiansi.plugin-health-reminder",
+      "name": "健康提醒（久坐 / 喝水 / 护眼）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "三条最普通的健康提醒：久坐（默认每 45 分钟起来动一下）、喝水（每 60 分钟）、护眼（20-20-20，每 20 分钟看一次远处）。到点由桌宠说一句，宠物头顶的徽标显示下一条还剩几分钟；关掉哪一条就立刻停，夜里还有一段免打扰（默认 22:00–08:00，跨午夜的段也算对）。三个间隔、三个总开关、免打扰起止都在设置里改。全屏时不打断还做不到——宿主今天没有全屏检测这个能力，现在用免打扰时段兜住。",
+      "permissions": ["events", "pet.surface", "pet.bubble", "plugin.config", "storage"],
+      "download": "dist/com.shixiansi.plugin-health-reminder-0.1.0.zip",
+      "sha256": "a5ee85920d556ec4153047123936db942499d97e0fd89ee2cd92107fc7b6d5bb"
+    },
+    {
+      "id": "com.shixiansi.plugin-imgbed",
+      "name": "图床上传",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "把一张图扔进插件页，拿回一条能直接贴出去的链接。默认连 Sanyue ImgHub / CloudFlare-ImgBed（https://imgcloud.shipixiv.de5.net），拖进来、粘贴或选文件都行，也可以在桌宠那边没有窗口的情况下被别的插件用 plugin.call 问 upload（data URL，≤40KB）。上传走 net.fetch 的字节请求体，不需要 process 权限、不需要本机脚本。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "plugin.call"],
+      "netHosts": ["imgcloud.shipixiv.de5.net"],
+      "download": "dist/com.shixiansi.plugin-imgbed-0.1.0.zip",
+      "sha256": "5b2ab8d3f88377e7a69c0b66e70230dd6aabbaec36ff3fc5a1d757f582a8e589"
+    },
+    {
       "id": "com.shixiansi.plugin-knowledge-base",
       "name": "本地知识库（文档切片与检索问答）",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": "shixiansi",
       "description": "让桌宠「读」过你给它的文档：把 Markdown/TXT 粘进面板（或给一个 http(s) 地址让它抓取），文档按 500 字滑动窗口切片（50 字重叠防语义切断），建立纯 JS 的 TF-IDF 倒排索引；提问时按关键词检索相关度最高的 3 个切片注入 Prompt，经记忆核心作答——桌宠的回答就以你的文档为准。面板显示文档列表、切片数量与索引进度。",
       "permissions": ["net.fetch", "plugin.call", "storage", "plugin.config", "events"],
       "netHosts": ["raw.githubusercontent.com", "gist.githubusercontent.com"],
-      "download": "dist/com.shixiansi.plugin-knowledge-base-0.1.1.zip",
-      "sha256": "3a7f952227c5b25fabf10f2a6140f3751fd87e6df55b4879254880e6c0518102"
+      "download": "dist/com.shixiansi.plugin-knowledge-base-0.1.2.zip",
+      "sha256": "46bc9819e61000220267ad73abe871dd942b6f8a5679d5747dcc29b46031489c"
     },
     {
       "id": "com.shixiansi.plugin-live-danmaku",
@@ -233,6 +317,17 @@
       "sha256": "c042334af3972370c8f50f9253f076516652d924b1f67fe2b1e7c8ba627abc71"
     },
     {
+      "id": "com.shixiansi.plugin-price-watch",
+      "name": "网页变化监控",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "盯着几个网页（商品价格、库存、公告页），变了才让桌宠说一句，并记下是哪一段变了。设置里每行填一条「名字 | URL | CSS 选择器（可空，只看页面上那一块）」，插件按你定的间隔（最小 15 分钟）抓取、按内容哈希比对：第一次抓取只存快照不打扰；变化要连续两次抓到同样的内容才播报一次（去抖，横跳的页面不会刷屏）；免打扰时段（可跨午夜）只更新快照不弹气泡；抓不到（网络失败或 4xx/5xx）时保留上一次的快照，并在插件页注明「上次成功是多久前」。抓取在桌宠那侧的常驻帧里跑，控制中心的插件页只负责展示与设置。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.bubble"],
+      "netHosts": ["example.com"],
+      "download": "dist/com.shixiansi.plugin-price-watch-0.1.0.zip",
+      "sha256": "0b64fb133052ed33b12e3990d808926a56b79cd44a64b68cfc147aac006d681b"
+    },
+    {
       "id": "com.shixiansi.plugin-privacy-guard",
       "name": "隐私卫士（敏感信息监控与脱敏）",
       "version": "0.1.5",
@@ -263,6 +358,16 @@
       "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.3.zip",
       "sha256": "f4b6cf9d58141a47cb438e1a219856c5bc932f78829d49da040740ace100a117"
+    },
+    {
+      "id": "com.shixiansi.plugin-quicksave",
+      "name": "速记盒子",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "速记盒子：想到什么就丢一句进来——输入一句话（可以带标签）按「记下」，以后能搜、能翻。重复的内容不会变成两条，它只把原来那条挪到最前面。盒子满了按「最久没被碰过的先走」淘汰，条数在设置里改（20–2000，默认 500）。别的插件也能用 plugin.call 往里写（add）和往外读（recent）。",
+      "permissions": ["storage", "plugin.config", "pet.surface", "pet.bubble", "plugin.call"],
+      "download": "dist/com.shixiansi.plugin-quicksave-0.1.0.zip",
+      "sha256": "88b79c4a8d86cfe4b58b7b74047cf717127640d0452f1b9dacfafe9e163b91a6"
     },
     {
       "id": "com.shixiansi.plugin-rss-reader",
@@ -306,14 +411,35 @@
       "sha256": "0d9796492a3183b21a68ab50e7e153aa89e6db24b9ebf4725ca3623b5cb91d8b"
     },
     {
+      "id": "com.shixiansi.plugin-table-lab",
+      "name": "表格分析",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "拖一份 CSV 进插件页：推断每列是整数、小数、日期还是文本，按一列做分组计数，用 SVG 当场画一张条形图。桌宠旁边那张紧凑卡片显示「当前表格 · N 行 × M 列」与一行分组结论，并能在那里点「让模型解读」——模型只读浓缩后的统计摘要，不读整张表。文件只用浏览器的 FileReader 读，插件不碰磁盘路径、不需要 process 权限；超过预览行数会截断，并在界面上写明只统计了前 N 行。",
+      "permissions": ["storage", "plugin.config", "llm.chat", "pet.surface"],
+      "download": "dist/com.shixiansi.plugin-table-lab-0.1.0.zip",
+      "sha256": "81eb65518d056ab49ed83620dffc9007997a5beacc053f4b62b1d2e6d10009b5"
+    },
+    {
+      "id": "com.shixiansi.plugin-telegram",
+      "name": "Telegram 接入端（薄适配器）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "Telegram 适配器。它只是一根管道：收到消息就交给记忆核心（com.shixiansi.plugin-memcore 的 chat 方法）回答，再把回答发回去；人设、记忆、模型预算都不在这里，所以改人设不用动它，换一个平台也不用搬记忆。默认不轮询——填好 Bot Token 并打开「收消息」才开始，允许的 chat id 留空等于谁的都不收。401 / 409 / 429 与断网各有各的处理：token 不对会停下来说清楚，同一个 bot 被另一个进程抢着长轮询会说清楚，被限流会按 Telegram 给的秒数等，断网按 15→30→60 秒退避、成功一次就重置。",
+      "permissions": ["net.fetch", "plugin.call", "storage", "plugin.config"],
+      "netHosts": ["api.telegram.org"],
+      "download": "dist/com.shixiansi.plugin-telegram-0.1.0.zip",
+      "sha256": "3dd7d238ccae184e9ee819017da0a0a9bcc1620c3235f0c14c8c3c65204ca6ed"
+    },
+    {
       "id": "com.shixiansi.plugin-todo",
       "name": "待办插件",
-      "version": "1.2.3",
+      "version": "1.3.0",
       "author": "shixiansi",
       "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
       "permissions": ["storage", "plugin.config", "plugin.share", "plugin.call", "pet.surface", "pet.bubble", "events"],
-      "download": "dist/com.shixiansi.plugin-todo-1.2.3.zip",
-      "sha256": "2e5f33bdcbb9be2f0ff82f682f2a9bccfc0cfb8fb798352a3dadcf3ef5550e3f"
+      "download": "dist/com.shixiansi.plugin-todo-1.3.0.zip",
+      "sha256": "76bd0642021f73e83a431379c64d6f594f4e3a0739a17d396c0c8b0d2d9b8179"
     },
     {
       "id": "com.shixiansi.plugin-voice",
@@ -380,6 +506,16 @@
       "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
       "download": "dist/com.shixiansi.plugin-websearch-1.0.5.zip",
       "sha256": "52d7cb2cca327649a1f40dd534d78aa40d93391e71be7edeb93b35be31f21949"
+    },
+    {
+      "id": "com.shixiansi.plugin-weekly-review",
+      "name": "周报",
+      "version": "1.0.1",
+      "author": "shixiansi",
+      "description": "每周日 20:00（时刻与星期几可改）把这一周从别的插件问来的三件事汇成一份 ≤300 字的周报：待办完成情况（待办插件的 stats）、专注时长（番茄钟插件的 stats）、日记片段（日记插件的 get_recent，默认不写进正文）。浮层面上一块紧凑卡片显示本周三个数与一句结论，点「生成」随时重做；控制中心的插件页看完整的一份。别的插件可以用 plugin.call 问 report（现在生成并回）或 latest（回上一次的）。三个来源缺了哪一个，报告里会写明，卡片与插件页上也会点名。",
+      "permissions": ["plugin.call", "storage", "plugin.config", "pet.bubble", "llm.chat", "events", "pet.surface"],
+      "download": "dist/com.shixiansi.plugin-weekly-review-1.0.1.zip",
+      "sha256": "421906f651f5121b2c5fcc7343739f59c96267325bb538ce576872aa4dab7a88"
     }
   ]
 }
