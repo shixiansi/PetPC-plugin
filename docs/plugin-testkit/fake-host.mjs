@@ -60,6 +60,9 @@ export const METHODS = {
   // Borrows the surface grant: same authority, and no 14th permission to authorise.
   'pet.badge': { perm: 'pet.surface', where: 'pet' },
   'llm.chat': { perm: 'llm.chat', where: 'pet' },
+  // 今天用了多少：宿主替**你这个调用方**记的账，只读（不花钱、不改状态）。权限借 llm.chat
+  // ——"能不能用模型"和"看看自己用了多少"是同一件事的两面；控制中心没有模型调用，所以是 'pet'。
+  'llm.usage': { perm: 'llm.chat', where: 'pet' },
   'llm.profile': { perm: 'llm.borrow', where: 'pet' },
   'llm.providers': { perm: 'llm.borrow', where: 'pet' },
   // 渠道表：两个宿主都服务（控制中心的渠道编辑器就靠它），因为它是插件自己的设置。
@@ -147,6 +150,9 @@ export function okResult(method) {
     };
     case 'llm.channels.set': return { channels: [], defaultChannel: '' };
     case 'llm.chat': return { requestId: 'sim', text: '（模拟回复）' };
+    // 一条**非零**的用量：全是 0 的状态条看不出布局问题（数字位数、千分位、"今日已用 X/Y" 的
+    // 折行都藏起来了）。budgetTokens 用 0（不限）——设了上限的假数据会让插件画出"要满了"。
+    case 'llm.usage': return { day: '2026-11-02', requests: 3, tokensIn: 1200, tokensOut: 300, budgetTokens: 0 };
     case 'events.subscribe': return [];
     case 'ws.state': return { state: 'closed', received: 0, sent: 0 };
     case 'ws.open': return { ok: true, state: 'connecting', url: '' };
@@ -415,6 +421,23 @@ export function previewAnswers(method, payload, { state = 'idle', manifest = {},
       return { values, secrets: {} };
     }
     case 'llm.chat': return { requestId: 'preview', text: '（预览回复）' };
+    case 'net.fetch': {
+      // 假宿主不联网，所以默认只回 {ok:true}——那对"会不会崩"够用，对"成功那一屏长什么样"
+      // 不够：一个上传插件只会画出错误行。这里按插件 id 点名给一份**像真的**应答，别的插件
+      // 的行为一点不动（`body` 的形状就是真接口的形状，所以顺带验证了解析）。
+      const make = SAMPLE_FETCH[manifest.id];
+      return make ? make(payload) : okResult(method);
+    }
     default: return okResult(method);
   }
 }
+
+/** 每个插件在预览里的 net.fetch 应答。没点名的一律走 okResult。 */
+const SAMPLE_FETCH = {
+  // 图床上传：真接口在 `responseFormat=object&returnFormat=full` 下回的就是这一条，
+  // 链接里那个文件名是 2026-11-02 在真实实例上跑出来的形状。
+  'com.shixiansi.plugin-imgbed': () => ({
+    status: 200,
+    body: JSON.stringify({ src: 'https://imgcloud.shipixiv.de5.net/file/1793637171292_simulated.png' }),
+  }),
+};

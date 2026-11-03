@@ -352,7 +352,7 @@ body[data-surface='boot'] { background: transparent; }
 | `description` | ✅ | ≤512 字符 | 安装对话框里给用户看 |
 | `permissions` | ✅ | 见下；不重复 | 空数组合法（但那就什么都做不了） |
 | `entry` | ✅ | 相对路径，`.html` 结尾，不含 `\` 与 `..`，不以 `/` 开头 | 入口文档 |
-| `surface` | | ≤8 块 | 浮层面矩形，见第 8 节 |
+| `surface` | | ≤8 块 | 浮层面矩形，见第 8 节。**声明了它就必须申请 `pet.surface`**：宿主打开浮层面时按这一项授权判断，缺了它 manifest 会被拒（2026-11-03 起）。写在清单里、却打不开的卡片比没有这块矩形更糟 |
 | `panel` | | bool | 占用一个固定槽位。今天只有 `panelSlot:"chat"` 有意义 |
 | `panelSlot` | | `""` / `"chat"` / `"todos"` / `"pomodoro"` | `"chat"` 要求 `panel:true`；`"todos"`/`"pomodoro"` 要求声明了 `surface`——它决定**右键菜单的那一格**打开谁 |
 | `background` | | bool | 要一个常驻无名帧；要求申请了 `events`、`net.ws`、`net.fetch`、`plugin.call` 之一 |
@@ -429,7 +429,7 @@ body[data-surface='boot'] { background: transparent; }
 | `net.fetch` | 访问网络（仅限插件声明的域名） | `net.fetch`，以及 `background` 的一个依据 |
 | `net.credentials` | 以你保存的网站登录凭据发请求（凭据本身不会显示给插件） | **不是独立方法**：`net.fetch` 携带 `credentials`/`referer`/`readCookies` 的第二道开关。声明了它就必须同时声明 `net.fetch` |
 | `storage` | 在自己的私有目录里保存数据 | `storage.get/set/remove/dir/stat/list/move`、`memory.read/append`、`plugin.log` |
-| `pet.surface` | 在桌宠身上或旁边显示你自己的界面（浮层面、头顶的一行字、宠物本体） | `surface.show/hide/blocks`、`pet.badge`，以及 manifest 的 `body`（画桌宠本体） |
+| `pet.surface` | 在桌宠身上或旁边显示你自己的界面（浮层面、头顶的一行字、宠物本体） | `surface.show/hide/blocks`、`pet.badge`、manifest 的 `surface` 矩形（声明了就必须申请它，否则装不上）、manifest 的 `body`（画桌宠本体） |
 | `llm.chat` | 调用你已配置的大模型（流式返回） | `llm.chat` |
 | `plugin.config` | 保存你自己的插件配置 | `config.get/set` |
 | `audio` | 保存并播放音频（例如语音提醒） | `audio.save/import/list/remove/play/stop` |
@@ -480,6 +480,18 @@ body[data-surface='boot'] { background: transparent; }
 - 你能做的是**点名使用它**：`net.fetch { credentials: "<key名>" }` 让宿主把它填进
   `Cookie` 头（需要 `net.credentials`）；`llm.chat` 会把名为 `llmApiKey` 的 secret 当作
   模型密钥（见 6.6）。
+
+> **只有这两条路（2026-11-03 实测确认，别抱别的希望）。** `secret` 的值只能变成 Cookie 头或
+> 模型密钥；宿主**没有**"把某个 secret 填进 URL 路径 / Authorization 头"的机制。所以凡是
+> 把凭据放在请求**路径**或 `Authorization` 头里的服务——Telegram 的 `/bot<token>/getUpdates`、
+> GitHub 的 `Authorization: Bearer …`、几乎所有 SaaS 的 API token——用 `secret` 都**发不出
+> 去**：插件拿不到明文，宿主也不会替你放。这类插件的凭据只能写成 `text`（明文存在插件自己的
+> 私有目录里，宿主不对它加密），**必须在 README 里写明这个取舍**：同机另一个程序读得到它，
+> 而 `secret` 对它加密。
+>
+> 两个插件的选择因此不同，而且都是对的：`llm*` 那套用 `secret`（走 `llm.chat` 的专用通道），
+> `github-notify` / `telegram` 的 token 用 `text`。**别为了"看起来更安全"写 `secret`**——那样
+> 得到的只是一个永远发不出请求的插件，而用户会以为问题出在网络上。
 
 ---
 
@@ -538,6 +550,21 @@ body[data-surface='boot'] { background: transparent; }
 **别用 `kind` 判断自己在哪个窗口**：常驻帧与面板的 `kind` 都是 `panel`——用 `slot`。
 本体帧是唯一的例外，它两个都说明了（`kind` 与 `slot` 都是 `body`）。
 
+**反过来的那一半，2026-11-03 补的：判断"我是不是浮层面"要用 `kind === 'surface'`，不要用 `slot`。**
+
+浮层面那一块 `slot` **可能根本没有**（宿主手里没有槽名时就不发），也可能**是别的名字**——
+一个被右键菜单那一格打开的浮层面，拿到的是那个槽名（例如 `pomodoro`）。所以：
+
+```js
+const isSurface = init.surface.kind === 'surface';   // ← 对
+const isSurface = init.surface.slot === 'surface';   // ← 错：可能没有 slot，也可能是 'pomodoro'
+```
+
+写错的表现很难看：矩形声明了、窗口区域也裁出来了，**里面是一块空白**（整张卡片停在
+`display:none` 里）。三个新插件在 2026-11-03 各错了一次，而它们的 jsdom 用例全绿——因为用例
+自己拼的假 `init` 里多带了一个 `slot: 'surface'`，那正是真宿主不会发的值。
+**排版与"卡片到底画出来了没有"只有预览器看得见**（`preview.mjs --shot`，见 §12）。
+
 ### 5.2.1 `init` 的 `host` — 这个窗口到底服务哪些方法
 
 ```jsonc
@@ -567,14 +594,20 @@ else { /* 这一面没有这件事，说明它在哪 */ }
 ### 5.3 铁律
 
 1. **监听器先装，再发 `ready`。** 否则会漏掉 `init`，界面永远停在"等待宿主初始化"。
-2. **`init` 之前不要发请求。** 你还不知道用户授予了什么；宿主虽然会答，但你的 UI 会先按
+2. **出站消息只打在 `window.parent` 上。** `window.postMessage(data, '*')` 的收件人是
+   **被调用的那个 window**——也就是说，打在 `window` 上的 `ready` / `request` 全发给了自己，
+   宿主一条也收不到，`init` 永远不来。**jsdom 里看不出这个错误**（假宿主和你的文档住在同一个
+   window，那样写正好是"对的"），只有预览器的截图能看出来：卡片是空白、页面停在
+   "等待宿主初始化…"。2026-11-03 一天里，四个插件在**同一行模板**上各错了一次——一个是当期
+   新写的，三个是**已经发布**的存量包。`plugin-check.mjs` 的 `host-channel-target` 现在静态拦它。
+3. **`init` 之前不要发请求。** 你还不知道用户授予了什么；宿主虽然会答，但你的 UI 会先按
    错误的假设画出来。
-3. **只认 `event.source === window.parent` 且 `data.v === 1`。** 别的窗口、别的版本一律忽略。
-4. **`request` 的 `id` 每次不同、非空字符串。** 宿主用一个 `id` 对应一个 `response`；
+4. **只认 `event.source === window.parent` 且 `data.v === 1`。** 别的窗口、别的版本一律忽略。
+5. **`request` 的 `id` 每次不同、非空字符串。** 宿主用一个 `id` 对应一个 `response`；
    迟到的 `response`（比如你把界面重画了）要能安全丢弃——按 `id` 找 `pending`，找不到就忽略。
-5. **`response.ok === false` 时 `error` 是给人看的中文句子**，直接显示，不要包装成
+6. **`response.ok === false` 时 `error` 是给人看的中文句子**，直接显示，不要包装成
    "操作失败"。
-6. **同一个文档只握手一次**：第二个 `ready` 会被忽略（不会回第二条 `init`）。
+7. **同一个文档只握手一次**：第二个 `ready` 会被忽略（不会回第二条 `init`）。
 
 ---
 
@@ -886,7 +919,60 @@ other
 
   模型可以连续要工具，宿主最多跑 4 轮；超过会以 `kind:"tool_rounds"` 结束。
 - 回复**不会**被宿主写进任何转写：历史是你的责任（存进 `storage`）。
-- 一条 `llm.chat` 可能因为工具跑好几轮，每一轮都算一次请求上限。
+- 一条 `llm.chat` **只算一次**请求上限，工具跑几轮都不再加（`send` 里没有计数，计数点在请求发出前）。
+  但那些轮次**真的会花钱**——所以还有第二个上限，按 token 算，见下。
+
+#### 用了多少 token：`llm.usage` 与 `llmDailyTokens`
+
+两个上限不是一回事：`llmDailyBudget` 数**次数**（一次 `llm.chat` 算一次），`llmDailyTokens` 数
+**token**（in + out）。次数上限挡的是"问了太多句"，token 上限挡的是"一句里塞了一万二千字历史"——
+后者才是账单的大头，而一次 200 字的提问和一次吃满历史上限的提问，在次数上都是 `1`。
+
+```jsonc
+// llm.usage   payload {}  →
+{
+  "day": "2026-11-02",   // 本地日：你的"今天"到你的午夜为止（不是 UTC，也不是滚动 24 小时）
+  "requests": 12,        // 今天几条 llm.chat（被拒的那次也算一次尝试）
+  "tokensIn": 18421,
+  "tokensOut": 3022,
+  "budgetTokens": 0      // 你在 config 里声明的 llmDailyTokens；0 = 不限
+}
+```
+
+它是**只读**的：不写文件、不计数、不花钱，可以放心让状态条按固定节奏拉（宿主按"数据面"记它，
+默认 INFO 日志里看不到——那是有意的）。权限是 `llm.chat`：能不能用模型和"看看自己用了多少"是
+同一件事的两面，不会多问你一次。`budgetTokens` 只是把你声明的数字回读一遍（`config.get` 也读得到），
+**次数上限不在这里返回**，同样用 `config.get` 读。
+
+`tokensIn` 是**发出去的那一整串消息**：你的系统提示词、历史、以及工具轮里追加的调用与结果都在里面，
+所以一次四轮的工具对话会记成四次 in——那正是它的贵。`tokensOut` 是**可见回复 + 思考链**：思考也
+计费，只数可见文本会把最贵的那种回答（输出预算全被思考吃掉、回复 0 字）记成 0。
+
+数字从哪来：
+
+- **服务端报了 `usage` 就用它**。这是常态：宿主会主动发 `stream_options.include_usage` 去要。
+- 服务端没报的时候（不认这个字段的网关，或它被拒之后去掉该字段重试的那一轮）**按字符估算**：
+  汉字与全角标点 1 token/字、其余每 3 字符 1 token、每条消息另加 4（角色与分隔符）、
+  **一张图按 1024 计**（不看 `data:` 串有多长——一张截图是几十万字符，按字符算会把你自己的上限一次撞穿）。
+- 估算**一律偏高**：中文约 1.6 倍，英文散文约 1.3 倍，代码/JSON 大致贴合。它只在"服务器什么都没说"
+  的时候兜底，用途是**排序**（哪个插件在烧钱）和**一把尺子**（上限），不是出账单。
+- 所以：**含图请求的 token 是量级，不是账单。**
+- 日志里能分出这两种：`llm.chat 一轮 … tokens in=… out=…` 是服务端说的，带 `（估算）` 的是宿主猜的。
+
+`llmDailyTokens` 由你在 `config` 里声明，`0`（默认建议值）表示**不限**：
+
+```jsonc
+{ "key": "llmDailyTokens", "label": "每日 token 上限", "type": "number", "default": "0" }
+```
+
+语义是**发之前判一次**：
+
+- 超了就拒绝，错误里带着你需要的数字：`已达今日 token 上限：今日已用 18421/20000（in 16000，out 2421）`；
+- **一次调用可能越界**：一段长历史或工具多轮可以让一轮就撞穿上限，宿主**不会中途打断**——
+  那会把模型已经说出来的话丢掉。下一次问才会被拒。
+- 被拒的那次**同样计一次尝试**（和次数上限同一条规则）。
+- `llm.usage` 读到的可能是"这次请求的次数已经加了、token 还没回来"——token 在整条流结束后才记账，
+  几十秒的差别。这是时间顺序，不是丢了数字。
 
 #### `llm.channels.*` — 自己的渠道表（多渠道 / 多密钥）
 
@@ -1123,7 +1209,8 @@ window.addEventListener('message', async (e) => {
 {
   "method": "GET",                     // 只支持 GET / POST（大小写不敏感，默认 GET）
   "url": "https://api.example.com/x",  // 只支持 http/https
-  "body": "…",                         // 可选
+  "body": "…",                         // 可选：文本请求体
+  "bodyBase64": "…",                   // 可选：字节请求体（上传文件只能走它，上限 16 MiB）
   "encoding": "text",                  // "text"（默认）| "base64"
   "headers": { "authorization": "Bearer …" },   // 只允许这四个：accept / authorization / content-type / user-agent
   "credentials": "biliCookie",         // 可选：声明过的 secret 配置项的 key，宿主填进 Cookie 头（需 net.credentials）
@@ -1139,8 +1226,33 @@ window.addEventListener('message', async (e) => {
 - 单次响应体上限 **8 MiB**；超了会被截断并带 `truncated: true`——**别忽略这个字段**。
 - `encoding:"base64"` 是**唯一**安全的二进制方式：文本形式对非 UTF-8 内容是有损的
   （无效字节会变成替换字符，看起来"成功了"、放出来是噪音）。
+- **`body` 与 `bodyBase64` 二选一**：两个都给是错误，而且请求**根本不会发出**。
+  `bodyBase64` 是**发出去的字节**——这是"上传一个文件"唯一可行的写法，因为 `body` 是字符串，
+  非 UTF-8 的字节在解码那一步就变成 U+FFFD 了，对方存下来的是一张坏图/一段噪音。
+  上限 **16 MiB**（按解出来的字节算，带不带 `=` 填充都认），`Content-Length` 由宿主自己填
+  （不会用 chunked，有些上传接口不接受）。
+- **上传一个文件（图床、任意 `/upload` 接口）的完整写法**——两种都行，先给省事的：让浏览器
+  帮你拼 multipart，别自己算 boundary：
+
+  ```js
+  const form = new FormData();
+  form.append('file', file);                       // 页内拿到的 File/Blob
+  const probe = new Request('https://host/upload', { method: 'POST', body: form });
+  const bytes = new Uint8Array(await probe.arrayBuffer());   // 整段 multipart 字节
+  await request('net.fetch', {
+    method: 'POST',
+    url: 'https://host/upload?…参数…',
+    bodyBase64: base64FromBytes(bytes),
+    headers: { 'content-type': probe.headers.get('content-type') },  // 必须带上 boundary
+  });
+  ```
+
+  少了 `content-type` 那一行，对方只会回"没有文件"——boundary 就在这个头里。
 - 请求头是白名单制：`cookie`/`referer` 不在其中，因为它们由宿主填（见 `credentials`/`referer`）。
 - 单个头值 ≤1024 字节；不允许换行。
+- **两个宿主都服务 `net.fetch`，也都应用 `headers` 与 `bodyBase64`**（`internal/plugins` 里同一
+  份规则）。2026-11-02 之前控制中心会收下 `headers` 却忽略它们——症状正是"上传在桌宠里好、
+  在控制中心的插件页里坏"，而两边都没有一句说得出原因的日志。
 
 ### 6.11 `net.ws` — 一条宿主代持的长连接
 
@@ -1472,7 +1584,7 @@ Esc 关闭；焦点留在触发按钮上。
 | `storage.*` `config.*` `audio.*` `share.*` `net.fetch` | ✅ | ✅ |
 | `llm.channels.get` / `llm.channels.set` | ✅ | ✅（渠道编辑器就住在这一页） |
 | `bubble.say` / `surface.*` / `pet.badge` | ✅ | ❌ |
-| `llm.chat` / `llm.profile` / `llm.providers` | ✅ | ❌ |
+| `llm.chat` / `llm.usage` / `llm.profile` / `llm.providers` | ✅ | ❌ |
 | `memory.read` / `memory.append` | ✅ | ❌ |
 | `events.subscribe` | ✅ | ❌ |
 | `ws.*` / `process.launch` / `process.state` / `process.kill` | ✅ | ❌ |
@@ -1693,6 +1805,8 @@ manifest 是**宿主解析**的，而市场里的包是**所有人马上下载**
 - [ ] 帧地址上的 `?theme=` 在样式之前应用；桌宠（无主题）下默认深色也好看。
 - [ ] 没有 `box-shadow` / `filter` / `transform`。
 - [ ] `surface` 模式：`:root` 透明、`color-scheme: only light`、内容不超出矩形。
+- [ ] 声明了 `surface` 就申请了 `pet.surface`（声明了 `body` 也一样）：这条清单之外还有一道宿主校验，
+      过了它才算"这张卡片真的能打开"。
 - [ ] `background` 模式：不依赖布局与焦点。
 - [ ] 控制中心（`slot === 'workshop'`）下：桌宠专属的东西隐藏并说明，只读的部分照常显示。
 
@@ -1774,6 +1888,7 @@ manifest 是**宿主解析**的，而市场里的包是**所有人马上下载**
 | `surface.blocks` | `pet.surface` | 显示/隐藏块、请求长高 |
 | `pet.badge` | `pet.surface` | 宠物头顶的一行字（借 surface 的授权，见 6.5） |
 | `llm.chat` | `llm.chat` | 用你自己的配置调模型（流式） |
+| `llm.usage` | `llm.chat` | 今天用了几次、多少 token（in/out）、你声明的 token 上限（见 6.6） |
 | `llm.profile` | `llm.borrow` | 现在能用谁的模型 |
 | `llm.providers` | `llm.borrow` | 有哪些模型渠道可用、默认是哪个（不含端点与密钥） |
 | `llm.channels.get` | `llm.chat` | 读你自己的渠道表（密钥只有 `set`/`mask`） |

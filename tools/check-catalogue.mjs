@@ -18,6 +18,10 @@
 //   3. version / permissions / netHosts 与 manifest 逐项一致（条目不能是手抄的）
 //   4. download 指向的 zip 存在，且 sha256 与条目一致
 //
+// （**不**在这里查 ui.css 的副本一致性：`tests/ui-tokens.test.js` 已经查了——一份源头、
+//  多份副本逐字节相同、且必须写进 assets。两处都查就是第二份真理，哪天它们对同一份文件
+//  给出不同的判决，谁也不知道该信哪个。）
+//
 // # 用法
 //
 //   node tools/check-catalogue.mjs

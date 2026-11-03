@@ -13,7 +13,7 @@
 
 | 文件 | 是什么 |
 | --- | --- |
-| [`docs/plugin-dev.md`](docs/plugin-dev.md) | **插件开发手册**：manifest 的每个字段与校验规则、桥接协议的每条消息、14 项权限与 43 个能力方法的 payload/返回/上限、浮层面几何与主题、打包与发布、常见故障对照。示例插件是逐字能跑的 |
+| [`docs/plugin-dev.md`](docs/plugin-dev.md) | **插件开发手册**：manifest 的每个字段与校验规则、桥接协议的每条消息、14 项权限与 44 个能力方法的 payload/返回/上限、浮层面几何与主题、打包与发布、常见故障对照。示例插件是逐字能跑的 |
 | [`docs/plugin-testkit/`](docs/plugin-testkit/README.md) | **自检工具**：一个文件（`plugin-check.mjs`），零必需依赖，跑四组检查——manifest / 包里的文件 / 静态红线 / **把文档真的跑一遍**（假宿主，含"宿主拒绝一切"那一遍）。它不需要宿主 |
 
 ```bash

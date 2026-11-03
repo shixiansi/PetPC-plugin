@@ -161,6 +161,13 @@ function checkManifest(report, manifest) {
   if (hasBody && !declared.has('pet.surface')) {
     add('body-without-permission', 'FAIL', 'body（画桌宠本体）必须同时申请 pet.surface', '宿主会拒绝这个清单：装它的人要在授权列表里看到"会显示自己的界面"这一句');
   }
+  // 声明了浮层面，却没有那道授权：宿主打开浮层面时会按 pet.surface 拒绝，于是这张卡片
+  // 永远打不开——而清单本身是"合法"的（surface 算一种界面落点）。2026-11-03 一个真实
+  // 的新插件就这么写了 300×150 的卡片，权限表里却没有 pet.surface，唯一的发现方式是装上
+  // 去点一下。宿主的清单校验现在也会拒它，作者侧的这道更早一步。
+  if (surface.length > 0 && !declared.has('pet.surface')) {
+    add('surface-without-permission', 'FAIL', '声明了 surface（浮层面矩形）却没有申请 pet.surface', '宿主打开浮层面时按这一项授权判断：缺了它这张卡片打不开，清单也会被拒');
+  }
 
   // panelSlot
   const slot = str(manifest.panelSlot);
@@ -526,6 +533,28 @@ function checkSource(report, dir, info) {
     }
   }
   if (known > 0) add('commands-known', 'PASS', `${known} 个方法都在契约表里，且权限都已声明`);
+
+  // 3.0 出站消息必须打在 window.parent 上
+  //
+  // `window.postMessage(data, '*')` 的收件人是**被调用的那个 window**。插件文档活在宿主挂的
+  // iframe 里，所以打在 `window` 上的 ready / request 全发给了自己：宿主一条收不到、`init` 永远
+  // 不来，界面上停在「等待宿主初始化…」。而**jsdom 抓不到**——假宿主与插件文档住在同一个
+  // window，那个写法在测试里正好是对的。2026-11-03 一天里在四个插件（一个是当期新写的、
+  // 三个是**已经发布**的存量）的同一行模板里各错一次，只有真浏览器的截图能看出来。
+  for (const file of jsFiles) {
+    const text = strippedJs.get(file) || '';
+    const bad = /(^|[^.\w$])window\.postMessage\s*\(/.exec(text);
+    if (bad) {
+      const line = text.slice(0, bad.index).split('\n').length;
+      add(
+        'host-channel-target',
+        'FAIL',
+        `${basename(file)} 第 ${line} 行左右把消息发给了 window 自己（window.postMessage）`,
+        '改成 window.parent.postMessage(…)：宿主收不到自发的消息，握手会永远停在那儿；jsdom 里看不出来，用 preview.mjs 看',
+      );
+      break;
+    }
+  }
   // 3.1.1 存储键的字面量必须是宿主认得的形状
   //
   // 这一条是踩出来的，而且踩了三次：三个不同的插件（pet-sense / media-sync / clipask）都写了
