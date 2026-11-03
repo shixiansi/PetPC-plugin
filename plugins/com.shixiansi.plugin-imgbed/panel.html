@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>图床上传</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      workshop     控制中心插件页：拖 / 粘贴 / 选文件 → 上传 → 拿走链接。
+      background   桌宠挂的常驻帧：什么都不画，只答 plugin.call 的 upload。
+
+    常驻帧里 #workshop 一直 hidden（app.js 按 slot 决定），所以那一面永远不占布局。
+  -->
+  <div id="root" class="view-workshop">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-host">图床：读取中…</span>
+          <span class="chip" id="chip-state">状态</span>
+        </div>
+        <p class="lede">
+          把图传到一个 CloudFlare-ImgBed 图床，拿回一条能直接贴出去的链接。
+          拖进来、<kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴截图，或者点下面选文件；一次可以选多张。
+        </p>
+      </header>
+
+      <section class="card">
+        <div id="drop" class="drop">
+          <p class="drop-title">把图片拖到这里</p>
+          <p class="drop-sub">也可以直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴截图——截图工具的下一步</p>
+          <button id="pick-btn" class="btn primary" type="button">选择图片…</button>
+          <!-- 真正的 input 藏起来（`.hidden` 在 style.css 里，ui.css 没有这个原语）：
+               系统文件选择框只能由用户手势打开，所以它挂在这个按钮后面。 -->
+          <input id="pick" class="hidden" type="file" accept="image/*" multiple />
+        </div>
+        <ul id="queue" class="queue hidden"></ul>
+        <p id="queue-empty" class="muted">还没有上传过。拖一张进来试试。</p>
+        <p class="hint">
+          上限 15 MB 一张。图片不能是"在别的网站上的一个地址"——插件读不到别的网站的图，你得把文件本身给它。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>最近上传</h2>
+          <button id="history-clear" class="btn soft" type="button">清空记录</button>
+        </div>
+        <ul id="history-body" class="queue"></ul>
+        <p id="history-empty" class="muted">还没有记录。</p>
+        <p class="hint">
+          记录住在这个插件自己的私有目录里（条数在上限设置里）。帧里拿不到剪贴板权限时「复制」会失败——
+          链接就在那儿，选中复制即可。
+        </p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/multipart.js"></script>
+  <script src="lib/upload.js"></script>
+  <script src="lib/history.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+/*
+ * 图床上传：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写布局：拖放区、上传队列、历史列表。
+ *
+ * 两条纪律：
+ *   1. 这个文件里不该出现任何 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字；
+ *   2. 这个插件**没有** `surface`（界面只在控制中心的插件页里铺满一块正常区域），所以
+ *      `box-shadow` / `transform` 这两条"浮层面不许用"的限制在这里不适用。
+ */
+
+/* --- 一块原语，ui.css 里没有 ----------------------------------------------- */
+
+/*
+ * `ui.css` 没有 `.hidden`（共享层只给 token 与几个原语），而这一页要频繁切可见性：
+ * 队列、空状态、真正的 <input type=file>。`!important` 是必要的——几处目标的 display 由
+ * 容器（flex / btn）决定，不带它就压不住。
+ */
+.hidden {
+  display: none !important;
+}
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.lede kbd,
+.drop kbd {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 1px var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+}
+
+.chip.bad {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* --- 拖放区 ---------------------------------------------------------------- */
+
+.drop {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  text-align: center;
+  background: var(--bg-sunken);
+  transition: border-color var(--dur-2) var(--ease), background var(--dur-2) var(--ease);
+}
+
+.drop.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.drop.disabled {
+  opacity: 0.6;
+}
+
+.drop-title {
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
+.drop-sub {
+  margin: 0 0 var(--space-3);
+  color: var(--text-dim);
+}
+
+/* --- 上传队列 / 历史（同一个行的形状） -------------------------------------- */
+
+.queue {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.queue-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+}
+
+.queue-row.bad {
+  border-color: var(--danger);
+}
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--bg-sunken);
+}
+
+.thumb-glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 18px;
+}
+
+.queue-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.queue-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.queue-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-bytes,
+.queue-note {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.queue-note,
+.queue-error {
+  margin: 0;
+}
+
+.queue-error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.queue-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.queue-actions {
+  flex: 0 0 auto;
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--text-dim);
+  word-break: break-all;
+}

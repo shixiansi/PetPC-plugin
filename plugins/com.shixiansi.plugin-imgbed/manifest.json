@@ -1,0 +1,89 @@
+{
+  "id": "com.shixiansi.plugin-imgbed",
+  "name": "图床上传",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "把一张图扔进插件页，拿回一条能直接贴出去的链接。默认连 Sanyue ImgHub / CloudFlare-ImgBed（https://imgcloud.shipixiv.de5.net），拖进来、粘贴或选文件都行，也可以在桌宠那边没有窗口的情况下被别的插件用 plugin.call 问 upload（data URL，≤40KB）。上传走 net.fetch 的字节请求体，不需要 process 权限、不需要本机脚本。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "plugin.call"
+  ],
+  "background": true,
+  "serves": [
+    "upload"
+  ],
+  "netHosts": [
+    "imgcloud.shipixiv.de5.net"
+  ],
+  "config": [
+    {
+      "key": "baseUrl",
+      "label": "图床地址（CloudFlare-ImgBed 站点的根，不要带 /upload；这个地址会按你填的值加进网络白名单）",
+      "type": "text",
+      "default": "https://imgcloud.shipixiv.de5.net",
+      "hostWhitelist": true
+    },
+    {
+      "key": "authCode",
+      "label": "上传认证码（图床「系统设置 → 安全设置 → 上传认证」里那个；不是管理员密码）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "apiToken",
+      "label": "API Token（可选，替代上传认证码；图床「API Token 管理」创建，勾 upload 权限即可）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "uploadChannel",
+      "label": "上传渠道（跟着站点默认走最省事；站点只开了一个渠道时不用改）",
+      "type": "select",
+      "default": "auto",
+      "options": [
+        { "value": "auto", "label": "跟随站点默认（推荐）" },
+        { "value": "telegram", "label": "Telegram" },
+        { "value": "cfr2", "label": "Cloudflare R2" },
+        { "value": "s3", "label": "S3 兼容" },
+        { "value": "discord", "label": "Discord" },
+        { "value": "huggingface", "label": "HuggingFace" },
+        { "value": "webdav", "label": "WebDAV" }
+      ]
+    },
+    {
+      "key": "folder",
+      "label": "上传目录（相对路径，例如 img/pet；留空=站点根目录）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "nameType",
+      "label": "文件命名",
+      "type": "select",
+      "default": "default",
+      "options": [
+        { "value": "default", "label": "前缀_原名（站点默认）" },
+        { "value": "origin", "label": "只用原名（同名会被改名）" },
+        { "value": "index", "label": "只用前缀" },
+        { "value": "short", "label": "短链" }
+      ]
+    },
+    {
+      "key": "maxHistory",
+      "label": "插件页留几条最近上传（0=不记录）",
+      "type": "number",
+      "default": "50"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/multipart.js",
+    "lib/upload.js",
+    "lib/history.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}
