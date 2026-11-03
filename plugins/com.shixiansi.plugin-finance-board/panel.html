@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>行情看板</title>
+  <!--
+    控制中心的配色要在样式表绘制之前落一次（宿主把 ?theme=light|dark 放在帧地址上），否则首帧
+    会闪一下深色。已经开着的时候用户再切，由 app.js 收 theme 消息接上。桌宠那边没有这个参数，
+    默认就是深色。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!--
+    这里**不引 ui.css**：本插件声明了浮层面，而 ui.css 的 .card / .btn 带着 box-shadow 与 hover
+    的位移，在按矩形裁剪的窗口里会被切掉（手册 §8.6 末尾的例外）。配色自带一份，写在 style.css
+    顶部的两个调色板块里。
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-view="boot">
+  <p id="boot-note" class="boot">等待宿主初始化…</p>
+
+  <!--
+    浮层面那一块（manifest 里 300×150）。高度是声明死的，装不下的部分会被原生区域裁掉并且不报错，
+    所以这里**最多三行**、行高写死、没有任何 flex: 1（手册 §8.2b）。预算写在 style.css 里。
+    同一时刻只有一组东西可见：有行就画行，一行都没有就画那句空状态——两者互斥。
+  -->
+  <section id="surface" class="card hidden" aria-label="行情卡片">
+    <header class="card-head">
+      <span class="card-title">行情</span>
+      <span id="sf-src" class="card-src"></span>
+      <button id="sf-close" class="card-close" type="button" aria-label="收起卡片">×</button>
+    </header>
+    <ul id="sf-rows" class="sf-rows"></ul>
+    <p id="sf-foot" class="sf-foot"></p>
+  </section>
+
+  <!--
+    workshop（控制中心插件页）。这一面没有宠物：surface.* / pet.badge / bubble.say /
+    events.subscribe 都不被服务，所以"在桌宠旁边显示"这类控件一律不画，只用 #ws-note 说明它在
+    桌宠上；列表、现价、涨跌、sparkline 照常显示——那正是用户打开这一页的原因。
+  -->
+  <main id="workshop" class="page hidden">
+    <header class="page-head">
+      <h1 class="page-title">行情看板</h1>
+      <span id="ws-state" class="page-state"></span>
+    </header>
+
+    <section class="panel">
+      <ul id="ws-list" class="ws-list hidden"></ul>
+      <div id="ws-empty" class="empty hidden">
+        <p class="empty-glyph" aria-hidden="true">📈</p>
+        <p class="empty-title">还没有标的</p>
+        <p class="empty-sub">在下面写几个「源:代码」，桌宠旁边那张卡片就会开始画。</p>
+      </div>
+      <p id="ws-bad" class="bad hidden"></p>
+    </section>
+
+    <section class="panel">
+      <p class="field-title">行情源</p>
+      <div class="seg" role="group" aria-label="行情源">
+        <button class="seg-btn" type="button" data-source="yahoo">Yahoo 财经</button>
+        <button class="seg-btn" type="button" data-source="binance">币安</button>
+        <button class="seg-btn" type="button" data-source="coingecko">CoinGecko</button>
+      </div>
+      <p class="field-sub">
+        不带前缀的标的跟随这一项，换它就会换**域名与路径**（Yahoo 走 query1.finance.yahoo.com 的
+        chart，币安走 api.binance.com 的 ticker/price + klines，CoinGecko 走 api.coingecko.com）。
+        带前缀的（yahoo:AAPL）按自己写的那一个源走。
+      </p>
+
+      <p class="field-title">周期（取多长的窗口画 sparkline）</p>
+      <div class="seg" role="group" aria-label="周期">
+        <button class="seg-btn" type="button" data-period="1mo">1 个月</button>
+        <button class="seg-btn" type="button" data-period="3mo">3 个月</button>
+        <button class="seg-btn" type="button" data-period="6mo">6 个月</button>
+      </div>
+
+      <div class="row">
+        <button id="ws-refresh" class="btn primary" type="button">刷新一次</button>
+        <span id="ws-status" class="muted"></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <p class="field-title">标的列表</p>
+      <textarea id="ws-targets" class="input area" rows="4" spellcheck="false"
+        placeholder="yahoo:AAPL&#10;binance:BTCUSDT"></textarea>
+      <div class="row">
+        <button id="ws-save" class="btn" type="button">保存并重取</button>
+        <span class="muted">一行一个，最多 8 个</span>
+      </div>
+      <p class="field-sub">
+        价格按两位小数（很小的币价会多留几位），涨跌永远带 +/- 与两位小数；休市或没有数据写「—」，
+        而不是 0。周末的股票不刷新——交易所没开门，去问一次只是浪费配额。
+      </p>
+    </section>
+
+    <p id="ws-note" class="note">
+      那张 300×150 的卡片显示在桌宠旁边（这个窗口没有宠物）。「刷新间隔」「默认行情源」「几个点」
+      也能在宿主的设置表单里改——写的是同一份配置。
+    </p>
+  </main>
+
+  <!--
+    经典 script，共享一个全局作用域（和浏览器里一样），所以不需要 import/export。
+    加模块时：这里加一行，**并把文件写进 manifest.json 的 assets**——打包器只发 manifest +
+    入口 + 三个固定资源 + assets，漏了的文件在装好的插件里不存在。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/sources.js"></script>
+  <script src="lib/spark.js"></script>
+  <script src="lib/market.js"></script>
+  <script src="lib/card.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

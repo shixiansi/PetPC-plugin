@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>周报</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!--
+    这里**没有** ui.css：这个插件声明了浮层面，而 kit 的 .card / .btn 带 box-shadow 与 hover
+    位移——它们在矩形之外绘制，会被原生区域直接切掉（手册 §8.4 / §8.6 末尾的例外）。
+    所以调色板自带，写在 style.css 顶部的两个板块里。
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-view="background">
+  <!--
+    一个文档，三副面孔（由 init.surface 决定，不猜）：
+
+      background   常驻无名帧：每分钟看一次钟，到点生成一次，答 report / latest。
+      surface#0    浮层面那一块（300×140 的紧凑卡片）：三个数 + 一句结论 + 「生成」。
+      workshop     控制中心插件页：完整的一份 + 三个来源各自有没有答上来；只能读。
+
+    三面共用一份 HTML 是因为宿主给每个落点挂的都是同一个 entry；用 data-view 只显示一面对应
+    的容器，其余留 hidden——不靠布局猜测自己在哪里。
+  -->
+  <section id="card" class="card hidden" aria-label="周报">
+    <header class="card-head">
+      <span id="card-week" class="card-week">本周</span>
+      <button id="card-now" class="btn-mini" type="button">生成</button>
+    </header>
+    <div class="nums">
+      <div class="num"><b id="num-todo">–</b><span>待办完成</span></div>
+      <div class="num"><b id="num-focus">–</b><span>专注分钟</span></div>
+      <div class="num"><b id="num-diary">–</b><span>日记篇</span></div>
+    </div>
+    <!-- 缺哪一块必须在这张卡片上说：用户盯着的是卡片，不是插件页。 -->
+    <p id="card-missing" class="miss hidden"></p>
+    <p id="card-line" class="line">还没有周报，点「生成」。</p>
+  </section>
+
+  <main id="workshop" class="workshop hidden">
+    <header class="head">
+      <h1>周报</h1>
+      <p class="lede">
+        每周日 20:00 把这一周从待办、番茄钟、日记问来的三件事汇成一份 ≤300 字的周报。
+        三个来源缺了哪一个，报告里会写明，下面那三行也会点名。
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="latest-title">还没有周报</h2>
+        <span id="latest-meta" class="meta"></span>
+      </div>
+      <p id="latest-text" class="body-text">在桌宠那边点「生成」之后，这一篇会出现在这里。</p>
+      <p id="latest-missing" class="miss hidden"></p>
+      <button id="make-now" class="btn" type="button" disabled>现在生成一份</button>
+      <p class="hint">
+        生成要问别的插件，而「问别的插件」（plugin.call）只有桌宠那边服务——所以这一页只读：
+        在桌宠旁边那张卡片上点「生成」，或者让别的插件用 plugin.call 问这个插件的 report。
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2>这份报告从哪来</h2>
+      <ul id="sources" class="sources"></ul>
+    </section>
+
+    <p id="status" class="status"></p>
+  </main>
+
+  <!-- 经典 script；加载顺序 = 依赖顺序（它们共享一个全局作用域）。 -->
+  <script src="lib/core.js"></script>
+  <script src="lib/week.js"></script>
+  <script src="lib/collect.js"></script>
+  <script src="lib/report.js"></script>
+  <script src="lib/views.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

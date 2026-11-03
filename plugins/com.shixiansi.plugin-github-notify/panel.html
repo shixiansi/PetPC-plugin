@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GitHub 通知</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收到 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="root" data-slot="boot">
+    <main id="page" class="page" hidden>
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-unread">未读 0</span>
+          <span class="chip" id="chip-last">还没检查过</span>
+        </div>
+        <h1>GitHub 通知</h1>
+        <p class="lede">
+          盯住几个仓库的 PR、Issue 与 CI：有新动静就让桌宠说一句摘要、头顶挂上未读数。
+          同一个事件只提醒一次（按事件 id 记住），内容没变（304）就一句都不说。
+        </p>
+      </header>
+
+      <!-- 一行状态：等待宿主初始化 → 已就绪 / 正在检查 / 上次检查的结果。 -->
+      <p id="status" class="status">等待宿主初始化…</p>
+
+      <!--
+        「先去设置里填」那一屏。没有 token 或没有仓库列表时**一个 net.fetch 都不发**：
+        先告诉人要填什么，比发一个注定失败的请求好。
+      -->
+      <section id="setup" class="card" hidden>
+        <h2 id="setup-title">先去设置里填</h2>
+        <p id="setup-text" class="hint"></p>
+        <p class="hint">
+          令牌只要读权限：classic token 勾 <code>repo</code>（公开仓库用 <code>public_repo</code> 就够），
+          fine-grained token 给目标仓库的 <code>Actions</code>、<code>Issues</code>、<code>Pull requests</code>
+          这三项的 Read。仓库列表写成 <code>owner/repo</code>，多个用逗号分开。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-tools">
+          <h2>未读</h2>
+          <div class="tools">
+            <button id="btn-check" class="btn secondary" type="button">立刻检查</button>
+            <button id="btn-read" class="btn ghost" type="button">全部标记为已读</button>
+          </div>
+        </div>
+        <ul id="unread" class="feed"></ul>
+        <p id="unread-empty" class="muted">还没有未读：有新动静时它们会出现在这里。</p>
+      </section>
+
+      <section class="card">
+        <h2>最近事件</h2>
+        <ul id="feed" class="feed"></ul>
+        <p id="feed-empty" class="muted">还没抓到过事件。</p>
+      </section>
+
+      <!--
+        控制中心这一面没有宠物：pet.badge 与 bubble.say 都不被服务（手册 §9）。
+        这一行就是在说这件事，而不是让「怎么没有徽标」变成一个谜。
+      -->
+      <p id="badge-note" class="hint" hidden></p>
+      <div id="error" class="errors"></div>
+    </main>
+  </div>
+
+  <script src="lib/core.js"></script>
+  <script src="lib/github.js"></script>
+  <script src="lib/state.js"></script>
+  <script src="lib/notify.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

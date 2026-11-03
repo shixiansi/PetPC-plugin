@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>速记盒子</title>
+<!--
+  主题要在样式表之前落一次：两个宿主都会把 `?theme=light|dark` 放在帧地址上（桌宠永远是深色、
+  地址上没有这个参数，所以默认必须是深色）。已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<!--
+  ONE document, THREE faces（哪一副由 `init.surface` 决定，不猜）：
+
+    kind 'surface'        浮层面里那一块紧凑卡片：输入框 + 「记下」 + 最近三条（#card）
+    slot 'workshop'       控制中心的插件页：完整页（写、搜、翻）（#page）
+    slot 'background'     桌宠挂的常驻无名帧：两个块都 hidden，什么都不画，只答 plugin.call
+
+  为什么是同一个文档：三处要用的规则只有一份（怎么算重复、怎么淘汰、怎么回包）。分开写三份，
+  第一个"改了一处忘了另一处"的 bug 就会出现在数据上，而数据上的 bug 是用户第二天才发现的。
+-->
+<body id="root" class="view-boot" data-surface="boot">
+
+<!-- 浮层面那一块。高度是声明的（manifest.surface[0]），内容多了由 app.js 用 surface.blocks
+     请求长高；所以这里**不许**出现「会自己长大的块」互相抢空间（手册 §8.2b）。 -->
+<section id="card" class="card" hidden aria-label="速记盒子">
+  <div class="compose">
+    <input id="quick" class="field" type="text" maxlength="500" autocomplete="off"
+           placeholder="想到什么，记一句…" aria-label="要记下的一句话" disabled>
+    <button id="save" class="btn primary" type="button" disabled>记下</button>
+  </div>
+  <ul id="recent" class="recent" aria-live="polite"></ul>
+  <p id="quick-status" class="status" role="status" aria-live="polite">等待宿主初始化…</p>
+</section>
+
+<!-- 完整页（控制中心的插件页）。 -->
+<main id="page" class="page" hidden>
+  <header class="head">
+    <h1 class="title">速记盒子</h1>
+    <span id="page-status" class="status" role="status" aria-live="polite"></span>
+  </header>
+
+  <div class="compose">
+    <input id="note" class="field" type="text" maxlength="500" autocomplete="off"
+           placeholder="想到什么，记一句…" aria-label="要记下的一句话" disabled>
+    <input id="tag" class="field tag-field" type="text" maxlength="32" autocomplete="off"
+           placeholder="标签（可选）" aria-label="标签，可选" disabled>
+    <button id="add" class="btn primary" type="button" disabled>记下</button>
+  </div>
+  <p id="page-hint" class="hint" hidden></p>
+
+  <div class="search">
+    <input id="query" class="field" type="search" autocomplete="off"
+           placeholder="搜一句话里的几个字…" aria-label="搜索速记">
+    <span id="count" class="count"></span>
+  </div>
+
+  <ul id="all" class="all" aria-live="polite"></ul>
+</main>
+
+<!-- 经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+     加文件时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。 -->
+<script src="lib/notes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+/* style.css —— 周报：一块浮层面卡片 + 控制中心插件页
+ *
+ * 两条纪律（手册 §8.4 / §8.6 末尾的例外）：
+ *
+ *   1. 这个插件声明了 surface，所以**不引 ui.css**：kit 的 .card / .btn 带 box-shadow 与
+ *      hover 的 translateY，那些装饰画在矩形之外，会被原生区域切掉（用户看到"缺了一块"）。
+ *      需要边框就用 border，需要圆角就用 border-radius。
+ *   2. 颜色只许出现在下面两个调色板块里（:root 与 html[data-theme='light']），规则里只用 var()。
+ *
+ * 另外两条是"看不出来但一定踩"的：:root 要透明（矩形里没画东西的地方要透出桌面），
+ * color-scheme 必须是 only light 且写在 :root 上——Chromium 在 dark 下会给**画布**铺 #121212，
+ * 根元素的 background:transparent 压不住它，表现是帧里一条黑带。
+ */
+
+:root {
+  --bg: #171b23;
+  --bg-raised: #202634;
+  --bg-soft: #1b202b;
+  --line: #2c3446;
+  --text: #e9edf5;
+  --text-dim: #98a3b8;
+  --accent: #6fa8ff;
+  --accent-weak: #22314a;
+  --warn: #f0a35e;
+  --radius: 12px;
+  --font-body: 13px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-small: 12px/1.4 "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-num: 600 18px/22px "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-title: 600 16px/24px "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: transparent;
+  color-scheme: only light;
+}
+
+html[data-theme='light'] {
+  --bg: #f4f6fa;
+  --bg-raised: #ffffff;
+  --bg-soft: #eef1f7;
+  --line: #dfe4ee;
+  --text: #1d2433;
+  --text-dim: #5d6779;
+  --accent: #2f6fd0;
+  --accent-weak: #e8f0fd;
+  --warn: #a4621e;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font: var(--font-body);
+  color: var(--text);
+  background: transparent;
+}
+
+/* 控制中心那一面活在一个正常滚动的容器里，可以有底色；浮层面那面必须透明。 */
+body[data-view='workshop'] {
+  background: var(--bg);
+  overflow: auto;
+}
+
+.hidden { display: none !important; }
+
+/* --- 浮层面 #0：300×140 的卡片 ------------------------------------------------ */
+/* 高度是清单声明死的（没有 surface.blocks 的授权可以请求长高），所以这里三行都是单行 + 省略号：
+   一个"会自己长大"的块会把下面的行顶出矩形，而越界只是被裁掉，不会报错。 */
+
+#card {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 20px;
+}
+
+.card-week {
+  font: var(--font-small);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-mini {
+  font: var(--font-small);
+  color: var(--accent);
+  background: var(--accent-weak);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  height: 20px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.btn-mini:disabled {
+  color: var(--text-dim);
+  background: transparent;
+  cursor: default;
+}
+
+.nums {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  height: 36px;
+}
+
+.num {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.num b {
+  font: var(--font-num);
+  color: var(--text);
+}
+
+.num span {
+  font: var(--font-small);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.miss {
+  margin: 0;
+  font: var(--font-small);
+  color: var(--warn);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line {
+  margin: 0;
+  font: var(--font-small);
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- 控制中心插件页 ---------------------------------------------------------- */
+
+.workshop {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.head h1 {
+  margin: 0 0 4px;
+  font: var(--font-title);
+}
+
+.lede {
+  margin: 0;
+  font: var(--font-body);
+  color: var(--text-dim);
+}
+
+.panel {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel h2 {
+  margin: 0;
+  font: var(--font-title);
+}
+
+.meta {
+  font: var(--font-small);
+  color: var(--text-dim);
+}
+
+.body-text {
+  margin: 0;
+  font: var(--font-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.btn {
+  align-self: flex-start;
+  font: var(--font-body);
+  color: var(--accent);
+  background: var(--accent-weak);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  height: 32px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  color: var(--text-dim);
+  background: transparent;
+  cursor: default;
+}
+
+.hint {
+  margin: 0;
+  font: var(--font-small);
+  color: var(--text-dim);
+}
+
+.sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sources li {
+  display: flex;
+  gap: 8px;
+  font: var(--font-small);
+  color: var(--text-dim);
+}
+
+.sources b {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 64px;
+}
+
+.sources .ok { color: var(--accent); }
+.sources .gone { color: var(--warn); }
+
+.status {
+  margin: 0;
+  font: var(--font-small);
+  color: var(--text-dim);
+  min-height: 16px;
+}

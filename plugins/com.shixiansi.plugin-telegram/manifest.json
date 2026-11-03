@@ -1,0 +1,47 @@
+{
+  "id": "com.shixiansi.plugin-telegram",
+  "name": "Telegram 接入端（薄适配器）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "Telegram 适配器。它只是一根管道：收到消息就交给记忆核心（com.shixiansi.plugin-memcore 的 chat 方法）回答，再把回答发回去；人设、记忆、模型预算都不在这里，所以改人设不用动它，换一个平台也不用搬记忆。默认不轮询——填好 Bot Token 并打开「收消息」才开始，允许的 chat id 留空等于谁的都不收。401 / 409 / 429 与断网各有各的处理：token 不对会停下来说清楚，同一个 bot 被另一个进程抢着长轮询会说清楚，被限流会按 Telegram 给的秒数等，断网按 15→30→60 秒退避、成功一次就重置。",
+  "permissions": ["net.fetch", "plugin.call", "storage", "plugin.config"],
+  "callTargets": ["com.shixiansi.plugin-memcore/chat"],
+  "serves": ["on_message"],
+  "background": true,
+  "netHosts": ["api.telegram.org"],
+  "config": [
+    {
+      "key": "botToken",
+      "label": "Bot Token（@BotFather 发的那一串；Telegram 要求它出现在请求路径里，所以这一项只能明文存）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "allowedChats",
+      "label": "允许的 chat id（逗号分隔；留空 = 谁的都不收）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "pollEnabled",
+      "label": "收消息（打开之后才会去轮询 Telegram；默认关）",
+      "type": "bool",
+      "default": "false"
+    },
+    {
+      "key": "pollCount",
+      "label": "每次取几条 update（1–100，默认 20）",
+      "type": "number",
+      "default": "20"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/api.js",
+    "lib/pipeline.js",
+    "lib/poll.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

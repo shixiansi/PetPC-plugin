@@ -1,0 +1,380 @@
+/* 日程日历的样式。
+ *
+ * 这个插件声明了浮层面（300×132 的卡片），所以**不引宿主那份 ui.css**（手册 §8.6 末尾的例外）：
+ * ui.css 的 .card / .btn 带着阴影与 hover 位移，而浮层面是按矩形裁剪的——画到矩形外的装饰会被
+ * Windows 直接切掉，在用户桌面上看就是"缺了一块"。同理这里不许出现
+ * box-shadow / filter / transform / text-shadow。需要层次就用 border 与背景色。
+ *
+ * 于是配色自带一份：**色值只许出现在下面这两个调色板块里**，规则里只用 var(--…)
+ * （散落在规则里的十六进制会让同一个颜色写很多遍，换配色必然漏一处）。
+ */
+
+:root {
+  --bg: #0f1319;
+  --panel: #161b23;
+  --raised: #1c222c;
+  --line: #2a323e;
+  --text: #e6eaf1;
+  --dim: #98a3b4;
+  --accent: #3f7ce0;
+  --on-accent: #ffffff;
+  --warn: #d99a3a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --fs-body: 13px;
+  --fs-small: 12px;
+  --font: var(--fs-body)/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  /* 原生控件（滚动条、光标、输入框）按浅色画：真正影响配色的是下面的调色板。 */
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --raised: #f2f5fa;
+  --line: #d7dee9;
+  --text: #1a2230;
+  --dim: #5c6a7d;
+  --accent: #2f6bea;
+  --on-accent: #ffffff;
+  --warn: #a86a10;
+  color-scheme: light;
+}
+
+/* 浮层面矩形里"没画东西"的地方要透出桌面，而 color-scheme 必须写在 :root 上：
+ * Chromium 在 dark 下会给画布铺一层深灰，元素背景的 transparent 压不住它。写在 html 上会被
+ * 上面那条 :root 的 color-scheme 吃掉（:root 是伪类，特异性更高）。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: var(--font);
+  color: var(--text);
+  background: transparent;
+}
+
+body[data-view='workshop'] {
+  background: var(--bg);
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+/* --- 浮层面：300×132 的固定卡片 ------------------------------------------------
+ *
+ * 高度是声明死的，装不下的部分会被裁掉而不是报错，所以这里每一行都是固定高度、
+ * **没有任何 flex:1**（两个"会自己长大"的块互相抢空间的代价是按钮被切掉一半）。
+ * 卡片里同一时刻只有一组内容：#sf-main 或 #sf-empty，由 app 显式切换。
+ */
+#surface {
+  position: absolute;
+  inset: 0;
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.card-title {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--dim);
+}
+
+.card-state {
+  margin-left: auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+/* 这一块是"会显示哪一组"的容器：固定高度，内容多了靠 clamp 收，不撑开卡片。 */
+.sf-main {
+  flex: 0 0 auto;
+  height: 52px;
+  overflow: hidden;
+}
+
+.sf-time {
+  margin: 0;
+  height: 16px;
+  line-height: 16px;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-what {
+  margin: 0;
+  height: 36px;
+  line-height: 18px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.sf-empty {
+  margin: 0;
+  flex: 0 0 auto;
+  height: 52px;
+  line-height: 18px;
+  font-size: var(--fs-body);
+  color: var(--dim);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.sf-foot {
+  margin: 0;
+  flex: 0 0 auto;
+  height: 16px;
+  line-height: 16px;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- workshop：控制中心的整页 -------------------------------------------------- */
+
+.boot {
+  margin: 0;
+  padding: var(--sp-4);
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+body[data-view='surface'] .boot,
+body[data-view='workshop'] .boot,
+body[data-view='background'] .boot {
+  display: none;
+}
+
+.page {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.page-state {
+  margin-left: auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel {
+  padding: var(--sp-4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.panel-summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.field-sub {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.input {
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+}
+
+.row {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.empty-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.empty-sub {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.day-head {
+  margin: 0;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
+.evs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.ev {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.ev-time {
+  flex: 0 0 64px;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.ev-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev-where {
+  flex: 0 0 auto;
+  max-width: 40%;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev.special .ev-time {
+  color: var(--accent);
+}
+
+.ev.special .ev-title {
+  color: var(--warn);
+}

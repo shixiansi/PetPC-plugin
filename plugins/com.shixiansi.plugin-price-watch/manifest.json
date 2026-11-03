@@ -1,0 +1,54 @@
+{
+  "id": "com.shixiansi.plugin-price-watch",
+  "name": "网页变化监控",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "盯着几个网页（商品价格、库存、公告页），变了才让桌宠说一句，并记下是哪一段变了。设置里每行填一条「名字 | URL | CSS 选择器（可空，只看页面上那一块）」，插件按你定的间隔（最小 15 分钟）抓取、按内容哈希比对：第一次抓取只存快照不打扰；变化要连续两次抓到同样的内容才播报一次（去抖，横跳的页面不会刷屏）；免打扰时段（可跨午夜）只更新快照不弹气泡；抓不到（网络失败或 4xx/5xx）时保留上一次的快照，并在插件页注明「上次成功是多久前」。抓取在桌宠那侧的常驻帧里跑，控制中心的插件页只负责展示与设置。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "pet.bubble"
+  ],
+  "panel": true,
+  "background": true,
+  "netHosts": [
+    "example.com"
+  ],
+  "config": [
+    {
+      "key": "entries",
+      "label": "监控条目（每行一条：名字 | URL | CSS 选择器；最多 8 条。这里填的域名会加进网络白名单）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "intervalMin",
+      "label": "抓取间隔（分钟，最小 15，默认 60）",
+      "type": "number",
+      "default": "60"
+    },
+    {
+      "key": "quietFrom",
+      "label": "免打扰开始（HH:MM，默认 22:00；这段里只更新快照、不弹气泡）",
+      "type": "text",
+      "default": "22:00"
+    },
+    {
+      "key": "quietTo",
+      "label": "免打扰结束（HH:MM，默认 08:00；可以跨午夜，例如 22:00→08:00）",
+      "type": "text",
+      "default": "08:00"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/extract.js",
+    "lib/snapshot.js",
+    "lib/watch.js",
+    "lib/workshop.js",
+    "ui.css"
+  ]
+}

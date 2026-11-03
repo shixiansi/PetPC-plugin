@@ -1,0 +1,60 @@
+{
+  "id": "com.shixiansi.plugin-anniversary",
+  "name": "纪念日倒计时",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "生日、结婚纪念日、入职多少年：写下几个日期（可以设「每年重复」），桌宠头顶就一直挂着最近那一个「还有 N 天」，当天换成「今天」并让桌宠说一句（一天只说一次）。宠物旁边还有一张 280×132 的紧凑卡片，列最近三条；控制中心的插件页里是完整清单（加、删、空状态）。别的插件可以用 plugin.call 问 next。日期一律按本机日历的整天差算，2 月 29 日只在闰年出现（平年跳过，不折算到 3 月 1 日）。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "pet.surface",
+    "pet.bubble",
+    "plugin.call"
+  ],
+  "background": true,
+  "serves": [
+    "next"
+  ],
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -120,
+      "w": 280,
+      "h": 132,
+      "maxH": 172,
+      "radius": 14
+    }
+  ],
+  "config": [
+    {
+      "key": "sayOnDay",
+      "label": "当天让桌宠说一句（气泡里带「今天」，一天只说一次）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "badgeMode",
+      "label": "宠物头顶的徽标显示什么",
+      "type": "select",
+      "default": "nearest",
+      "options": [
+        { "value": "nearest", "label": "最近的那一个（例如「母亲节 还有 8 天」）" },
+        { "value": "count", "label": "全部条数（例如「纪念日 3 个」）" }
+      ]
+    },
+    {
+      "key": "advanceDays",
+      "label": "提前几天开始占着徽标（更远的不占头顶；0 = 只有当天）",
+      "type": "number",
+      "default": "30"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/dates.js",
+    "lib/agenda.js",
+    "lib/card.js",
+    "lib/workshop.js"
+  ]
+}

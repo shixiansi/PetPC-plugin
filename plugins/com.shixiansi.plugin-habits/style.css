@@ -1,0 +1,340 @@
+/*
+ * 习惯打卡：这一页特有的东西——**自带的调色**。
+ *
+ * 这个文档同时挂在宠物旁的浮层面（声明了 surface）与控制中心的插件页里。浮层面按矩形裁剪，
+ * 所以 box-shadow / filter / transform / text-shadow 一律不用（画到矩形外会被切掉，看起来
+ * 就是"缺了一块"）；共享的 ui.css 恰好带着阴影与 hover 位移，带不了。于是与 todo / pomodoro /
+ * game-center 走同一条路：自己声明一份 `--h-*` 调色，深浅两套，颜色不借宿主。
+ *
+ * 色值只许出现在下面这两个调色板块里；规则里只能 var(--h-…)。
+ */
+
+:root {
+  --h-bg: #191b21;
+  --h-card: #1d2027;
+  --h-chip: #232733;
+  --h-line: #2c313c;
+  --h-text: #e8eaf0;
+  --h-muted: #9aa3b2;
+  --h-accent: #2f6feb;
+  --h-accent-hover: #3b7cf7;
+  --h-good: #34a46a;
+  --h-on-accent: #ffffff;
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --h-bg: #ffffff;
+  --h-card: #ffffff;
+  --h-chip: #e4e9f2;
+  --h-line: #d6dde9;
+  --h-text: #16202e;
+  --h-muted: #5b6779;
+  --h-accent: #2f6bea;
+  --h-accent-hover: #2459cc;
+  --h-good: #1e8a55;
+  --h-on-accent: #ffffff;
+  color-scheme: light;
+}
+
+/* 画布必须透明：浮层面矩形里"没画东西"的地方要透出桌面。
+   `only light` 必须写在 :root 上（写在 html 上会被上面那条 :root 的 color-scheme 吃掉），
+   否则 Chromium 给画布铺 #121212，帧里没画东西的地方是一条黑带。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  color: var(--h-text);
+  font: 13px/1.5 "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* 两个 section 由 role 打开一个；`display:flex` 会压过 UA 的 [hidden]，所以显式一条。 */
+#card[hidden],
+#page[hidden] {
+  display: none !important;
+}
+
+/* --- 宠物旁边那块卡片（280×140，声明死的） --------------------------------- */
+
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--h-line);
+  background: var(--h-card);
+  overflow: hidden;
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.card-head .streak {
+  font-weight: 600;
+}
+
+.card-head .meta {
+  flex: 1;
+  text-align: right;
+  font-size: 12px;
+  color: var(--h-muted);
+}
+
+/* 会长高的那一层：min-height:0 让它真的能缩，overflow 留在这里。 */
+.card-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  flex: none;
+  padding: 0 8px;
+  border: 1px solid var(--h-line);
+  border-radius: 8px;
+  background: var(--h-chip);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.row:hover {
+  border-color: var(--h-accent);
+}
+
+.row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row-do {
+  font-size: 12px;
+  color: var(--h-accent);
+}
+
+.note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--h-muted);
+}
+
+/* --- 控制中心的插件页 ------------------------------------------------------- */
+
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--h-bg);
+}
+
+.head h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.lede {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--h-muted);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 4px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--h-line);
+  background: var(--h-chip);
+  font-size: 12px;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.block h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--h-muted);
+}
+
+.tasks,
+.habits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task,
+.habit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  background: var(--h-card);
+}
+
+.task .name,
+.habit .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.task.done .name {
+  color: var(--h-muted);
+  text-decoration: line-through;
+}
+
+.check {
+  height: 28px;
+  min-width: 60px;
+  padding: 0 12px;
+  border: 1px solid var(--h-accent);
+  border-radius: 8px;
+  background: var(--h-accent);
+  color: var(--h-on-accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.check:hover {
+  background: var(--h-accent-hover);
+}
+
+.task.done .check {
+  border-color: var(--h-good);
+  background: transparent;
+  color: var(--h-good);
+}
+
+.drop {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--h-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--h-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.drop:hover {
+  border-color: var(--h-text);
+  color: var(--h-text);
+}
+
+.add {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  background: var(--h-card);
+  color: inherit;
+  font: inherit;
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  background: var(--h-chip);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.btn.primary {
+  border-color: var(--h-accent);
+  background: var(--h-accent);
+  color: var(--h-on-accent);
+}
+
+.btn.primary:hover {
+  background: var(--h-accent-hover);
+}
+
+.muted,
+.hint,
+.status {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--h-muted);
+}
+
+.muted[hidden],
+.hint[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .check,
+  .btn {
+    transition: none;
+  }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>习惯打卡</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，三副面孔（由 init 的 surface 决定，app.js 里那一行 role 就是判据）：
+
+      card   kind === 'surface'     宠物旁边 280×140 的卡片（manifest 里声明的那块矩形）
+      page   slot === 'workshop'    控制中心的插件页：加习惯、删习惯、看统计
+      bg     slot === 'background'  常驻帧：什么都不画，只推头顶那行字与到点提醒
+
+    两个 section 一开始都 hidden，由 role 打开一个——所以常驻帧里这两块都不占布局。
+  -->
+  <div id="root" data-slot="boot">
+    <!-- 浮层面：顶部一行"连续 N 天"，下面今天还没打的习惯各一行，点一下就打卡。 -->
+    <section id="card" class="card" hidden>
+      <header class="card-head">
+        <span id="card-streak" class="streak">还没连上</span>
+        <span id="card-meta" class="meta"></span>
+      </header>
+      <div id="card-list" class="card-list"></div>
+      <!--
+        一行说明，只在"没什么可点"的时候出现：没授权、还没习惯、今天打完了、提醒过了。
+        它和行列表**不会同时出现**——140px 的矩形放不下两样东西，多一行就少一行可点的。
+      -->
+      <p id="card-note" class="note" hidden></p>
+    </section>
+
+    <!-- 控制中心的插件页：宽、可滚动，是"管习惯"的地方。 -->
+    <main id="page" class="page" hidden>
+      <header class="head">
+        <h1>习惯打卡</h1>
+        <p class="lede">
+          每天点一下就打卡。换日按本机 <strong>04:00</strong> 算：03:59 仍属于前一天，04:00 才是新的一天。
+          一天里把当天的习惯全部打完，连续天数才 +1；漏掉一天就从头数。
+        </p>
+      </header>
+
+      <section class="stats">
+        <span id="stat-streak" class="chip">连续 0 天</span>
+        <span id="stat-best" class="chip">最长 0 天</span>
+        <span id="stat-pending" class="chip">今天还差 0 件</span>
+      </section>
+
+      <section class="block">
+        <h2>今天</h2>
+        <ul id="today-list" class="tasks"></ul>
+        <p id="today-empty" class="muted">还没有习惯——在下面加一个。</p>
+      </section>
+
+      <section class="block">
+        <h2>习惯</h2>
+        <form id="add-form" class="add">
+          <input id="add-name" class="input" type="text" maxlength="24" placeholder="例如：早读十分钟" />
+          <button class="btn primary" type="submit">添加</button>
+        </form>
+        <ul id="habit-list" class="habits"></ul>
+        <p id="habits-empty" class="muted">一个习惯都还没有。</p>
+      </section>
+
+      <!-- 头顶那行字与宠物旁的卡片只在桌宠上；这两行把"在哪"与"现在写什么"说清楚。 -->
+      <p id="badge-note" class="hint"></p>
+      <p id="remind-note" class="hint"></p>
+      <p id="page-status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    加载顺序就是依赖顺序：工具→协议→存储→画。加模块时这里加一行，并把文件写进
+    manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/habits.js"></script>
+  <script src="lib/core.js"></script>
+  <script src="lib/store.js"></script>
+  <script src="lib/view.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

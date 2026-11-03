@@ -1,0 +1,416 @@
+/* 纪念日倒计时的样式。
+ *
+ * 这个插件声明了浮层面（280×132 的卡片），所以**不引宿主那份 ui.css**（手册 §8.6 末尾的例外）：
+ * ui.css 的 .card / .btn 带着阴影与 hover 位移，而浮层面是按矩形裁剪的——画到矩形外的装饰会被
+ * Windows 直接切掉，在用户桌面上看就是"缺了一块"。同理这里**不许**出现
+ * box-shadow / filter / transform / text-shadow。需要层次就用 border 与背景色。
+ *
+ * 于是配色自带一份：**色值只许出现在下面两个调色板块里**，规则里只用 var(--…)
+ * （散落在规则里的十六进制会让同一个颜色写很多遍，换配色必然漏一处）。
+ */
+
+:root {
+  --bg: #0f1319;
+  --panel: #161b23;
+  --raised: #1c222c;
+  --line: #2a323e;
+  --text: #e6eaf1;
+  --dim: #98a3b4;
+  --accent: #c26bd4;
+  --on-accent: #ffffff;
+  --warn: #d99a3a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --fs-body: 13px;
+  --fs-small: 12px;
+  --font: var(--fs-body)/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  /* 原生控件（滚动条、光标、日期选择器）按深色画；真正影响配色的是上面这组 token。 */
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --raised: #f2f5fa;
+  --line: #d7dee9;
+  --text: #1a2230;
+  --dim: #5c6a7d;
+  --accent: #a640c0;
+  --on-accent: #ffffff;
+  --warn: #a86a10;
+  color-scheme: light;
+}
+
+/* 浮层面矩形里"没画东西"的地方要透出桌面，而 color-scheme 必须写在 :root 上：Chromium 在
+ * dark 下会给画布铺一层深灰，元素背景的 transparent 压不住它。写在 html 上会被上面那条
+ * :root 的 color-scheme 吃掉（:root 是伪类，特异性更高）。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: var(--font);
+  color: var(--text);
+  background: transparent;
+}
+
+/* 控制中心那一面填满一块正常滚动的容器，可以有底色；浮层面与常驻帧不行。 */
+body[data-view='workshop'] {
+  background: var(--bg);
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.bad {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--warn);
+}
+
+/* --- 浮层面：280×132 的固定卡片 ------------------------------------------------
+ *
+ * 高度是声明死的，装不下的部分会被裁掉而不是报错。所以：每一行固定 28px、没有任何 flex:1
+ * （两个"会自己长大"的块互相抢空间的代价是按钮被切掉一半，手册 §8.2b），名称超了用省略号。
+ * 预算：8 + 20（头）+ 8 + 3×28 + 8 = 128，加上上下边框 130 ≤ 132。
+ */
+#surface {
+  position: absolute;
+  inset: 0;
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.card-title {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--dim);
+}
+
+.card-count {
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-close {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: var(--fs-small);
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.sf-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.sf-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sf-row:last-child {
+  border-bottom: 0;
+}
+
+.sf-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-when {
+  flex: 0 0 auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* 当天那一行：这一整张卡片存在的理由，所以给它颜色。 */
+.sf-row-today .sf-name,
+.sf-row-today .sf-when {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sf-empty {
+  margin: 0;
+  flex: 0 0 auto;
+  color: var(--dim);
+  font-size: var(--fs-small);
+  line-height: 18px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* --- workshop：控制中心的整页 -------------------------------------------------- */
+
+.boot {
+  margin: 0;
+  padding: var(--sp-4);
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+body[data-view='surface'] .boot,
+body[data-view='workshop'] .boot,
+body[data-view='background'] .boot {
+  display: none;
+}
+
+.page {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.page-state {
+  margin-left: auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.panel {
+  padding: var(--sp-4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.field-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.field-sub {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.field-label {
+  flex: 0 0 48px;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.btn {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 空状态：与 ui.css 的 .empty 四件套同形（glyph / title / sub / cta）。 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-3);
+  text-align: center;
+}
+
+.empty-glyph {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.empty-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.empty-sub {
+  margin: 0;
+  max-width: 320px;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.ws-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.ws-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-meta {
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.ws-row-today .ws-meta {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ws-remove {
+  flex: 0 0 auto;
+}

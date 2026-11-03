@@ -1,0 +1,48 @@
+{
+  "id": "com.shixiansi.plugin-convert-kit",
+  "name": "换算工具（单位 / 时区 / 进制 / 汇率）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "一个完全离线的换算器：长度、重量、体积、温度、速度、时区、进制，外加一份内置的汇率静态快照。在控制中心的插件页里输一个数、选两组单位就拿到结果，最近几次换算留在这一页。它不联网、不上传、不读你的文件，也只在控制中心里占一页——桌宠身上不会多出任何东西。别的插件（以及以后的模型工具）也可以用 plugin.call 问它 convert：给一个数和两组单位，拿回结果。",
+  "permissions": ["plugin.call", "storage", "plugin.config"],
+  "panel": true,
+  "background": true,
+  "serves": ["convert"],
+  "config": [
+    {
+      "key": "decimals",
+      "label": "结果保留几位小数（0–8）",
+      "type": "number",
+      "default": "2"
+    },
+    {
+      "key": "defaultCategory",
+      "label": "默认分类（打开插件页先显示哪一类）",
+      "type": "select",
+      "default": "length",
+      "options": [
+        { "value": "length", "label": "长度" },
+        { "value": "weight", "label": "重量" },
+        { "value": "volume", "label": "体积" },
+        { "value": "temperature", "label": "温度" },
+        { "value": "speed", "label": "速度" },
+        { "value": "timezone", "label": "时区" },
+        { "value": "base", "label": "进制" }
+      ]
+    },
+    {
+      "key": "showRates",
+      "label": "在插件页里显示汇率一栏（内置静态快照，不是实时价）",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/units.js",
+    "lib/convert.js",
+    "lib/panel.js",
+    "ui.css"
+  ]
+}

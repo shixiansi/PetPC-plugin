@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>换算工具</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    桌宠不发主题，所以默认必须是深色——ui.css 的 :root 是浅色，没有 data-theme 时由
+    ui.css 自己的 :root[data-theme="dark"] 之外那份兜底；这里显式写 dark 更稳。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark';
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来，所以随包带一份。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      workshop     控制中心插件页：选分类 → 选两组单位 → 拿结果。
+      background   桌宠挂的常驻帧：什么都不画，只答 plugin.call 的 convert。
+
+    常驻帧里 #workshop 一直是 hidden（app.js 按 slot 决定），所以那一面永远不占布局。
+  -->
+  <main id="workshop" class="page">
+    <header class="head head-stack">
+      <h1>换算工具</h1>
+      <p class="lede">
+        单位、时区、进制、汇率，全在本机算。<strong>不联网、不上传、不读你的文件</strong>——
+        这个插件连网络权限都没有申请。
+      </p>
+    </header>
+
+    <p id="status" class="hint"></p>
+
+    <section class="card">
+      <div id="tabs" class="tabs" role="tablist" aria-label="换算分类"></div>
+
+      <div class="form">
+        <div class="row">
+          <label class="k" for="amount">数值</label>
+          <input id="amount" class="input" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="row">
+          <span class="k">从</span>
+          <div id="from-slot" class="grow"></div>
+        </div>
+        <div class="row">
+          <span class="k">到</span>
+          <div id="to-slot" class="grow"></div>
+        </div>
+        <div class="actions">
+          <button id="swap" class="btn soft" type="button">⇅ 对调</button>
+          <button id="run" class="btn primary" type="button">换算</button>
+        </div>
+      </div>
+
+      <p id="kind-hint" class="hint kind-hint" hidden></p>
+
+      <div id="result" class="result" hidden>
+        <p class="result-line">
+          <span id="result-value" class="result-value">—</span>
+          <span id="result-unit" class="result-unit"></span>
+        </p>
+        <p id="result-expr" class="result-expr"></p>
+        <p id="result-note" class="result-note" hidden></p>
+      </div>
+
+      <p id="error" class="hint error" hidden></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>最近换算</h2>
+        <button id="recent-clear" class="btn soft tiny" type="button">清空</button>
+      </div>
+      <ul id="recent" class="recent"></ul>
+      <p id="recent-empty" class="muted">还没有换算过。上面点一下「换算」就有一条。</p>
+      <p class="hint">这一列只留在内存里，关掉插件页就没了——保存下来只会让宿主日志多几行没有用的记录。</p>
+    </section>
+
+    <section class="card">
+      <h2>别的插件怎么用它</h2>
+      <p class="muted">
+        申请了 <code>plugin.call</code> 的插件可以在自己 manifest 的 <code>callTargets</code> 里点名
+        <code>com.shixiansi.plugin-convert-kit/convert</code>，然后把问题发过来：
+      </p>
+      <pre class="sample">{"category":"length","from":"m","to":"ft","value":12.5}
+→ {"category":"length","from":"m","to":"ft","input":12.5,
+   "value":41.01049868766404,"text":"41.01","unit":"ft",
+   "expression":"12.5 m = 41.01 ft"}</pre>
+      <p class="hint">
+        分类写 <code>length</code> / <code>weight</code> / <code>volume</code> / <code>temperature</code> /
+        <code>speed</code> / <code>timezone</code> / <code>base</code> / <code>currency</code>，也可以写中文名。
+        单位不认识时会回一条点名的中文 error（例如「不认识单位“市斤”」），<strong>不会</strong>静默按 1:1 换算。
+        完整的分字段说明在插件的 README 里。
+      </p>
+    </section>
+  </main>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），顺序就是依赖顺序：
+    core（桥）→ units（表）→ convert（规则）→ panel（界面）→ app（握手）。
+    加文件时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/units.js"></script>
+  <script src="lib/convert.js"></script>
+  <script src="lib/panel.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

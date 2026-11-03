@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>表格分析</title>
+  <!--
+    控制中心的配色要在样式表之前落一次（宿主把 ?theme=light|dark 放在帧地址上），
+    否则首帧会闪一下深色。已经开着的时候用户再切，由 app.js 的 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      workshop  控制中心插件页：拖入 CSV → 类型 → 分组统计 → SVG 条形图。
+      其余       桌宠旁边那张 300×150 的卡片：行列数、一行分组结论、模型按钮。
+
+    app.js 只显示其中一副（另一副 hidden），所以两边永远不会同时占布局。
+  -->
+  <div id="root" data-view="boot">
+    <main id="workshop" class="workshop" hidden>
+      <header class="head">
+        <h1 class="h1">表格分析</h1>
+        <p id="status" class="status">等待宿主初始化…</p>
+      </header>
+
+      <section id="drop" class="drop">
+        <p class="drop-title">把一份 CSV 拖到这里</p>
+        <p class="drop-sub">第一行当表头。插件只读你交给它的这个文件——它碰不到磁盘路径。</p>
+        <button id="pick-btn" class="btn" type="button">选择文件…</button>
+        <input id="file" type="file" accept=".csv,.tsv,text/csv,text/plain" hidden />
+      </section>
+
+      <p id="empty" class="empty">还没有表格。拖一份 CSV 进来。</p>
+
+      <section id="result" hidden>
+        <p id="meta" class="meta"></p>
+        <div class="grid">
+          <div class="block">
+            <h2 class="h2">每列的类型</h2>
+            <ul id="types" class="types"></ul>
+          </div>
+          <div class="block">
+            <h2 class="h2">分组统计</h2>
+            <div id="group-tabs" class="chips"></div>
+            <p id="group-line" class="group-line"></p>
+            <ul id="group-list" class="group-list"></ul>
+          </div>
+        </div>
+        <div class="block">
+          <h2 class="h2">条形图</h2>
+          <div id="chart" class="chart-wrap"></div>
+        </div>
+      </section>
+
+      <!--
+        模型那一格：这一页不服务 llm.chat（手册 §9），所以这里只有一行说明，按钮在卡片上。
+        硬发一个请求换来的是一行"本程序不支持该方法"，不是功能。
+      -->
+      <p id="llm-note" class="note">模型解读要在桌宠旁边那张卡片上点（这个窗口不服务 llm.chat）。</p>
+    </main>
+
+    <section id="card" hidden>
+      <p id="card-meta" class="card-meta">当前表格 · 还没有</p>
+      <p id="card-group" class="card-group">把一份 CSV 拖进插件页</p>
+      <button id="card-ask" class="card-ask" type="button" disabled>让模型解读</button>
+      <p id="card-reply" class="card-reply" role="status"></p>
+    </section>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（各自的 'use strict' 生效），不需要 import/export。
+    加文件时：这里加一行，并把路径写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/csv.js"></script>
+  <script src="lib/stats.js"></script>
+  <script src="lib/chart.js"></script>
+  <script src="lib/views.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

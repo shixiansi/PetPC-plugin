@@ -1,0 +1,62 @@
+{
+  "id": "com.shixiansi.plugin-finance-board",
+  "name": "行情看板",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "宠物旁边一张 300×150 的小卡片：最多三个标的，每个一行「代码 · 现价 · ±x%」加一条 SVG sparkline；控制中心的插件页里是完整列表（最多 8 个）、周期选择与行情源切换。行情来自 Yahoo 财经（股票/基金/汇率）、币安（加密）与 CoinGecko（第三个备选源），三个源的响应都归一化成同一个形状。周末的股票不刷新、不上网，只在表格里写「休市」并保留上一次的收盘价；取数失败或被限流(429)时保留上一次的快照，并注明「上次成功是 X 前」。刷新间隔最少 10 分钟。",
+  "permissions": ["net.fetch", "storage", "plugin.config", "pet.surface"],
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -150,
+      "w": 300,
+      "h": 150,
+      "radius": 14
+    }
+  ],
+  "netHosts": [
+    "query1.finance.yahoo.com",
+    "api.binance.com",
+    "api.coingecko.com"
+  ],
+  "config": [
+    {
+      "key": "targets",
+      "label": "标的（一行一个 源:代码，最多 8 个）",
+      "type": "text",
+      "default": "yahoo:AAPL\nyahoo:0700.HK\nbinance:BTCUSDT"
+    },
+    {
+      "key": "source",
+      "label": "默认行情源（只有不带前缀的标的用它；换它就会换域名）",
+      "type": "select",
+      "default": "yahoo",
+      "options": [
+        { "value": "yahoo", "label": "Yahoo 财经（股票 / 基金 / 汇率）" },
+        { "value": "binance", "label": "币安（加密，7×24）" },
+        { "value": "coingecko", "label": "CoinGecko（第三备选，只取现价）" }
+      ]
+    },
+    {
+      "key": "refreshMinutes",
+      "label": "刷新间隔（分钟，最少 10；行情不是秒级数据）",
+      "type": "number",
+      "default": "30"
+    },
+    {
+      "key": "points",
+      "label": "sparkline 用几个点（5–120，取最近的那些）",
+      "type": "number",
+      "default": "30"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/sources.js",
+    "lib/spark.js",
+    "lib/market.js",
+    "lib/card.js",
+    "lib/workshop.js"
+  ]
+}

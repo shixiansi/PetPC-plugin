@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>纪念日倒计时</title>
+  <!--
+    控制中心的配色要在样式表绘制之前落一次（宿主把 ?theme=light|dark 放在帧地址上），否则首帧
+    会闪一下深色。已经开着的时候用户再切，由 app.js 收 theme 消息接上。桌宠那边没有这个参数，
+    默认就是深色。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!--
+    这里**不引 ui.css**：本插件声明了浮层面，而 ui.css 的 .card / .btn 带着 box-shadow 与 hover
+    的位移，在按矩形裁剪的窗口里会被切掉（手册 §8.6 末尾的例外）。配色自带一份，写在 style.css
+    顶部的两个调色板块里。
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-view="boot">
+  <p id="boot-note" class="boot">等待宿主初始化…</p>
+
+  <!--
+    浮层面的一块（manifest 里 280×132）。同一时刻**只有一组可见**（手册 §8.2b）：
+    #sf-rows（有内容）或 #sf-empty（没有 / 读不到）——两者互斥，谁也不靠 flex 抢空间。
+    每行高度写死，名称超了用省略号：装不下的部分只会被裁掉，不会报错。
+  -->
+  <section id="surface" class="card hidden" aria-label="纪念日卡片">
+    <header class="card-head">
+      <span class="card-title">纪念日</span>
+      <span id="sf-count" class="card-count"></span>
+      <button id="sf-close" class="card-close" type="button" aria-label="收起卡片">×</button>
+    </header>
+    <ul id="sf-rows" class="sf-rows hidden"></ul>
+    <p id="sf-empty" class="sf-empty hidden">读取中…</p>
+  </section>
+
+  <!--
+    workshop（控制中心插件页）。这一面没有宠物：bubble.say / surface.* / pet.badge /
+    plugin.call 都不被服务，所以"现在头顶写着什么"的控件一律不画，只用 #ws-note 说明它在桌宠
+    上；清单本身照常可读可写——那正是用户打开这一页的原因。
+  -->
+  <main id="workshop" class="page hidden">
+    <header class="page-head">
+      <h1 class="page-title">纪念日倒计时</h1>
+      <span id="ws-state" class="page-state"></span>
+    </header>
+
+    <section class="panel">
+      <ul id="ws-list" class="ws-list hidden"></ul>
+      <p id="ws-bad" class="bad hidden"></p>
+      <!-- 空状态：与 ui.css 的 .empty 四件套同形（这里没有 ui.css，样式在 style.css 里）。 -->
+      <div id="ws-empty" class="empty hidden">
+        <p class="empty-glyph" aria-hidden="true">🎂</p>
+        <p class="empty-title">还没有纪念日</p>
+        <p class="empty-sub">生日、结婚纪念日、入职多少年——写下来，桌宠头顶会替你数着。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <p class="field-title">加一条</p>
+      <div class="form-row">
+        <label class="field-label" for="ws-name">名称</label>
+        <input id="ws-name" class="input" type="text" maxlength="40" placeholder="母亲节" spellcheck="false" />
+      </div>
+      <div class="form-row">
+        <label class="field-label" for="ws-date">日期</label>
+        <input id="ws-date" class="input" type="date" />
+      </div>
+      <label class="check"><input id="ws-yearly" type="checkbox" checked /> 每年重复（只借月和日）</label>
+      <div class="row">
+        <button id="ws-add" class="btn primary" type="button">加进清单</button>
+        <span id="ws-status" class="muted"></span>
+      </div>
+      <p class="field-sub">2 月 29 日只在闰年出现：平年跳过那一年，不折算到 3 月 1 日。</p>
+    </section>
+
+    <p id="ws-note" class="note">
+      头顶那行字与当天那句气泡在桌宠上（这个窗口没有宠物）。「当天说一句」「徽标显示什么」「提前几天」三个设置在宿主的设置表单里改——写的是同一份配置。
+    </p>
+  </main>
+
+  <!--
+    经典 script，共享一个全局作用域（和浏览器里一样），所以不需要 import/export。
+    加模块时：这里加一行，**并把文件写进 manifest.json 的 assets**——打包器只发 manifest +
+    入口 + 三个固定资源 + assets，漏了的文件在装好的插件里不存在。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/dates.js"></script>
+  <script src="lib/agenda.js"></script>
+  <script src="lib/card.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+/* 健康提醒的样式。
+ *
+ * 这个插件声明了浮层面（280×112 的卡片），所以**不引宿主那份 ui.css**（手册 §8.6 末尾的例外）：
+ * ui.css 的 .card / .btn 带着阴影与 hover 位移，而浮层面是按矩形裁剪的——画到矩形外的装饰会被
+ * Windows 直接切掉，在用户桌面上看就是"缺了一块"。同理这里不许出现
+ * box-shadow / filter / transform / text-shadow。层次只用 border 与背景色。
+ *
+ * 于是配色自带一份：**色值只许出现在下面这两个调色板块里**，规则里只用 var(--…)
+ * （散落在规则里的十六进制会让同一个颜色写很多遍，换配色必然漏一处）。
+ */
+
+:root {
+  --bg: #0f1319;
+  --panel: #161b23;
+  --raised: #1c222c;
+  --line: #2a323e;
+  --text: #e6eaf1;
+  --dim: #98a3b4;
+  --off: #6b7686;
+  --accent: #3f7ce0;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --fs-body: 13px;
+  --fs-small: 12px;
+  --font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  /* 原生控件（滚动条、光标、输入框）按深色画；真正决定配色的是上面那张表。 */
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --raised: #f2f5fa;
+  --line: #d7dee9;
+  --text: #1a2230;
+  --dim: #5c6a7d;
+  --off: #93a0b1;
+  --accent: #2f6bea;
+  color-scheme: light;
+}
+
+/* 浮层面矩形里"没画东西"的地方要透出桌面，而 color-scheme 必须写在 :root 上：
+ * Chromium 在 dark 下会给画布铺一层深灰，元素的 transparent 压不住它。写在 html 上会被
+ * 上面那条 :root 的 color-scheme 吃掉（:root 是伪类，特异性更高）。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: transparent;
+}
+
+body[data-view='workshop'] {
+  background: var(--bg);
+  overflow-y: auto;
+  min-height: 100vh;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.boot {
+  margin: 0;
+  padding: var(--sp-4);
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+/* --- 浮层面：280×112 的固定卡片 ------------------------------------------------
+ *
+ * 高度是声明死的，装不下的部分会被裁掉而不是报错，所以每一行都是固定高度、**没有 flex: 1**。
+ * 算一遍：3 行 ×16 + 2 个 4px 间隙 = 56，按钮 24，间隙 4，内边距 8×2 = 16，边框 2 —— 共 102，
+ * 余下的 10px 是刻意的：换字体、放大字号都不会把按钮顶出矩形。
+ */
+#surface {
+  position: absolute;
+  inset: 0;
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.row {
+  height: 16px;
+  line-height: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.row-label {
+  flex: 0 0 auto;
+  color: var(--dim);
+}
+
+.row-next {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row[data-off='1'] .row-next {
+  color: var(--off);
+}
+
+.mini {
+  height: 24px;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.mini:disabled {
+  color: var(--off);
+  cursor: default;
+}
+
+/* --- workshop：控制中心的整页 -------------------------------------------------- */
+
+.page {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.page-state {
+  margin-left: auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.lede {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 20px;
+  color: var(--dim);
+}
+
+.panel {
+  padding: var(--sp-4);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ws-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ws-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ws-label {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+
+.ws-next {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.ws-count {
+  flex: 0 0 auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.ws-row[data-off='1'] .ws-label,
+.ws-row[data-off='1'] .ws-next {
+  color: var(--off);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 20px;
+  color: var(--dim);
+}
+
+.status {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 20px;
+  color: var(--accent);
+  min-height: 20px;
+}

@@ -1,0 +1,106 @@
+/*
+ * Telegram 接入端：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写"状态 + 设置 + 事件日志"的布局。
+ *
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+/* 帧是透明画布：`color-scheme` 必须写在 :root 上（写在 html 上会被 ui.css 里那条
+   `:root { color-scheme: light }` 吃掉），否则 Chromium 会给画布铺一层底色。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 常驻帧：看不见、不能点、不能滚。这里把它彻底挪出布局，免得它的样式参与任何计算。 */
+#root.view-background {
+  display: none;
+}
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.lede {
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* 「还差一步」：四条常见原因都在这里，所以它必须比卡片更显眼一点。 */
+#warn-card {
+  background: var(--warning-bg);
+}
+
+#warn-card h2 {
+  color: var(--warning);
+}
+
+.warn-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+/* 统计格子：标签在上、数值在下。左右排的长标签会被拆行、数值被挤到看不见。 */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.fact {
+  display: block;
+}
+
+.fact-label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.fact-value {
+  display: block;
+  margin-top: 2px;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.log {
+  margin: 0;
+  padding-left: var(--space-5);
+  max-height: 260px;
+  overflow-y: auto;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.log li {
+  margin: var(--space-1) 0;
+}
+
+.status {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+#refresh {
+  margin-top: var(--space-3);
+}

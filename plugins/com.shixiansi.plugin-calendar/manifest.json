@@ -1,0 +1,64 @@
+{
+  "id": "com.shixiansi.plugin-calendar",
+  "name": "日程日历",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "订阅一条公开的日历链接（Google / Outlook / 飞书「导出日历」给出的 .ics 都行），把事件读进桌宠：会前 10 分钟让桌宠说一句提醒（提前几分钟、要不要提醒都能改），断网时用上一次抓到的内容顶上并在界面上注明是缓存。桌宠旁边有一张紧凑卡片显示下一场，控制中心的插件页里按天看最近一周。别的插件也能用 plugin.call 问它今天 / 下一场 / 某一段时间的日程。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "pet.bubble",
+    "pet.surface",
+    "events",
+    "plugin.call"
+  ],
+  "background": true,
+  "serves": [
+    "today",
+    "next",
+    "agenda"
+  ],
+  "netHosts": [
+    "calendar.google.com",
+    "outlook.live.com"
+  ],
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -120,
+      "w": 300,
+      "h": 132,
+      "radius": 14,
+      "maxH": 168
+    }
+  ],
+  "config": [
+    {
+      "key": "calendarUrl",
+      "label": "日历订阅地址（导出 .ics 的链接；这个域名会加进网络白名单）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    },
+    {
+      "key": "remindMinutes",
+      "label": "会前几分钟提醒（1–120，默认 10）",
+      "type": "number",
+      "default": "10"
+    },
+    {
+      "key": "remindEnabled",
+      "label": "到点让桌宠说一句提醒",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/ics.js",
+    "lib/feed.js",
+    "lib/views.js"
+  ]
+}

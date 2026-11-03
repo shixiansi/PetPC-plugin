@@ -1,0 +1,81 @@
+{
+  "id": "com.shixiansi.plugin-health-reminder",
+  "name": "健康提醒（久坐 / 喝水 / 护眼）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "三条最普通的健康提醒：久坐（默认每 45 分钟起来动一下）、喝水（每 60 分钟）、护眼（20-20-20，每 20 分钟看一次远处）。到点由桌宠说一句，宠物头顶的徽标显示下一条还剩几分钟；关掉哪一条就立刻停，夜里还有一段免打扰（默认 22:00–08:00，跨午夜的段也算对）。三个间隔、三个总开关、免打扰起止都在设置里改。全屏时不打断还做不到——宿主今天没有全屏检测这个能力，现在用免打扰时段兜住。",
+  "permissions": [
+    "events",
+    "pet.surface",
+    "pet.bubble",
+    "plugin.config",
+    "storage"
+  ],
+  "background": true,
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -120,
+      "w": 280,
+      "h": 112,
+      "radius": 14
+    }
+  ],
+  "config": [
+    {
+      "key": "sitMinutes",
+      "label": "久坐提醒间隔（分钟，默认 45）",
+      "type": "number",
+      "default": "45"
+    },
+    {
+      "key": "waterMinutes",
+      "label": "喝水提醒间隔（分钟，默认 60）",
+      "type": "number",
+      "default": "60"
+    },
+    {
+      "key": "eyeMinutes",
+      "label": "护眼提醒间隔（分钟，默认 20，20-20-20）",
+      "type": "number",
+      "default": "20"
+    },
+    {
+      "key": "quietStart",
+      "label": "免打扰开始（HH:MM，默认 22:00）",
+      "type": "text",
+      "default": "22:00"
+    },
+    {
+      "key": "quietEnd",
+      "label": "免打扰结束（HH:MM，默认 08:00；可以跨午夜）",
+      "type": "text",
+      "default": "08:00"
+    },
+    {
+      "key": "sitEnabled",
+      "label": "久坐提醒（关掉立刻停，徽标随之更新）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "waterEnabled",
+      "label": "喝水提醒（关掉立刻停）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "eyeEnabled",
+      "label": "护眼提醒（关掉立刻停）",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/schedule.js",
+    "lib/core.js",
+    "lib/surface.js",
+    "lib/workshop.js"
+  ]
+}

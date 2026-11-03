@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telegram 接入端</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme= 放在帧地址上正是为了这个）。
+    已经开着的时候再切配色，由 app.js 收 `theme` 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：插件文档是 opaque origin 的 iframe，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔，由 init 的 surface.slot 决定：
+
+      常驻帧（slot: "background"）  桌宠挂的那份：display:none，拥有轮询，不画任何东西。
+      插件页（slot: "workshop"）    控制中心挂的那份：读状态与设置，一个 net.fetch 都不发。
+
+    这个插件是"薄"的：人设、记忆、模型在记忆核心里，它只负责收、判断、问、发。
+  -->
+  <div id="root">
+    <main id="workshop" class="workshop hidden">
+      <header class="head">
+        <div class="chips">
+          <span class="chip" id="chip-state">状态：读取中…</span>
+          <span class="chip" id="chip-token">Bot Token：未知</span>
+          <span class="chip" id="chip-poll">收消息：未知</span>
+          <span class="chip" id="chip-allow">允许的 chat：未知</span>
+        </div>
+        <p class="lede">
+          它只是管道：Telegram 里的每一句话交给
+          <code>com.shixiansi.plugin-memcore</code> 的 <code>chat</code>，回答原样发回去。
+          人设与记忆不在这个插件里——所以改人设不用动它，换一个平台也不用搬记忆。
+        </p>
+      </header>
+
+      <section class="card" id="warn-card" hidden>
+        <h2>还差一步</h2>
+        <ul id="warn" class="warn-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>现在什么情况</h2>
+        <div id="facts" class="facts"></div>
+        <p class="hint">
+          收消息的是<strong>桌宠的常驻帧</strong>（宿主不许这一页发请求去轮询，它也不该持有那条循环）。
+          设置在这一页上面的「设置」里改；改完这一页 15 秒内会重读，桌宠那一面最多 4 分钟重读一次。
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>设置（只读）</h2>
+        <div id="settings" class="facts"></div>
+        <p class="hint">
+          Bot Token 不画在页面上（连掩码都不画：这一页会被截图）。
+          <strong>允许的 chat id 留空 = 谁的都不收</strong>——不是"全都收"，这是故意的。
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>最近发生了什么</h2>
+        <ul id="log" class="log"></ul>
+        <p id="log-empty" class="muted hidden">还没有记录。</p>
+        <p class="hint">
+          只放事件（拉到了没有、为什么跳过、哪一步失败了），不放消息正文，也不放 token。
+          第一次配 bot 时，不知道自己的 chat id 就让它先收一句话：这里会写出那个 id。
+        </p>
+        <button id="refresh" class="btn secondary" type="button">刷新</button>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域；顺序 = 依赖顺序，最后是入口。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/api.js"></script>
+  <script src="lib/pipeline.js"></script>
+  <script src="lib/poll.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

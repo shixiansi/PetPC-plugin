@@ -1,0 +1,231 @@
+/* 表格分析 —— 样式纪律。
+ *
+ * 这个插件**声明了浮层面**，所以不引共享的 ui.css（手册 §8.6 末尾那条例外）：
+ * ui.css 的 .card / .btn 带着阴影与 hover 位移，而浮层面的矩形是原生裁剪的，画到矩形外的
+ * 装饰会被直接切掉——用户看到的就是"右下角缺了一块"。代价是要自带一份调色板，所以下面两个
+ * 块是**唯一**允许出现色值的地方，规则里只用 var(--…)。
+ *
+ * 另外两个占位的硬要求：:root 透明（矩形里没画的地方要透出桌面），以及
+ * color-scheme: only light 必须写在 :root 上（写在 html 上会被 :root 那条吃掉，
+ * 于是 Chromium 给画布铺 #121212，卡片边上出现一条黑带）。
+ *
+ * 桌宠窗口永远是深色（帧地址上没有 ?theme=），所以默认配色就是深色那套。
+ */
+
+:root {
+  --bg: #14161c;
+  --bg-raised: #1b2330;
+  --bg-well: #0f131a;
+  --line: #26303f;
+  --line-soft: #1e2836;
+  --text: #e8eaf0;
+  --text-dim: #9aa7b8;
+  --accent: #7c3aed;
+  --accent-soft: #241c38;
+  --on-accent: #ffffff;
+  --danger: #e5646c;
+  --radius: 10px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --font: 13px/1.6 "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color-scheme: only light;
+  background: transparent;
+}
+
+html[data-theme='light'] {
+  --bg: #f7f8fc;
+  --bg-raised: #ffffff;
+  --bg-well: #eef1f7;
+  --line: #dde3ee;
+  --line-soft: #e8edf5;
+  --text: #1d2433;
+  --text-dim: #5d6a80;
+  --accent: #6d4de0;
+  --accent-soft: #ece7fd;
+  --on-accent: #ffffff;
+  --danger: #b8383f;
+}
+
+* { box-sizing: border-box; }
+
+/* [hidden] 是权威：作者规则里的 display 压不过浏览器默认的 UA 表。 */
+[hidden] { display: none !important; }
+
+html, body { margin: 0; height: 100%; }
+
+/* #root 必须有高度，否则 #card 的 height: 100% 没有可参照的父高度（百分比高度遇上 auto
+ * 会退回 auto），卡片就只按内容长——它在 150px 的矩形里会短一截，下面露出桌面。 */
+#root { height: 100%; }
+
+body {
+  font: var(--font);
+  color: var(--text);
+  /* 浮层面里"没画东西"的地方必须透出桌面。 */
+  background: transparent;
+}
+
+/* --- 工坊页（控制中心插件页）：可以铺底色 --------------------------------- */
+
+#workshop {
+  min-height: 100%;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--bg);
+}
+
+.head { display: flex; align-items: baseline; gap: var(--space-3); }
+.h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.h2 { margin: 0 0 var(--space-2); font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.status { margin: 0; flex: 1; text-align: right; font-size: 12px; color: var(--text-dim); }
+
+.drop {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-well);
+  padding: var(--space-5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  transition: background-color 160ms, border-color 160ms;
+}
+.drop.is-over { border-color: var(--accent); background: var(--accent-soft); }
+.drop-title { margin: 0; font-size: 14px; font-weight: 600; }
+.drop-sub { margin: 0; font-size: 12px; color: var(--text-dim); }
+
+.btn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  transition: background-color 160ms;
+}
+.btn:hover:not(:disabled) { background: var(--bg-well); }
+.btn:disabled { cursor: not-allowed; color: var(--text-dim); opacity: 0.6; }
+
+.empty {
+  margin: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+#result { display: flex; flex-direction: column; gap: var(--space-4); }
+.meta { margin: 0; font-size: 12px; color: var(--text-dim); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
+.block { border: 1px solid var(--line-soft); border-radius: var(--radius); padding: var(--space-3); background: var(--bg-raised); }
+
+.types, .group-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.type-row { display: flex; align-items: baseline; gap: var(--space-2); font-size: 12px; }
+.type-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.type-tag {
+  padding: 0 var(--space-2);
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.type-integer, .type-decimal { border-color: var(--accent); color: var(--text); }
+.type-meta { color: var(--text-dim); font-size: 12px; }
+
+#group-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
+.chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  padding: 2px var(--space-2);
+  cursor: pointer;
+  transition: color 160ms, border-color 160ms;
+}
+.chip[aria-pressed='true'] { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+
+.group-line { margin: 0 0 var(--space-2); font-size: 12px; color: var(--text-dim); }
+.group-row { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 12px; }
+.group-value { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-value.is-blank { color: var(--text-dim); }
+.group-count { color: var(--text-dim); }
+
+.chart-wrap { min-width: 0; }
+.chart { width: 100%; height: auto; display: block; }
+.chart .bar { fill: var(--accent); }
+.chart text { fill: var(--text-dim); font-size: 12px; }
+.chart .bar-value { fill: var(--text); }
+
+.note { margin: 0; font-size: 12px; color: var(--text-dim); border-top: 1px solid var(--line-soft); padding-top: var(--space-3); }
+
+/* --- 卡片：300×150 的一格，矩形由宿主裁 -----------------------------------
+ *
+ * 内容只有四样，按列排：一行行列数、一行分组结论、一个按钮、一块自己会滚的回复区。
+ * 卡片里不许有两个"会自己长大"的块（手册 §8.2b）：只有回复区 flex: 1，其余都定性。
+ */
+
+#card {
+  height: 100%;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow: hidden;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.card-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-group {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-ask {
+  align-self: flex-start;
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 12px;
+  line-height: 22px;
+  cursor: pointer;
+  transition: opacity 160ms;
+}
+.card-ask:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.card-reply {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.card-reply.is-error { color: var(--danger); }

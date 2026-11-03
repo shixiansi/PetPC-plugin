@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>健康提醒</title>
+  <!--
+    控制中心的配色要在样式表绘制之前落一次（宿主把 ?theme=light|dark 放在帧地址上），否则首帧
+    会闪一下深色。已经开着的时候用户再切，由 app.js 收 theme 消息接上。桌宠没有这个参数。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!--
+    这里**不引 ui.css**：本插件声明了浮层面，而 ui.css 的 .card / .btn 带着阴影与 hover 位移，
+    在按矩形裁剪的窗口里会被切掉（手册 §8.6 末尾的例外）。配色自带一份，写在 style.css 顶部的
+    两个调色板块里。
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-view="boot">
+  <p id="boot-note" class="boot">等待宿主初始化…</p>
+
+  <!--
+    浮层面的一块（manifest 里 280×112）。三行固定的高度 + 一个按钮，**没有一处 flex: 1**：
+    这块矩形是声明死的，会自己长大的块互相抢空间的结果就是按钮被下边缘切掉（手册 §8.2b）。
+    第三行的位置留给"这一条关掉了"，而不是靠 flex 把空位吃掉。
+  -->
+  <section id="surface" class="card hidden" aria-label="健康提醒">
+    <ul class="rows">
+      <li class="row" id="row-sit" data-off="0">
+        <span class="row-label">久坐</span>
+        <span class="row-next">—</span>
+      </li>
+      <li class="row" id="row-water" data-off="0">
+        <span class="row-label">喝水</span>
+        <span class="row-next">—</span>
+      </li>
+      <li class="row" id="row-eye" data-off="0">
+        <span class="row-label">护眼</span>
+        <span class="row-next">—</span>
+      </li>
+    </ul>
+    <button id="sf-pause" class="mini" type="button">今天先别提醒我</button>
+  </section>
+
+  <!--
+    workshop（控制中心插件页）。这一面没有宠物：bubble.say / pet.badge / surface.* /
+    events.subscribe 都不被服务，所以不画"立刻提醒一次"这种按钮——那会是一个点了没反应的控件。
+    它显示的是用户打开这一页真正想知道的：下一次是什么时候、今天说了几次、免打扰被认成几点，
+    以及这个插件**做不到什么**。
+  -->
+  <main id="workshop" class="page hidden">
+    <header class="page-head">
+      <h1 class="page-title">健康提醒</h1>
+      <span id="ws-state" class="page-state">读取中…</span>
+    </header>
+
+    <p class="lede">
+      久坐、喝水、护眼（20-20-20）三条最普通的提醒：到点由桌宠说一句，宠物头顶的徽标显示下一条
+      还剩几分钟。间隔与三个开关在宿主的设置表单里改（写的是同一份配置），关掉哪一条就立刻停。
+    </p>
+
+    <section class="panel">
+      <ul class="ws-rows">
+        <li class="ws-row" id="ws-row-sit" data-off="0">
+          <span class="ws-label">久坐 · 起来动一下</span>
+          <span class="ws-next">—</span>
+          <span class="ws-count"></span>
+        </li>
+        <li class="ws-row" id="ws-row-water" data-off="0">
+          <span class="ws-label">喝水 · 一杯</span>
+          <span class="ws-next">—</span>
+          <span class="ws-count"></span>
+        </li>
+        <li class="ws-row" id="ws-row-eye" data-off="0">
+          <span class="ws-label">护眼 · 20-20-20</span>
+          <span class="ws-next">—</span>
+          <span class="ws-count"></span>
+        </li>
+      </ul>
+      <p id="ws-quiet" class="hint">免打扰 22:00 – 08:00</p>
+      <p id="ws-counts" class="hint"></p>
+    </section>
+
+    <p class="hint">
+      「今天先别提醒我」在桌宠旁边那张卡片上；提醒本身也只在桌宠上跑——这个窗口没有宠物，
+      到点的那句气泡由桌宠那一侧说。
+    </p>
+
+    <p id="ws-note-sub" class="hint"></p>
+
+    <!--
+      诚实说明，不假装做到：宿主今天没有"全屏检测"这个能力（既没有方法，也没有事件）。
+      申请 process 去读前台窗口、或者写 sidecar 去轮询，都不是这个插件该付的代价，
+      所以这一轮就用免打扰时段兜住。
+    -->
+    <p class="hint">
+      全屏时不打断：<strong>还做不到</strong>。宿主今天没有全屏检测这个能力（没有对应的方法，也没有对应的
+      事件），而这不是申请 process 能绕过去的——所以现在用免打扰时段兜住：全屏里会不会弹，
+      取决于那一刻在不在免打扰里。要真正做对，得等宿主提供全屏/前台窗口的机制（M4/M6）。
+    </p>
+
+    <p id="status" class="status"></p>
+  </main>
+
+  <!--
+    经典 script，共享一个全局作用域（和浏览器里一样），所以不需要 import/export。
+    加模块时：这里加一行，**并把文件写进 manifest.json 的 assets**——打包器只发
+    manifest + 入口 + 三个固定资源 + assets，漏了的文件在装好的插件里不存在。
+    顺序即依赖：schedule.js 是纯函数，core.js 用它的 emptyState()。
+  -->
+  <script src="lib/schedule.js"></script>
+  <script src="lib/core.js"></script>
+  <script src="lib/surface.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

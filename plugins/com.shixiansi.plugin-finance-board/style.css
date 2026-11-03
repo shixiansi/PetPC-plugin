@@ -1,0 +1,482 @@
+/* 行情看板的样式。
+ *
+ * 这个插件声明了浮层面（宠物旁边那块 300×150 的卡片），所以**不引宿主那份 ui.css**（手册 §8.6
+ * 末尾的例外）：ui.css 的 .card / .btn 带着阴影与 hover 位移，而浮层面是按矩形裁剪的——画到矩形
+ * 外的装饰会被 Windows 直接切掉，在用户桌面上看就是"缺了一块"。同理这里**不许**出现
+ * box-shadow / filter / transform / text-shadow。需要层次就用 border 与背景色。
+ *
+ * 于是配色自带一份：色值**只许出现在下面两个调色板块里**，规则里只用 var(--…)（散落在规则里的
+ * 十六进制会让同一个颜色写很多遍，换配色必然漏一处）。
+ *
+ * 涨跌用哪两个颜色是**有立场**的：跟着 A 股的习惯「红涨绿跌」。它只出现在这两个调色板块里，
+ * 想改成绿涨红跌就改这四个值，规则一行都不用动。
+ */
+
+:root {
+  --bg: #0f1319;
+  --panel: #161b23;
+  --raised: #1c222c;
+  --line: #2a323e;
+  --text: #e6eaf1;
+  --dim: #98a3b4;
+  --accent: #3b73d6;
+  --on-accent: #ffffff;
+  --up: #e0645f;
+  --down: #3f9c74;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --fs-small: 12px;
+  --fs-body: 13px;
+  --font: var(--fs-body)/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  /* 原生控件（滚动条、光标、下拉）按深色画；真正影响配色的是上面这组 token。 */
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --raised: #f2f5fa;
+  --line: #d7dee9;
+  --text: #1a2230;
+  --dim: #5c6a7d;
+  --accent: #2f6bea;
+  --on-accent: #ffffff;
+  --up: #c93b3b;
+  --down: #1f7a52;
+  color-scheme: light;
+}
+
+/* 浮层面矩形里"没画东西"的地方要透出桌面，而 color-scheme 必须写在 :root 上：Chromium 在
+ * dark 下会给画布铺一层深灰，元素背景的 transparent 压不住它。写在 html 上会被上面那条
+ * :root 的 color-scheme 吃掉（:root 是伪类，特异性更高）。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: var(--font);
+  color: var(--text);
+  background: transparent;
+}
+
+/* 控制中心那一面填满一块正常滚动的容器，可以有底色；浮层面不行。 */
+body[data-view='workshop'] {
+  background: var(--bg);
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.bad {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--up);
+}
+
+/* --- 浮层面：300×150 的固定卡片 ------------------------------------------------
+ *
+ * 高度是声明死的，装不下的部分会被裁掉而不是报错，所以预算是算出来的：
+ *
+ *   150 − 上下内边距 8+8 − 上下边框 1+1        = 132 可用
+ *   头部 16 + 间距 8                            = 24
+ *   三行 × 28                                   = 84
+ *   间距 8 + 脚注 16                            = 24
+ *   合计 132 ✓（一行不多）
+ *
+ * 因此：**最多三行**（更多的在插件页里看，脚注会说"还有 N 个"），行高写死，没有任何 flex: 1
+ * 让两块互相抢空间——那正是"按钮被切掉一半"的来源（手册 §8.2b）。
+ */
+#surface {
+  position: absolute;
+  inset: 0;
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.card-title {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--dim);
+}
+
+.card-src {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-close {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: var(--fs-small);
+  line-height: 12px;
+  cursor: pointer;
+}
+
+.sf-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+/* 一行 = 代码 · 现价 · ±x% 加一条 sparkline。宽度预算：56 + 8 + 现价 + 8 + 48 + 8 + 84 = 282，
+ * 正好是 300 − 内边距 16 − 边框 2（现价那一格吃掉剩下的 70px）。 */
+.sf-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sf-row:last-child {
+  border-bottom: 0;
+}
+
+.sf-code {
+  flex: 0 0 auto;
+  width: 56px;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-price {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-chg {
+  flex: 0 0 auto;
+  width: 48px;
+  text-align: right;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sf-spark {
+  flex: 0 0 auto;
+  color: var(--dim);
+}
+
+.sf-foot {
+  margin: 0;
+  flex: 0 0 auto;
+  height: 16px;
+  line-height: 16px;
+  font-size: var(--fs-small);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 涨跌的颜色只在这三条规则里出现，值来自 token。 */
+.up {
+  color: var(--up);
+}
+
+.down {
+  color: var(--down);
+}
+
+.flat {
+  color: var(--dim);
+}
+
+/* --- workshop：控制中心的整页 -------------------------------------------------- */
+
+.boot {
+  margin: 0;
+  padding: var(--sp-4);
+  color: var(--dim);
+  font-size: var(--fs-small);
+}
+
+body[data-view='surface'] .boot,
+body[data-view='workshop'] .boot {
+  display: none;
+}
+
+.page {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.page-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.page-state {
+  margin-left: auto;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.panel {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.field-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.field-sub {
+  margin: 0;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.seg {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+}
+
+.seg-btn {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+/* 选中态只靠底色与边框，不加阴影（阴影已经被这一节的规矩禁掉了）。 */
+.seg-btn.on {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn {
+  height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-small);
+}
+
+.area {
+  min-height: 88px;
+  resize: vertical;
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  line-height: 20px;
+}
+
+.ws-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.ws-row:last-child {
+  border-bottom: 0;
+}
+
+.ws-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.ws-code {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-src {
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+.ws-price {
+  flex: 0 0 auto;
+  min-width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-chg {
+  flex: 0 0 auto;
+  min-width: 64px;
+  text-align: right;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.ws-spark {
+  flex: 0 0 auto;
+  color: var(--dim);
+}
+
+.ws-flag {
+  flex: 0 0 auto;
+  min-width: 40px;
+  text-align: right;
+  font-size: var(--fs-small);
+  color: var(--dim);
+}
+
+/* 空状态：与 ui.css 的 .empty 四件套同形（glyph / title / sub），这里没有 ui.css。 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-3);
+  text-align: center;
+}
+
+.empty-glyph {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.empty-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.empty-sub {
+  margin: 0;
+  max-width: 320px;
+  font-size: var(--fs-small);
+  line-height: 18px;
+  color: var(--dim);
+}

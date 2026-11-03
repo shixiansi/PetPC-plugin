@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>网页变化监控</title>
+  <!--
+    控制中心的配色，在样式表绘制之前先落一次（宿主把 ?theme=light|dark 放在帧地址上）。
+    已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!-- 宿主的 token 副本：iframe 是 opaque origin，宿主的 CSS 变量进不来。 -->
+  <link rel="stylesheet" href="ui.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    一个文档，两副面孔（由 init 的 surface.slot 决定，不猜）：
+
+      background   桌宠挂的常驻帧：display:none，只做三件事——按间隔抓取、比对哈希、
+                   「变了才说一句」（bubble.say）、把快照写进自己的私有目录。
+      workshop     控制中心插件页：只展示与设置。它不抓取、不弹气泡。
+
+    为什么「说一句」必须住在常驻帧里：bubble.say 只在桌宠程序里被服务，控制中心的插件页
+    没有宠物窗口——所以那一面永远收不到气泡。页面这一面会明写这件事，而不是让用户等一个
+    不会出现的通知。
+
+    常驻帧那一面整体 hidden：它不依赖布局、尺寸与焦点（手册 §8.5）。
+  -->
+  <div id="root">
+    <main id="workshop" class="workshop hidden">
+      <header class="head head-stack">
+        <div class="chips">
+          <span class="chip" id="chip-count">监控 0 条</span>
+          <span class="chip" id="chip-interval">每 60 分钟抓一次</span>
+          <span class="chip" id="chip-quiet">免打扰 22:00–08:00</span>
+        </div>
+        <p class="lede">
+          盯住几个网页，<strong>变了才说一句</strong>，并把「哪一段变了」记下来。
+          抓取在桌宠那边的常驻帧里跑，这一页只负责展示与设置。
+        </p>
+      </header>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>监控条目</h2>
+          <button id="refresh" class="btn soft tiny" type="button">刷新</button>
+        </div>
+        <div id="entries" class="entries"></div>
+        <p id="entries-empty" class="muted">
+          还没有配置。在设置里填条目，一行一条：
+          <code>名字 | https://example.com/p/1 | .price</code>
+          （第三段可空：空着就比对整页正文；最多 8 条）。
+        </p>
+        <p class="hint">
+          间隔、免打扰起止也在设置里。这里填的域名会被加进网络白名单——插件只连你写下的那些站。
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>最近的变化</h2>
+        </div>
+        <div id="changes" class="changes"></div>
+        <p id="changes-empty" class="muted">还没报过变化。第一次抓取只存快照，第二次起才比对。</p>
+        <p class="hint">
+          变化要<strong>连续两次抓到同样的内容</strong>才播报一次（去抖）：一直在抖动的页面
+          （时间戳、随机广告位）不会变成一串气泡。抓不到的那一轮不会覆盖上一次的快照。
+        </p>
+      </section>
+
+      <p id="status" class="status"></p>
+    </main>
+  </div>
+
+  <!--
+    经典 script，共享一个全局作用域（'use strict' 各自生效），不需要 import/export。
+    加模块时：这里加一行，并把文件写进 manifest.json 的 assets（否则不会被打包）。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/extract.js"></script>
+  <script src="lib/snapshot.js"></script>
+  <script src="lib/watch.js"></script>
+  <script src="lib/workshop.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

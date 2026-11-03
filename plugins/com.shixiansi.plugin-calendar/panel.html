@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>日程日历</title>
+  <!--
+    控制中心的配色要在样式表绘制之前落一次（宿主把 ?theme=light|dark 放在帧地址上），
+    否则首帧会闪一下深色。已经开着的时候用户再切，由 app.js 收 theme 消息接上。
+    桌宠那边没有这个参数，默认就是深色。
+  -->
+  <script>
+    (function () {
+      var t = new URLSearchParams(location.search).get('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    })();
+  </script>
+  <!--
+    这里**不引 ui.css**：本插件声明了浮层面，而 ui.css 的 .card / .btn 带着 box-shadow 与
+    hover 的位移，在按矩形裁剪的窗口里会被切掉（手册 §8.6 末尾的例外）。配色自带一份，
+    写在 style.css 顶部的两个调色板块里。
+  -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-view="boot">
+  <p id="boot-note" class="boot">等待宿主初始化…</p>
+
+  <!--
+    浮层面的一块（manifest 里 300×132）。同一时刻**只有一组可见**（手册 §8.2b）：
+    #sf-main（有下一场）或 #sf-empty（没有 / 没配置）——两者互斥，谁也不靠 flex 抢空间。
+  -->
+  <section id="surface" class="card hidden" aria-label="日程卡片">
+    <header class="card-head">
+      <span class="card-title">日程</span>
+      <span id="sf-state" class="card-state">读取中…</span>
+    </header>
+    <div id="sf-main" class="sf-main hidden">
+      <p id="sf-time" class="sf-time">—</p>
+      <p id="sf-what" class="sf-what">—</p>
+    </div>
+    <p id="sf-empty" class="sf-empty">读取中…</p>
+    <p id="sf-foot" class="sf-foot"></p>
+  </section>
+
+  <!--
+    workshop（控制中心插件页）。这一面没有宠物：bubble.say / surface.* / events.subscribe /
+    plugin.call 都不被服务，所以提醒相关的控件一律不画，只用 #ws-note 说明"提醒在桌宠上"。
+    只读的事件列表照常显示——那正是用户打开这一页的原因。
+  -->
+  <main id="workshop" class="page hidden">
+    <header class="page-head">
+      <h1 class="page-title">日程日历</h1>
+      <span id="ws-state" class="page-state">读取中…</span>
+    </header>
+
+    <div class="tools">
+      <button id="ws-refresh" class="btn" type="button">刷新</button>
+      <span id="ws-cache" class="muted">还没拉过</span>
+    </div>
+
+    <!--
+      设置面板是原生 <details>：开与合不需要 JS，也就不会和下面的列表抢空间（§8.2b 的教训：
+      两块"会自己长大"的东西叠着，抢输的那块会被矩形下边缘切掉）。
+    -->
+    <details id="ws-settings" class="panel">
+      <summary class="panel-summary">设置日历地址</summary>
+      <p class="field-sub">
+        Google / Outlook / 飞书「导出日历」给出的 .ics 链接；webcal:// 会自动换成 https://。
+        这个地址的域名会被加进网络白名单。提前几分钟提醒、提醒开关请到宿主的设置表单里改（写的是同一份配置）。
+      </p>
+      <input id="ws-url" class="input" type="text" spellcheck="false"
+             placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" />
+      <div class="row">
+        <button id="ws-save" class="btn primary" type="button">保存并刷新</button>
+      </div>
+    </details>
+
+    <section id="ws-need-url" class="panel hidden">
+      <p id="ws-need-text" class="empty-title">先去设置里填日历地址</p>
+      <p class="empty-sub">把日历应用里的「导出 / 订阅」链接粘进来，就能在这里按天看日程；会前提醒由桌宠发。</p>
+    </section>
+    <div id="ws-days" class="days"></div>
+    <p id="ws-empty" class="muted hidden">最近一周没有日程。</p>
+
+    <p id="ws-note" class="note">提醒在桌宠上：这个窗口没有宠物，到点的那句气泡由桌宠那一侧说。</p>
+  </main>
+
+  <!--
+    经典 script，共享一个全局作用域（和浏览器里一样），所以不需要 import/export。
+    加模块时：这里加一行，**并把文件写进 manifest.json 的 assets**——打包器只发
+    manifest + 入口 + 三个固定资源 + assets，漏了的文件在装好的插件里不存在。
+  -->
+  <script src="lib/core.js"></script>
+  <script src="lib/ics.js"></script>
+  <script src="lib/feed.js"></script>
+  <script src="lib/views.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

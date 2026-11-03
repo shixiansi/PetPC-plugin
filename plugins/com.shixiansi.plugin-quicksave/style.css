@@ -1,0 +1,340 @@
+/* 速记盒子的样式表。
+ *
+ * 两条纪律，每条都对应一次踩过的坑：
+ *
+ * 1. **不许 box-shadow / filter / transform / text-shadow。** 这个插件声明了浮层面，而窗口区域是
+ *    按矩形裁剪的：画到盒子之外的装饰会被原生裁掉，在用户桌面上看就是"缺了一块"（手册 §8.4）。
+ *    要边框用 border，要圆角用 border-radius，要分层用背景色的差。
+ *
+ * 2. **不引 ui.css。** 引了就会继承 `.card` 的彩色阴影与 `.btn:hover` 的位移，那正是上一条禁止的
+ *    东西（手册 §8.6 末尾的例外）。所以这里自带一份调色板，色值**只出现在两个调色板块里**，
+ *    规则里一律 var(--p-…)。
+ *
+ * 卡片的高度是声明死的（300×132，最多长到 180），所以里面**只许有一个会自己长大的块**（最近三条
+ * 那个列表）——其余都是固定行高。这一条是手册 §8.2b 用五次翻车换来的。
+ */
+
+:root {
+  --p-bg: #191b21;
+  --p-card: #1d2027;
+  --p-well: #12141a;
+  --p-chip: #232733;
+  --p-line: #2c313c;
+  --p-text: #e8eaf0;
+  --p-muted: #9aa3b2;
+  --p-accent: #2f6feb;
+  --p-accent-hover: #3b7cf7;
+  --p-on-accent: #ffffff;
+  --p-danger: #e5646c;
+  color-scheme: dark;
+}
+
+/* 浅色只在控制中心里出现（桌宠窗口永远是深色）。 */
+html[data-theme="light"] {
+  --p-bg: #ffffff;
+  --p-card: #f6f8fc;
+  --p-well: #ffffff;
+  --p-chip: #eef2f8;
+  --p-line: #d6dde9;
+  --p-text: #16202e;
+  --p-muted: #5b6779;
+  --p-accent: #2f6bea;
+  --p-accent-hover: #245cd4;
+  --p-on-accent: #ffffff;
+  --p-danger: #b4312f;
+  color-scheme: light;
+}
+
+/* 画布必须是透明的：浮层面矩形里"没画东西"的地方要透出桌面。`color-scheme` 这一条**必须**写在
+ * `:root` 上——Chromium 在 color-scheme: dark 下会给画布铺 #121212，根元素的 background:
+ * transparent 压不住那一层；写在 `html` 上又会被上面的 `:root` 规则吃掉（手册 §8.4）。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* `hidden` 是权威：作者规则里的 display 一律压不过它（这个文档靠它分三副面孔）。 */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: transparent;
+  color: var(--p-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* `init` 到达之前什么都不画：帧已经是最终尺寸了，先画一种再换成另一种就是一次可见的闪。 */
+.view-boot .card,
+.view-boot .page {
+  display: none;
+}
+
+/* --- 浮层面那一块（300 × 132，最多 180） ---------------------------------- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid var(--p-line);
+  border-radius: 14px;
+  background: var(--p-bg);
+}
+
+.compose {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.field {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-well);
+  color: inherit;
+  font: inherit;
+}
+
+.field:focus {
+  outline: 1px solid var(--p-accent);
+  outline-offset: 0;
+}
+
+.card .field {
+  flex: 1 1 auto;
+  height: 28px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid var(--p-line);
+  border-radius: 8px;
+  background: var(--p-chip);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.card .btn {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.btn.primary {
+  border-color: var(--p-accent);
+  background: var(--p-accent);
+  color: var(--p-on-accent);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--p-accent-hover);
+}
+
+.btn:disabled,
+.field:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 唯一允许变长的那一处是**卡片自己**（用 maxH + surface.blocks 请求长高），所以这里三块都是固定
+ * 高度：`0 0 auto` + 明确的行高。理由见手册 §8.2b——卡片里两个"会自己长大"的块会互相抢空间，
+ * 结果只能是"按钮被切掉"或"只剩数字"，而且裁掉哪一块取决于布局。 */
+.recent {
+  flex: 0 0 auto;
+  height: 56px; /* 三条 × 16 + 两个 4px 的缝 */
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 16px;
+  font-size: 12px;
+}
+
+.recent-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  flex: 0 0 auto;
+  max-width: 40%;
+  overflow: hidden;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--p-chip);
+  color: var(--p-muted);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.when {
+  flex: 0 0 auto;
+  color: var(--p-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 状态行是固定的一行（长句子会折行，那时 app.js 会请求长高，最多到 maxH）。 */
+.status {
+  flex: 0 0 auto;
+  min-height: 16px;
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.status[data-tone="bad"] {
+  color: var(--p-danger);
+}
+
+.empty,
+.more {
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* --- 完整页（控制中心的插件页） -------------------------------------------- */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.page .status {
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+.page .compose .field {
+  height: 32px;
+}
+
+.page .compose .btn {
+  height: 32px;
+  padding: 0 16px;
+}
+
+.tag-field {
+  flex: 0 1 auto;
+  width: 120px;
+}
+
+.hint {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--p-muted);
+  font-size: 12px;
+}
+
+.search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.search .field {
+  flex: 1 1 auto;
+  height: 32px;
+}
+
+.count {
+  flex: 0 0 auto;
+  color: var(--p-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 会滚动的是这个列表（不是整个页面）：`min-height: 0` 让它真的能收缩。 */
+.all {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note-row {
+  padding: 8px 10px;
+  border: 1px solid var(--p-line);
+  border-radius: 10px;
+  background: var(--p-card);
+}
+
+.note-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.note-head .when {
+  margin-left: auto;
+}
+
+.note-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

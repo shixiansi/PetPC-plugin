@@ -1,0 +1,59 @@
+{
+  "id": "com.shixiansi.plugin-habits",
+  "name": "习惯打卡",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "每天点一下就打卡的习惯清单（早读、喝水、练琴…）：宠物头顶那行字显示「连续 12 天」或「今天还差 2 件」，宠物旁边一块小卡片列出今天还没打的习惯，控制中心的插件页里管习惯。换日按本机 04:00 算（03:59 仍属于前一天），同一份状态重复计算只会结算一次，跨月跨年都算连续。到点还没打完会提醒一次（同一天只提醒一次）。纯本地，不联网。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "pet.surface",
+    "events",
+    "plugin.call"
+  ],
+  "background": true,
+  "serves": [
+    "streak",
+    "today"
+  ],
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -120,
+      "w": 280,
+      "h": 140,
+      "radius": 14
+    }
+  ],
+  "config": [
+    {
+      "key": "remindAt",
+      "label": "提醒时刻（HH:MM，到点还没打完就提醒一次：头顶那行字与宠物旁的卡片）",
+      "type": "text",
+      "default": "20:00"
+    },
+    {
+      "key": "badgeMode",
+      "label": "头顶那行字显示什么",
+      "type": "select",
+      "default": "streak",
+      "options": [
+        { "value": "streak", "label": "连续天数（连续 N 天）" },
+        { "value": "pending", "label": "今天还差几件（今天还差 N 件）" }
+      ]
+    },
+    {
+      "key": "remindEnabled",
+      "label": "到点提醒",
+      "type": "bool",
+      "default": "true"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/core.js",
+    "lib/habits.js",
+    "lib/store.js",
+    "lib/view.js"
+  ]
+}

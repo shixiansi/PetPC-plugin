@@ -1,0 +1,53 @@
+{
+  "id": "com.shixiansi.plugin-quicksave",
+  "name": "速记盒子",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "速记盒子：想到什么就丢一句进来——输入一句话（可以带标签）按「记下」，以后能搜、能翻。重复的内容不会变成两条，它只把原来那条挪到最前面。盒子满了按「最久没被碰过的先走」淘汰，条数在设置里改（20–2000，默认 500）。别的插件也能用 plugin.call 往里写（add）和往外读（recent）。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "pet.surface",
+    "pet.bubble",
+    "plugin.call"
+  ],
+  "serves": [
+    "add",
+    "recent"
+  ],
+  "background": true,
+  "surface": [
+    {
+      "dx": 160,
+      "dy": -140,
+      "w": 300,
+      "h": 132,
+      "radius": 14,
+      "maxH": 152
+    }
+  ],
+  "config": [
+    {
+      "key": "maxItems",
+      "label": "最多留几条（20–2000；超了按「最久没被碰过的先走」淘汰）",
+      "type": "number",
+      "default": "500"
+    },
+    {
+      "key": "sayOnSave",
+      "label": "记下之后让桌宠说一句（含现在共几条）",
+      "type": "bool",
+      "default": "false"
+    },
+    {
+      "key": "defaultTag",
+      "label": "默认标签（留空=不加；写了之后，没给标签的速记都用它）",
+      "type": "text",
+      "default": ""
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "lib/notes.js"
+  ]
+}

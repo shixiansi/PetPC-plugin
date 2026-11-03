@@ -1,0 +1,37 @@
+{
+  "id": "com.shixiansi.plugin-table-lab",
+  "name": "表格分析",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "拖一份 CSV 进插件页：推断每列是整数、小数、日期还是文本，按一列做分组计数，用 SVG 当场画一张条形图。桌宠旁边那张紧凑卡片显示「当前表格 · N 行 × M 列」与一行分组结论，并能在那里点「让模型解读」——模型只读浓缩后的统计摘要，不读整张表。文件只用浏览器的 FileReader 读，插件不碰磁盘路径、不需要 process 权限；超过预览行数会截断，并在界面上写明只统计了前 N 行。",
+  "permissions": ["storage", "plugin.config", "llm.chat", "pet.surface"],
+  "panel": true,
+  "surface": [{ "dx": 160, "dy": -160, "w": 300, "h": 150, "radius": 14 }],
+  "config": [
+    {
+      "key": "maxPreviewRows",
+      "label": "最多预览/统计多少行（超出的行会截断，界面上会写明只统计了前 N 行）",
+      "type": "number",
+      "default": "200"
+    },
+    {
+      "key": "delimiter",
+      "label": "CSV 字段分隔符（分组统计也按它切列；制表符填 \\t）",
+      "type": "text",
+      "default": ","
+    },
+    {
+      "key": "encoding",
+      "label": "默认字符集（auto=按浏览器默认的 UTF-8 读；国内的老表格多是 GBK）",
+      "type": "select",
+      "default": "auto",
+      "options": [
+        { "value": "auto", "label": "自动（UTF-8）" },
+        { "value": "utf-8", "label": "UTF-8" },
+        { "value": "gbk", "label": "GBK / GB18030" }
+      ]
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/csv.js", "lib/stats.js", "lib/chart.js", "lib/views.js"]
+}

@@ -1,0 +1,102 @@
+/*
+ * GitHub 通知：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与标签全部来自 `ui.css`（宿主 tokens 的逐字节副本）。
+ * 一条纪律：这个文件里不该出现任何 #xxxxxx。
+ *
+ * 这一版**没有声明浮层面**，页面只长在控制中心的插件页里（一个正常滚动、不被矩形裁剪的容器），
+ * 所以 §8.4 那条"不许 box-shadow / transform"对它不成立——那些装饰由 ui.css 直接给。
+ */
+
+/*
+ * 画布透明 + 只在浅色方案下渲染：Chromium 在 `color-scheme: dark` 下会给**画布**铺一层
+ * #121212，根元素的 background:transparent 压不住它，于是"没画东西"的地方是一条黑带。
+ * `color-scheme` 必须写在 `:root` 上（写在 html 上会被 ui.css 的 `:root` 吃掉）。
+ */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 卡片标题与它右边那组按钮同一行；窄下去就换行，而不是把按钮挤出卡片。 */
+.card-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.feed-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+
+.feed-row .tag {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+/* min-width: 0 是必须的：没有它，一行很长的标题会把这一行撑出卡片（flex 子项的默认最小宽度
+   是内容宽度），然后在窄屏上被裁掉。 */
+.feed-main {
+  min-width: 0;
+}
+
+.feed-title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.feed-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.status {
+  margin: 0;
+  color: var(--text-dim);
+  min-height: 1.5em;
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.errors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.errors:empty {
+  display: none;
+}

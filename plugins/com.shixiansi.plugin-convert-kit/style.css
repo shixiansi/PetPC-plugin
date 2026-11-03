@@ -1,0 +1,198 @@
+/*
+ * 换算工具：这一页特有的布局。
+ *
+ * 颜色、间距、圆角、阴影、按钮、输入框、下拉框全部来自 ui.css（宿主 tokens 的逐字副本）——
+ * 这个文件里**没有一个色值**。哪天想写 #xxxxxx，说明它该在 ui.css 里有个名字。
+ */
+
+/* 同一个文档也可能被挂到没有底色的容器里（手册 §8.4）：矩形之外要透出桌面。
+   color-scheme 必须写在 :root 上——写在 html 上会被 ui.css 的 :root 规则吃掉。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+/* （`[hidden] { display: none !important }` 已经由 ui.css 提供：.page 是 flex 容器，
+   没有那一条的话"藏起来"的卡片仍然占位。这里不再写第二份。） */
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* --- 分类标签 --------------------------------------------------------------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.tab {
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+
+.tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.tab[aria-selected='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+  font-weight: 600;
+}
+
+/* --- 表单 ------------------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* 一行"标签 + 控件"。窄屏上下堆叠——被压成一条缝的标签列是最常见的丑。 */
+.row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.row > .k {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.grow {
+  min-width: 0;
+}
+
+@media (max-width: 620px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.kind-hint {
+  margin-top: var(--space-4);
+}
+
+/* --- 结果 ------------------------------------------------------------------- */
+
+.result {
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-sunken);
+}
+
+.result-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.result-value {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--accent);
+  /* 换算是拿数字对眼的活：等宽数字让两次结果的小数点对齐。 */
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.result-unit {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.result-expr {
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.result-note {
+  margin-top: var(--space-2);
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.error {
+  margin-top: var(--space-4);
+  color: var(--danger);
+}
+
+/* --- 最近换算 --------------------------------------------------------------- */
+
+.recent {
+  list-style: none;
+  margin: var(--space-3) 0 var(--space-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.recent-btn {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.recent-btn:hover {
+  background: var(--bg-hover);
+}
+
+/* --- 给别的插件看的那段示例 -------------------------------------------------- */
+
+.sample {
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}

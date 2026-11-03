@@ -1,0 +1,55 @@
+{
+  "id": "com.shixiansi.plugin-weekly-review",
+  "name": "周报",
+  "version": "1.0.1",
+  "author": "shixiansi",
+  "description": "每周日 20:00（时刻与星期几可改）把这一周从别的插件问来的三件事汇成一份 ≤300 字的周报：待办完成情况（待办插件的 stats）、专注时长（番茄钟插件的 stats）、日记片段（日记插件的 get_recent，默认不写进正文）。浮层面上一块紧凑卡片显示本周三个数与一句结论，点「生成」随时重做；控制中心的插件页看完整的一份。别的插件可以用 plugin.call 问 report（现在生成并回）或 latest（回上一次的）。三个来源缺了哪一个，报告里会写明，卡片与插件页上也会点名。",
+  "permissions": ["plugin.call", "storage", "plugin.config", "pet.bubble", "llm.chat", "events", "pet.surface"],
+  "serves": ["report", "latest"],
+  "callTargets": [
+    "com.shixiansi.plugin-todo/stats",
+    "com.shixiansi.plugin-pomodoro/stats",
+    "com.shixiansi.plugin-diary-writer/get_recent"
+  ],
+  "background": true,
+  "surface": [
+    { "dx": 160, "dy": -140, "w": 300, "h": 140, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "reportTime",
+      "label": "每周几点生成（HH:MM，24 小时制）",
+      "type": "text",
+      "default": "20:00"
+    },
+    {
+      "key": "reportWeekday",
+      "label": "每个星期的哪一天生成",
+      "type": "select",
+      "default": "0",
+      "options": [
+        { "value": "0", "label": "周日" },
+        { "value": "1", "label": "周一" },
+        { "value": "2", "label": "周二" },
+        { "value": "3", "label": "周三" },
+        { "value": "4", "label": "周四" },
+        { "value": "5", "label": "周五" },
+        { "value": "6", "label": "周六" }
+      ]
+    },
+    {
+      "key": "useModel",
+      "label": "用模型把三个数润色成一段话（关掉就用固定模板）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "includeDiary",
+      "label": "周报里带上日记片段（默认不带：日记只在它自己的插件里）",
+      "type": "bool",
+      "default": "false"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/core.js", "lib/week.js", "lib/collect.js", "lib/report.js", "lib/views.js"]
+}

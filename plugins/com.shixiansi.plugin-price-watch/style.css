@@ -1,0 +1,132 @@
+/*
+ * 网页变化监控：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写布局：监控条目、变化历史。
+ *
+ * 纪律：这个文件里不许出现 #xxxxxx —— 出现了就说明它该在 ui.css 里有个名字。
+ */
+
+/* ui.css 没有这个原语，而这个插件有两个挂载（常驻帧 / 插件页），只靠它切可见性。 */
+.hidden {
+  display: none !important;
+}
+
+/*
+ * 常驻帧：宿主已经把它 `display:none` 了，这里再兜一层——它是"什么都不画"的那一面，
+ * 不能因为一个 CSS 写错就依赖布局、尺寸或焦点（手册 §8.5）。
+ */
+#root.view-background {
+  display: none;
+}
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.entry {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.entry-name {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.entry-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+.entry-alert {
+  margin: 0;
+  font-size: 12px;
+  color: var(--warning);
+}
+
+.entry-excerpt {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.change {
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.change-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.change-name {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.change-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.change-text {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+/* `.card-head` 不在这里：ui.css 已经有了（左右分居 + 间距），重写一份只会让两处慢慢分叉。 */
+
+.status {
+  min-height: 1.5em;
+  color: var(--text-dim);
+}
