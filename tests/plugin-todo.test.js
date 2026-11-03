@@ -620,3 +620,54 @@ describe('todo 1.3.0: add_task / toggle / list（别的插件用 plugin.call 问
     expect(m.sent.filter((x) => x.method === 'share.set'), '没写进 storage 的列表不许发布').toEqual([]);
   });
 });
+
+describe('todo plugin 1.3.1: 设置改了不用重启', () => {
+  const ID = 'com.shixiansi.plugin-todo';
+  const petHost = {
+    program: 'pet',
+    methods: ['config.get', 'events.subscribe', 'storage.get', 'storage.set', 'bubble.say'],
+  };
+
+  /** 推一条宿主事件（和宿主投递 event 消息完全同形）。 */
+  function emit(window, name, payload) {
+    const event = new window.MessageEvent('message', {
+      data: { v: 1, type: 'event', name, payload },
+    });
+    Object.defineProperty(event, 'source', { value: window });
+    window.dispatchEvent(event);
+  }
+
+  test('config.changed 让帧重读一次 config.json', async () => {
+    // 2026-11-03 用户报的："把「定时提醒」关掉再打开，勾回来了但不再提醒；退出桌宠重开又出现
+    // 了"。重开 = 帧被重挂 = 重新读一次 settings —— 也就是说这个帧从来没重读过设置。
+    const { window, sent, init, respond } = await mount({
+      granted: [...listGrant, 'events'],
+      surface: { slot: 'background' },
+    });
+    init({ pluginId: ID, host: petHost });
+
+    // 桌宠按订阅广播，所以先订阅（控制中心不服务它，那边是直达）。
+    const sub = lastOf(sent, 'events.subscribe');
+    expect(sub, '没有订阅 config.changed，桌宠那边就永远不会通知它').toBeTruthy();
+    expect(sub.payload.names).toEqual(['config.changed']);
+
+    const first = lastOf(sent, 'config.get');
+    respond(first.id, { values: { remindEnabled: 'true', remindIntervalMin: '30' } });
+
+    emit(window, 'config.changed', { pluginId: ID });
+    const reads = sent.filter((m) => m.method === 'config.get');
+    expect(reads.length, 'config.changed 之后没有重读 config').toBe(2);
+  });
+
+  test('别的插件的变化不会让它白读一次（桌宠是广播）', async () => {
+    const { window, sent, init, respond } = await mount({
+      granted: [...listGrant, 'events'],
+      surface: { slot: 'background' },
+    });
+    init({ pluginId: ID, host: petHost });
+    respond(lastOf(sent, 'config.get').id, { values: {} });
+
+    emit(window, 'config.changed', { pluginId: 'com.shixiansi.plugin-other' });
+    expect(sent.filter((m) => m.method === 'config.get').length).toBe(1);
+  });
+});

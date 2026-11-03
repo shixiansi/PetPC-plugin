@@ -78,6 +78,19 @@ let todos = [];
 let lastSaid = 0;
 let pendingConfig = null;
 let pendingSaid = null;
+// 自己的 id：桌宠的 `config.changed` 是**广播**（每个订阅者都收到每个插件的变化），所以要比
+// 一下 payload.pluginId。控制中心是直达，payload 里也带同一个字段。
+let selfId = '';
+// `init.host.methods`：这个窗口到底服务哪些方法（手册 §5.2.1）。旧宿主没有这个字段 →
+// null，退化成"按老的假设"（那就是 subscribe 会失败、但不会崩）。
+//
+// 为什么要它：`events.subscribe` 只有**桌宠**服务，控制中心不服务（它直接推 config.changed）。
+// 不看这一项就在控制中心里也订阅，`plugin-check` 的 unsupported-here 会判 FAIL，而真机上
+// 就是一行"本程序不支持该方法"的噪音。
+let hostMethods = null;
+function serves(method) {
+  return !hostMethods || hostMethods.includes(method);
+}
 let seq = 0;
 
 function nextId() {
@@ -613,6 +626,8 @@ function onInit(data) {
   initialised = true;
   applyTheme(data.theme);
   granted = new Set(data.granted || []);
+  selfId = String(data.pluginId || '');
+  hostMethods = Array.isArray(data.host && data.host.methods) ? data.host.methods.slice() : null;
 
   const surface = data.surface || {};
   if (surface.kind === 'surface') role = 'list';
@@ -638,6 +653,19 @@ function onInit(data) {
   loadTodos();
 
   if (granted.has('plugin.config')) pendingConfig = request('config.get', {});
+
+  // 设置变了要**重读**，所以先订阅。
+  //
+  // 这一段是 2026-11-03 用户报的那条 bug 的修法：他在插件页把「定时提醒」关掉再打开，界面上
+  // 勾回来了，可这个帧用的还是挂载时读到的那一份 settings —— 于是"关了再开也不提醒"，要
+  // **退出桌宠重开**（帧被重挂，重新读一次）才恢复。
+  //
+  // 两个宿主都会推 `config.changed`，但方式不同（手册 §7）：桌宠**按订阅**广播，所以要
+  // subscribe；控制中心不服务 events.subscribe，它直达这个插件的帧。两边的 payload 都带
+  // pluginId，所以下面那个处理器两种都认。
+  if (granted.has('events') && serves('events.subscribe')) {
+    request('events.subscribe', { names: ['config.changed'] });
+  }
 
   // The loop runs in the headless frame only: the list frame is not always mounted, and two
   // frames both reminding would say everything twice.
@@ -714,7 +742,23 @@ function onResponse(data) {
  * 写入还在飞的时候不读：那时候读回来的还是写入前的那一份（见 startListPoll 的守卫）。
  */
 function onEvent(data) {
-  if (!data || data.name !== 'storage.changed') return;
+  if (!data) return;
+  // 设置变了：重读一次 config.json。
+  //
+  // 为什么必须重读而不是"等下一次挂载"：用户在控制中心的插件页改完「定时提醒」，改的是
+  // config.json，而这个帧的 settings 是**挂载时读的那一份**。不重读的话，关掉再打开看起来
+  // 勾回来了、实际还在按旧值走 —— 2026-11-03 用户的原话是"关了后再开也不显示了""退出桌宠
+  // 重开又出现了"（重开 = 帧重挂 = 重新读一次）。
+  if (data.name === 'config.changed') {
+    const payload = data.payload || {};
+    // 桌宠是广播（每个订阅者都收到每个插件的变化），所以要比 id；控制中心是直达。
+    if (payload.pluginId && selfId && String(payload.pluginId) !== selfId) return;
+    if (granted.has('plugin.config') && !pendingConfig) {
+      pendingConfig = request('config.get', {});
+    }
+    return;
+  }
+  if (data.name !== 'storage.changed') return;
   const key = String((data.payload && data.payload.key) || '');
   if (key !== TODOS_KEY) return;
   if (role !== 'list') return;
