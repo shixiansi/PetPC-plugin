@@ -1,7 +1,7 @@
 {
   "id": "com.shixiansi.plugin-todo",
   "name": "待办插件",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "author": "shixiansi",
   "description": "桌宠的待办与提醒：列表、勾选、到期提醒都在这里。",
   "permissions": [
@@ -13,7 +13,7 @@
     "pet.bubble",
     "events"
   ],
-  "serves": ["stats"],
+  "serves": ["stats", "add_task", "toggle", "list"],
   "background": true,
   "panelSlot": "todos",
   "surface": [
