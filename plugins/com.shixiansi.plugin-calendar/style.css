@@ -1,0 +1,167 @@
+/*
+ * 日程日历的样式表。
+ *
+ * 这个文档长在被按矩形裁剪的浮层面里（§8.4）：box-shadow / filter / transform 会画到矩形
+ * 之外被切掉，所以一件都不用；分层靠底色与 border。也因此**不整份引 ui.css**（它的 .card /
+ * .btn 自带阴影与 hover 位移）——ui.css 只作为调色板进包，颜色一律 var(--…)，
+ * 十六进制色值只出现在下面两个调色板块里。
+ */
+
+/* --- 调色板：默认深色（桌宠是纯深色窗口） ------------------------------------ */
+:root {
+  --c-bg: #16181f;
+  --c-card: #1d2027;
+  --c-well: #12141a;
+  --c-line: #2c313c;
+  --c-text: #e8eaf0;
+  --c-muted: #9aa3b2;
+  --c-accent: #7c3aed;
+  --c-accent-soft: #2a2340;
+  --c-on-accent: #ffffff;
+  --c-ongoing: #1d3328;
+}
+
+html[data-theme='light'] {
+  --c-bg: #ffffff;
+  --c-card: #f6f8fc;
+  --c-well: #ffffff;
+  --c-line: #d6dde9;
+  --c-text: #16202e;
+  --c-muted: #5b6779;
+  --c-accent: #6d28d9;
+  --c-accent-soft: #f5f3ff;
+  --c-on-accent: #ffffff;
+  --c-ongoing: #ecfdf5;
+}
+
+/* 画布必须透出桌面：透明写在 :root，only light 压住 Chromium 给深色画布铺的底。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* { box-sizing: border-box; }
+
+/* hidden 属性必须压过本文件里的任何 display——app.js 靠它切换视图。 */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* init 到来之前与常驻帧里，什么都不画：帧的矩形里"没画的地方"是用户的桌面。 */
+body.view-boot,
+body.bg {
+  background: transparent;
+}
+
+body.view-boot .bar,
+body.view-boot .card-body,
+body.bg .bar,
+body.bg .card-body {
+  display: none;
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title { font-weight: 600; }
+
+.status {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--c-muted);
+  font-size: 12px;
+}
+
+/* 列表是唯一会增长的元素：overflow 留在这个盒子里（§8.4 的 min-height:0）。 */
+.card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+  background: var(--c-card);
+}
+
+.day-label {
+  margin: 0;
+  color: var(--c-muted);
+  font-size: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--c-well);
+}
+
+/* 正在进行的那一场：底色区分，不加阴影（矩形外会被裁）。 */
+.row.now {
+  background: var(--c-ongoing);
+}
+
+.row.all-day .time {
+  color: var(--c-muted);
+}
+
+.time {
+  flex: 0 0 auto;
+  color: var(--c-accent);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+  padding: 4px 2px;
+  color: var(--c-muted);
+  font-size: 12px;
+}
+
+.empty {
+  margin: 0;
+  padding: 2px;
+  color: var(--c-muted);
+  font-size: 12px;
+}

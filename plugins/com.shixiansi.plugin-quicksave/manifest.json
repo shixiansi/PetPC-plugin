@@ -1,0 +1,20 @@
+{
+  "id": "com.shixiansi.plugin-quicksave",
+  "name": "速记盒子",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "一句话记下，#打标签，随时搜。500 条上限的淘汰顺序可预测（先挤最旧的未置顶，置顶的留住）；重复内容不重复占位，合并且提到最前。别的插件和模型用 plugin.call 问它 add（远程记一条）与 recent（最近几条，可带标签过滤）；面板里还能让模型把选中的几条速记整理成要点。",
+  "permissions": ["storage", "plugin.config", "pet.bubble", "plugin.call", "llm.chat"],
+  "background": true,
+  "serves": ["recent", "add"],
+  "config": [
+    {
+      "key": "cap",
+      "label": "最多存几条（50–500；满了先挤最旧的未置顶）",
+      "type": "number",
+      "default": "500"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/quicksave-core.js", "ui.css"]
+}

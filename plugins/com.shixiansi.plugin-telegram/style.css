@@ -1,0 +1,72 @@
+/* Telegram 接入端 —— 自家布局。颜色全部来自 ui.css 的 token（纯面板插件整份引它，§8.6）：
+   这里不出现十六进制色值，也不写调色板（副本所有者是 ui.css）。 */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-5);
+  background: var(--bg);
+  color: var(--text);
+  font: var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100%;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.head h1 { margin: 0; font-size: 20px; }
+.head .lede { margin: var(--space-1) 0 0; max-width: 560px; }
+.chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.chip.ok-chip { background: var(--success-bg); color: var(--success); }
+.chip.warn-chip { background: var(--warning-bg); color: var(--warning); }
+
+.hint.error { color: var(--danger); }
+
+.facts { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.fact { margin: 0; }
+
+/* 手动发送：一行放不下就换行，控件宽度交给 .input 的默认行为 */
+.send-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+}
+.send-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  min-width: 48px;
+}
+.send-row .input { flex: 1 1 200px; min-width: 160px; }
+#send-text { flex: 2 1 280px; }
+#send-status { margin: var(--space-1) 0 0; }
+
+/* 事件尾巴：多行可滚，责任在这一层，不撑破卡片 */
+.log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 200px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+@media (max-width: 560px) {
+  body { padding: var(--space-4); }
+  .send-label { min-width: 100%; }
+}

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>纪念日倒计时</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上，首帧闪一下深色是
+  控制中心里最显眼的破绽。开着的时候用户再切换，由 app.js 接 theme 消息。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，三种挂载（由 init 的 surface 决定，别猜 kind——常驻帧的 kind 也是 panel）：
+    kind 'surface'      浮层面那块卡片：最近的几个纪念日（按剩余天数排序）
+    slot 'background'   常驻帧：跨天重算、更新徽标、临近提醒、答 plugin.call 的 next
+    slot 'workshop'     控制中心插件页：列表 + 增删改 + 日期选择（只读部分照常显示）
+
+  不引 ui.css：本插件声明了 surface，手册 §8.6 的例外适用——ui.css 的 .card/.btn 自带
+  box-shadow 与 hover transform，在被矩形裁剪的浮层面里会切出"缺一块"；调色板在 style.css
+  的两个调色板块里自带（颜色一律 var(--…)，十六进制只出现在那两块里）。
+
+  日期输入用原生 <input type="date">，min/max 撑到 0001-01-01..9999-12-31：生日可能填
+  很久以前。无属性时 Chromium 自己把值夹在 0001-01-01..275760 之间且 min/max 只挡用户
+  输入、不挡程序赋值（jsdom 也没有按 min/max 夹值的实现）——校验由 lib/dates.js 的
+  parseRecord 做，这里只是把日期选择器的范围声明出来。
+-->
+<link rel="stylesheet" href="./style.css">
+</head>
+<body id="root" class="view-boot" data-surface="boot">
+<header class="bar">
+  <span class="title">纪念日</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<!-- 浮层面 / 常驻帧共用的主区：surface 里显示卡片，background 里整块隐藏。 -->
+<main id="card" class="card-body">
+  <p id="note" class="note" hidden></p>
+  <div id="upcoming" class="list"></div>
+</main>
+
+<!-- 插件页：列表 + 增删改。只在这个挂载显示（workshop-only，静态 JS 也只在 workshop 接线）。 -->
+<section id="editor" class="editor" hidden>
+  <div id="list" class="list"></div>
+  <form id="add-form" class="add-form">
+    <input id="f-title" class="input" type="text" maxlength="60" placeholder="名字，例如：妈妈的生日" aria-label="纪念日名称">
+    <input id="f-date" class="input" type="date" min="0001-01-01" max="9999-12-31" aria-label="日期">
+    <label class="check"><input id="f-yearly" type="checkbox" checked> 每年重复</label>
+    <div class="form-actions">
+      <button id="b-save" class="btn primary" type="submit">保存</button>
+      <button id="b-cancel" class="btn" type="button" hidden>取消</button>
+    </div>
+    <p id="form-note" class="note" hidden></p>
+  </form>
+</section>
+
+<script src="lib/dates.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>周报汇总</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，两种挂载（由 init 的 surface.slot 决定，不猜 kind）：
+    slot 'background'   常驻帧：到点生成周报、答 plugin.call 的 report/latest。
+    slot 'workshop'     插件页：看历史周报、立即生成、复制。
+  纯面板型（无 surface）：ui.css 从 docs/ui 复制。
+-->
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="root" class="view-workshop">
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">周报汇总</span>
+        <span class="chip" id="chip-week">读取中…</span>
+      </div>
+      <p class="lede">
+        按能力名发现数据源（谁提供 <code>stats</code> 就问谁），任何一个失联都只是报告里
+        的一句「缺什么」。每周日 20:00 后自动生成，也可手动立即生成。
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>本周</h2>
+        <button id="gen-btn" class="btn primary" type="button">立即生成</button>
+      </div>
+      <p id="current" class="report"></p>
+      <p id="gen-note" class="hint" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>历史周报</h2>
+        <button id="clear-btn" class="btn soft" type="button">清空</button>
+      </div>
+      <div id="list" class="list"></div>
+      <p id="list-empty" class="muted">还没有周报。</p>
+    </section>
+
+    <p id="status" class="status"></p>
+  </main>
+</div>
+
+<script src="lib/weekly-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

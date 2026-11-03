@@ -1,0 +1,27 @@
+{
+  "id": "com.shixiansi.plugin-price-watch",
+  "name": "网页变化监控",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "盯网页的变化（价格、库存、公告）：填 URL 加一个正则或 CSS 选择器，插件按可配置的间隔抓取，值变了才用气泡说一句（首次抓取只立基线不报警），变化历史每项留最近 20 条。连续抓取失败自动翻倍间隔（封顶一小时），不伪装 UA、不追打。监控项用的域名自动进网络白名单（hostWhitelist），插件页可随时增删与查历史。",
+  "permissions": ["net.fetch", "storage", "plugin.config", "pet.bubble"],
+  "background": true,
+  "netHosts": ["example.com"],
+  "config": [
+    {
+      "key": "pollMin",
+      "label": "抓取间隔（分钟，最小 15）",
+      "type": "number",
+      "default": "15"
+    },
+    {
+      "key": "extraHosts",
+      "label": "额外要抓的域名（逗号分隔；监控项的域名会自动加入白名单，这里补漏）",
+      "type": "text",
+      "default": "",
+      "hostWhitelist": true
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/price-core.js", "ui.css"]
+}

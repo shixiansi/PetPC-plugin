@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>久坐喝水提醒</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上（§8.3），
+  首帧闪一下深色是控制中心里最显眼的破绽。开着时用户再切换，由 app.js 接 theme 消息。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，三种挂载（由 init 的 surface 决定，别猜 kind——常驻帧的 kind 也是 panel）：
+    kind 'surface'      浮层面那块透明底板：三组倒计时 + 今日计数
+    slot 'background'   常驻帧：提醒计时、发气泡、画徽标（它存在的原因：界面全关时提醒仍要到点）
+    slot 'workshop'     控制中心插件页：三组卡片（开关 / 间隔 / 今日计数 / 下次倒计时）
+                        控制中心没有桌宠，bubble/badge/surface.show 都不可用（§9）：
+                        只读视图照常显示，并"说出口"哪些事在桌宠那边。
+
+  不引 ui.css：本插件声明了 surface，手册 §8.6 的例外适用——ui.css 的 .card/.btn 自带
+  box-shadow 与 hover transform，在被矩形裁剪的浮层面里会切出"缺一块"。调色板在
+  style.css 的两个调色板块里自带（颜色一律 var(--…)，十六进制只出现在那两块里）。
+-->
+<link rel="stylesheet" href="./style.css">
+</head>
+<body id="root" class="view-boot" data-surface="boot">
+<header class="bar">
+  <span class="title">健康提醒</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<!-- 浮层面 / 插件页共用同一组卡片：三行，每行 = 名字 + 开关 + 倒计时 + 今日计数。
+     卡片高度固定（矩形按 manifest 声明裁剪）：内容放不下会被裁，所以行数写死为三、
+     不留"会自己长大"的块（§8.2b）。高度变化由 app.js 量了报 surface.blocks。 -->
+<main id="card" class="card-body">
+  <div class="row" id="row-water">
+    <span class="name">喝水</span>
+    <button type="button" id="toggle-water" class="toggle" aria-label="喝水提醒开关">开</button>
+    <span class="countdown" id="in-water">--</span>
+    <span class="count" id="count-water">今日 0 杯</span>
+  </div>
+  <div class="row" id="row-sit">
+    <span class="name">久坐</span>
+    <button type="button" id="toggle-sit" class="toggle" aria-label="久坐提醒开关">开</button>
+    <span class="countdown" id="in-sit">--</span>
+    <span class="count" id="count-sit">今日 0 次</span>
+  </div>
+  <div class="row" id="row-eye">
+    <span class="name">护眼</span>
+    <button type="button" id="toggle-eye" class="toggle" aria-label="护眼提醒开关">开</button>
+    <span class="countdown" id="in-eye">--</span>
+    <span class="count" id="count-eye">今日 0 次</span>
+  </div>
+  <footer class="foot">
+    <span id="dnd-note" class="note">勿扰 23:00-07:00</span>
+    <button type="button" id="rest" class="btn">歇会儿</button>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

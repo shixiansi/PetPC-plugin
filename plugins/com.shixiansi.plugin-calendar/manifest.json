@@ -1,0 +1,45 @@
+{
+  "id": "com.shixiansi.plugin-calendar",
+  "name": "日程日历",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "订阅 ICS 格式的公开日历（Google / Outlook / 飞书的公开日历都是这个格式）：会前 10 分钟弹一句气泡，浮层面显示今天与明天的日程。别的插件和模型用 plugin.call 问它 today / next / agenda，就能拿到未来 N 天的安排；断网时用上一次拉到的日历照常回答。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "pet.bubble",
+    "pet.surface",
+    "events",
+    "plugin.call"
+  ],
+  "background": true,
+  "serves": ["today", "next", "agenda"],
+  "netHosts": ["calendar.google.com"],
+  "surface": [
+    { "dx": 160, "dy": -170, "w": 320, "h": 200, "maxH": 300, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "icsUrl",
+      "label": "日历订阅链接（ICS；填你自己的公开日历地址，这个地址的域名会自动加进网络白名单）",
+      "type": "text",
+      "default": "https://calendar.google.com/calendar/ical/zh.china%23holiday%40group.v.calendar.google.com/public/basic.ics",
+      "hostWhitelist": true
+    },
+    {
+      "key": "refreshMin",
+      "label": "重新拉取日历的间隔（分钟；拉不到就用上一次的结果）",
+      "type": "number",
+      "default": "60"
+    },
+    {
+      "key": "remindMin",
+      "label": "会前几分钟提醒（0=不提醒）",
+      "type": "number",
+      "default": "10"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/ics.js"]
+}

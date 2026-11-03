@@ -1,0 +1,41 @@
+{
+  "id": "com.shixiansi.plugin-habits",
+  "name": "习惯打卡",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "每天一签的小习惯：喝水、锻炼、读书……到点打卡，宠物头顶的徽标告诉你今天还差几个，浮层面列出每个习惯的连续天数。断签从零重算。别的插件和模型用 plugin.call 问它 streak / today，就能拿到打卡进度。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "pet.surface",
+    "events",
+    "plugin.call"
+  ],
+  "background": true,
+  "serves": ["streak", "today"],
+  "surface": [
+    { "dx": 160, "dy": -170, "w": 300, "h": 190, "maxH": 320, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "dayChangeHour",
+      "label": "几点算新的一天（0–23 点；04:00 表示凌晨 4 点前仍算前一天）",
+      "type": "number",
+      "default": "4"
+    },
+    {
+      "key": "showBadge",
+      "label": "宠物头顶显示「今日还差几个」徽标",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "hideWhenDone",
+      "label": "今日全部完成后徽标写「全完成」（关掉则清空徽标）",
+      "type": "bool",
+      "default": "false"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/habit-core.js"]
+}

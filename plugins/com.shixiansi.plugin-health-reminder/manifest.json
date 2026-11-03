@@ -1,0 +1,69 @@
+{
+  "id": "com.shixiansi.plugin-health-reminder",
+  "name": "久坐喝水提醒",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "久坐、喝水、护眼三组提醒：各自可配间隔与启停，到点桌宠用气泡说一句，头顶徽标显示下一次提醒还有几分钟。浮层面与插件页显示三组倒计时与今日计数；勿扰时段与「歇会儿」期间保持安静。电脑休眠后倒计时会失准，这是已知限制（路线图 M4 修复）。",
+  "permissions": [
+    "events",
+    "pet.surface",
+    "pet.bubble",
+    "plugin.config",
+    "storage"
+  ],
+  "background": true,
+  "surface": [
+    { "dx": 160, "dy": -170, "w": 320, "h": 190, "maxH": 300, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "waterEnabled",
+      "label": "喝水提醒开关",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "waterIntervalMin",
+      "label": "喝水提醒间隔（分钟）",
+      "type": "number",
+      "default": "45"
+    },
+    {
+      "key": "sitEnabled",
+      "label": "久坐提醒开关",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "sitIntervalMin",
+      "label": "久坐提醒间隔（分钟）",
+      "type": "number",
+      "default": "45"
+    },
+    {
+      "key": "eyeEnabled",
+      "label": "护眼提醒开关",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "eyeIntervalMin",
+      "label": "护眼提醒间隔（分钟）",
+      "type": "number",
+      "default": "30"
+    },
+    {
+      "key": "dndWindow",
+      "label": "勿扰时段（HH:MM-HH:MM，此间不弹气泡；留空=不启用）",
+      "type": "text",
+      "default": "23:00-07:00"
+    },
+    {
+      "key": "restMinutes",
+      "label": "「歇会儿」一次歇多久（分钟）",
+      "type": "number",
+      "default": "30"
+    }
+  ],
+  "entry": "panel.html"
+}

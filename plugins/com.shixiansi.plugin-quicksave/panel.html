@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>速记盒子</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，两种挂载（由 init 的 surface.slot 决定，不猜 kind）：
+    slot 'background'   常驻帧：答 plugin.call 的 add / recent。
+    slot 'workshop'     控制中心插件页：记、搜、置顶、删、让模型整理。
+  本插件没有 surface（无浮层面），纯面板型：ui.css 从 docs/ui 复制。
+-->
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="root" class="view-workshop">
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">速记盒子</span>
+        <span class="chip" id="chip-count">0 条</span>
+      </div>
+      <p class="lede">
+        一句话记下，<code>#标签</code> 自动归档；500 条上限的淘汰顺序可预测（先挤最旧的未置顶）。
+        别的插件和模型用 <code>plugin.call</code> 问它 <code>add</code> / <code>recent</code>。
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>记一条</h2>
+      <form id="add-form" class="add-row">
+        <input id="add-input" class="input" type="text" placeholder="一句话，#标签 可选。如：周三交周报 #工作" maxlength="500" aria-label="速记内容">
+        <button id="add-btn" class="btn primary" type="submit">记下</button>
+      </form>
+      <p id="add-note" class="hint" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>找一条</h2>
+        <div class="chips" id="tag-chips"></div>
+      </div>
+      <div class="search-row">
+        <input id="search-input" class="input" type="search" placeholder="关键词（匹配文本）" maxlength="100" aria-label="搜索速记">
+        <button id="search-clear" class="btn soft" type="button" hidden>清除</button>
+      </div>
+      <div id="pick-bar" class="pick-bar" hidden>
+        <span id="pick-count">已选 0 条</span>
+        <button id="llm-tidy" class="btn primary" type="button" disabled>让模型整理</button>
+        <button id="pick-none" class="btn soft" type="button">取消选择</button>
+      </div>
+      <p id="llm-note" class="hint" role="status" aria-live="polite"></p>
+      <div id="list" class="list"></div>
+      <p id="list-empty" class="muted">还没有速记。</p>
+    </section>
+
+    <p id="status" class="status"></p>
+  </main>
+</div>
+
+<!--
+  经典 script，共享一个全局作用域。加模块时：这里加一行，并把文件写进 manifest 的 assets。
+-->
+<script src="lib/quicksave-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

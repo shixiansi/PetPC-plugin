@@ -1,0 +1,33 @@
+{
+  "id": "com.shixiansi.plugin-telegram",
+  "name": "Telegram 接入端（薄适配器）",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "Telegram Bot API 的薄适配器：常驻帧长轮询（getUpdates）收消息，发布到共享键 inbox（环形 20 条）供别的插件读取，也可用 on_message 查询；发消息只有插件页手动一条路（sendMessage）。不做人设、不做记忆、绝不自动回复。",
+  "permissions": ["net.fetch", "plugin.call", "plugin.share", "storage", "plugin.config"],
+  "serves": ["on_message"],
+  "background": true,
+  "netHosts": ["api.telegram.org"],
+  "config": [
+    {
+      "key": "botToken",
+      "label": "Bot Token（@BotFather 发的那串；要拼进请求地址，所以不是 secret 项）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "chatId",
+      "label": "默认发送目标 chat id（数字或 @频道名）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "pollTimeout",
+      "label": "长轮询等待秒数（0–50）",
+      "type": "number",
+      "default": "25"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["ui.css", "lib/convert.js", "lib/core.js"]
+}

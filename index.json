@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-11-01T08:51:22Z",
+  "updatedAt": "2026-11-02T22:07:41Z",
   "plugins": [
     {
       "id": "com.shixiansi.plugin-agent-worker",
@@ -11,6 +11,16 @@
       "permissions": ["plugin.call", "plugin.share", "storage", "plugin.config", "pet.bubble", "events"],
       "download": "dist/com.shixiansi.plugin-agent-worker-0.1.2.zip",
       "sha256": "fd2de6731abc6f1df9cbc5d40b31f169bbcfdc54db464c38dd8810866feb764d"
+    },
+    {
+      "id": "com.shixiansi.plugin-anniversary",
+      "name": "纪念日倒计时",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "把生日、周年这类每年重复的日子和单次的大事记下来：徽标在宠物头顶显示最近一个的倒数天数，浮层面列出接下来的纪念日，插件页里增删改（日期支持 0001-9999 年，生日可以填很久以前）。别的插件和模型用 plugin.call 问它 next，就能拿到最近的一个：当天返回 daysLeft=0 的今天；闰年 2/29 的生日在平年落在 2/28；跨年也算得对。",
+      "permissions": ["storage", "plugin.config", "pet.surface", "pet.bubble", "plugin.call", "events"],
+      "download": "dist/com.shixiansi.plugin-anniversary-0.1.0.zip",
+      "sha256": "7b18c2ed5f1d11489b01d42da673651e301847c6dd7fb87d8783600c5f5131a5"
     },
     {
       "id": "com.shixiansi.plugin-ast-coder",
@@ -35,6 +45,17 @@
       "sha256": "b59bc5cdf44adccd4c0ed40b162a72e16442eee3cf8452ab6a017b989c56d75f"
     },
     {
+      "id": "com.shixiansi.plugin-calendar",
+      "name": "日程日历",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "订阅 ICS 格式的公开日历（Google / Outlook / 飞书的公开日历都是这个格式）：会前 10 分钟弹一句气泡，浮层面显示今天与明天的日程。别的插件和模型用 plugin.call 问它 today / next / agenda，就能拿到未来 N 天的安排；断网时用上一次拉到的日历照常回答。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.bubble", "pet.surface", "events", "plugin.call"],
+      "netHosts": ["calendar.google.com"],
+      "download": "dist/com.shixiansi.plugin-calendar-0.1.0.zip",
+      "sha256": "1723ca8ec1c44e35d544af1cb0e09cabf099ea490ce6a91cc37e2cd9c26446e8"
+    },
+    {
       "id": "com.shixiansi.plugin-chat",
       "name": "对话插件",
       "version": "1.9.0",
@@ -53,6 +74,16 @@
       "permissions": ["process", "llm.chat", "llm.borrow", "storage", "plugin.config", "plugin.share", "events", "pet.surface", "pet.bubble"],
       "download": "dist/com.shixiansi.plugin-clipask-0.2.1.zip",
       "sha256": "b23d65b9000b95c099d3c92dfac048c6aca24f113f4d0c760abb54e063e5ca1c"
+    },
+    {
+      "id": "com.shixiansi.plugin-convert-kit",
+      "name": "换算工具",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "单位、进制与时区偏移的换算，全部内置表、零网络。长度/重量/温度/数据量/时间按因子换算，进制在字符串域转，时区偏移算两地钟差。别的插件和模型用 plugin.call 问它 convert（{value,from,to} 或 {text:\"1km to mi\"}），拿得到数值与一句给人看的结果；认不出的单位会点名拒绝而不是猜。",
+      "permissions": ["plugin.call", "storage", "plugin.config"],
+      "download": "dist/com.shixiansi.plugin-convert-kit-0.1.0.zip",
+      "sha256": "14bc86125c975d4b6aebef1335734a68dfd31e1c24f68d867aa3a2518820a0c5"
     },
     {
       "id": "com.shixiansi.plugin-desktop-wallpaper",
@@ -108,6 +139,17 @@
       "sha256": "67daca947542899aaee6b586c754094a83c7564802f8b94ec383bdaed92de15f"
     },
     {
+      "id": "com.shixiansi.plugin-finance-board",
+      "name": "行情看板",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "桌宠旁边的小看板：填几个股票/基金代码，浮层面画一条 sparkline 与现价涨跌（红涨绿跌可配）。行情源内置腾讯与新浪两个形状、可切换，也可自填镜像地址。休市无新数据时安静（不重写不重画）；解析不出的一律标「无数据」，绝不编一个数字上去。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.surface"],
+      "netHosts": ["qt.gtimg.cn", "hq.sinajs.cn"],
+      "download": "dist/com.shixiansi.plugin-finance-board-0.1.0.zip",
+      "sha256": "24272d26de2bbf1b7687fc80bc67a47cddc789a808c504077745ab2686ba8792"
+    },
+    {
       "id": "com.shixiansi.plugin-flashcards",
       "name": "记忆卡片（SM-2 间隔重复）",
       "version": "0.1.1",
@@ -126,6 +168,37 @@
       "permissions": ["plugin.share", "pet.surface", "storage", "plugin.config"],
       "download": "dist/com.shixiansi.plugin-game-center-0.1.1.zip",
       "sha256": "8c09a966de62a2d1a3cb6779f69f38bd27b98b11d09f5fddabac19e2457e0ef4"
+    },
+    {
+      "id": "com.shixiansi.plugin-github-notify",
+      "name": "GitHub 通知",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "轮询 GitHub：配了 token 时拉取你的通知（api.github.com/notifications），没配 token 时拉公开仓库的事件流；新通知用气泡说一句类型短语 + 仓库名（PR/Issue/CI 各有措辞），插件页列出通知、可标记已读。ETag 条件请求省流量，401/403/429 分清说清。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.bubble"],
+      "netHosts": ["api.github.com"],
+      "download": "dist/com.shixiansi.plugin-github-notify-0.1.0.zip",
+      "sha256": "997c29fbd4cbaa15f50d00a10fc846f986a8401a6d6ed8fdff449065a4ee2c28"
+    },
+    {
+      "id": "com.shixiansi.plugin-habits",
+      "name": "习惯打卡",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "每天一签的小习惯：喝水、锻炼、读书……到点打卡，宠物头顶的徽标告诉你今天还差几个，浮层面列出每个习惯的连续天数。断签从零重算。别的插件和模型用 plugin.call 问它 streak / today，就能拿到打卡进度。",
+      "permissions": ["storage", "plugin.config", "pet.surface", "events", "plugin.call"],
+      "download": "dist/com.shixiansi.plugin-habits-0.1.0.zip",
+      "sha256": "b3a74b4e1358c67f2ba14da21dc1134238e23297a41665dfc9f26f200b138d07"
+    },
+    {
+      "id": "com.shixiansi.plugin-health-reminder",
+      "name": "久坐喝水提醒",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "久坐、喝水、护眼三组提醒：各自可配间隔与启停，到点桌宠用气泡说一句，头顶徽标显示下一次提醒还有几分钟。浮层面与插件页显示三组倒计时与今日计数；勿扰时段与「歇会儿」期间保持安静。电脑休眠后倒计时会失准，这是已知限制（路线图 M4 修复）。",
+      "permissions": ["events", "pet.surface", "pet.bubble", "plugin.config", "storage"],
+      "download": "dist/com.shixiansi.plugin-health-reminder-0.1.0.zip",
+      "sha256": "2e0a9d1d64195a2a9dfa09e765b8a162e9955f592a27a2c90b11ef520f726d73"
     },
     {
       "id": "com.shixiansi.plugin-knowledge-base",
@@ -233,6 +306,17 @@
       "sha256": "c042334af3972370c8f50f9253f076516652d924b1f67fe2b1e7c8ba627abc71"
     },
     {
+      "id": "com.shixiansi.plugin-price-watch",
+      "name": "网页变化监控",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "盯网页的变化（价格、库存、公告）：填 URL 加一个正则或 CSS 选择器，插件按可配置的间隔抓取，值变了才用气泡说一句（首次抓取只立基线不报警），变化历史每项留最近 20 条。连续抓取失败自动翻倍间隔（封顶一小时），不伪装 UA、不追打。监控项用的域名自动进网络白名单（hostWhitelist），插件页可随时增删与查历史。",
+      "permissions": ["net.fetch", "storage", "plugin.config", "pet.bubble"],
+      "netHosts": ["example.com"],
+      "download": "dist/com.shixiansi.plugin-price-watch-0.1.0.zip",
+      "sha256": "0ece943c8c8b7aa056f098fd83ab18bf7a84786f0656f63136441b3a63126e8e"
+    },
+    {
       "id": "com.shixiansi.plugin-privacy-guard",
       "name": "隐私卫士（敏感信息监控与脱敏）",
       "version": "0.1.5",
@@ -263,6 +347,16 @@
       "netHosts": ["api.bot.qq.com", "api.sgroup.qq.com"],
       "download": "dist/com.shixiansi.plugin-qqbot-1.0.3.zip",
       "sha256": "f4b6cf9d58141a47cb438e1a219856c5bc932f78829d49da040740ace100a117"
+    },
+    {
+      "id": "com.shixiansi.plugin-quicksave",
+      "name": "速记盒子",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "一句话记下，#打标签，随时搜。500 条上限的淘汰顺序可预测（先挤最旧的未置顶，置顶的留住）；重复内容不重复占位，合并且提到最前。别的插件和模型用 plugin.call 问它 add（远程记一条）与 recent（最近几条，可带标签过滤）；面板里还能让模型把选中的几条速记整理成要点。",
+      "permissions": ["storage", "plugin.config", "pet.bubble", "plugin.call", "llm.chat"],
+      "download": "dist/com.shixiansi.plugin-quicksave-0.1.0.zip",
+      "sha256": "3750d414608e6a532b47901032523852ec1317bb9b37f10f295b56bc020cf527"
     },
     {
       "id": "com.shixiansi.plugin-rss-reader",
@@ -304,6 +398,27 @@
       "permissions": ["storage", "plugin.config", "plugin.call", "plugin.share", "pet.bubble"],
       "download": "dist/com.shixiansi.plugin-state-snapshot-1.0.2.zip",
       "sha256": "0d9796492a3183b21a68ab50e7e153aa89e6db24b9ebf4725ca3623b5cb91d8b"
+    },
+    {
+      "id": "com.shixiansi.plugin-table-lab",
+      "name": "表格分析",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "把一个 CSV 拖进来（或选一个文件），它就地算出每列的类型与统计（count / unique / 数值列的 min·max·mean），画一张概览图，可选让模型解读——只发统计摘要，原始数据不出门。文件不落盘：CSV 超过 1 MiB 时只记住统计与文件名。",
+      "permissions": ["storage", "plugin.config", "llm.chat", "pet.bubble"],
+      "download": "dist/com.shixiansi.plugin-table-lab-0.1.0.zip",
+      "sha256": "b98c518d51c4ae34181060261ca0ce4478e8d6f97b7c30ae2e904fab5a5e4a8a"
+    },
+    {
+      "id": "com.shixiansi.plugin-telegram",
+      "name": "Telegram 接入端（薄适配器）",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "Telegram Bot API 的薄适配器：常驻帧长轮询（getUpdates）收消息，发布到共享键 inbox（环形 20 条）供别的插件读取，也可用 on_message 查询；发消息只有插件页手动一条路（sendMessage）。不做人设、不做记忆、绝不自动回复。",
+      "permissions": ["net.fetch", "plugin.call", "plugin.share", "storage", "plugin.config"],
+      "netHosts": ["api.telegram.org"],
+      "download": "dist/com.shixiansi.plugin-telegram-0.1.0.zip",
+      "sha256": "a9b01e4ba288836fb8c07cfa17e834076d04c36fe356003837fba85331df9f28"
     },
     {
       "id": "com.shixiansi.plugin-todo",
@@ -380,6 +495,16 @@
       "netHosts": ["api.tavily.com", "api.bing.microsoft.com"],
       "download": "dist/com.shixiansi.plugin-websearch-1.0.5.zip",
       "sha256": "52d7cb2cca327649a1f40dd534d78aa40d93391e71be7edeb93b35be31f21949"
+    },
+    {
+      "id": "com.shixiansi.plugin-weekly-review",
+      "name": "周报汇总",
+      "version": "0.1.0",
+      "author": "shixiansi",
+      "description": "每周日晚汇总这一周的待办完成数、专注时长、日记篇数，让模型写成一篇不超过 300 字的周报（模型不在就退化为数字模板）。按能力名发现数据源（谁提供 stats 就问谁，不写死插件 id），任何一个数据源失联都只是报告里的一句「缺什么」，绝不拖死整份周报。别的插件和模型用 plugin.call 问它 report（立即生成）与 latest（最近一篇）。",
+      "permissions": ["plugin.call", "storage", "plugin.config", "pet.bubble", "events", "llm.chat"],
+      "download": "dist/com.shixiansi.plugin-weekly-review-0.1.0.zip",
+      "sha256": "bb096e35e1ef40a11bf258b1cdda13ae90dd0f9d8b3c503395f2f7bae3c883e2"
     }
   ]
 }

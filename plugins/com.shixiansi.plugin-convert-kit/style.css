@@ -1,0 +1,104 @@
+/*
+ * 换算工具：这一页特有的东西。
+ *
+ * 颜色、字体、间距、圆角、阴影、按钮与输入框全部来自 `ui.css`（宿主 tokens 的副本）。
+ * 这里只写布局：换算行、结果条、单位表、历史表。
+ *
+ * 本插件没有 surface（无浮层面），box-shadow / hover 位移是安全的：它活在控制中心一个
+ * 正常滚动的容器里。十六进制色值不该出现——出现了说明它该在 ui.css 里有个名字。
+ */
+
+.workshop {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.head .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lede {
+  color: var(--text-dim);
+}
+
+.conv-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.conv-row .input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+.conv-row .arrow {
+  color: var(--text-dim);
+}
+
+.result {
+  margin: var(--space-3) 0 0;
+  min-height: 1.5em;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.result.bad {
+  color: var(--danger);
+}
+
+.linkish {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.units {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.units th,
+.units td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.units td.cat {
+  white-space: nowrap;
+  color: var(--text-dim);
+  width: 5em;
+}
+
+.history {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history th,
+.history td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.history td.expr {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}

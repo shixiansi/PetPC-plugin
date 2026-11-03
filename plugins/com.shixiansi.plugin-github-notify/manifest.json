@@ -1,0 +1,48 @@
+{
+  "id": "com.shixiansi.plugin-github-notify",
+  "name": "GitHub 通知",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "轮询 GitHub：配了 token 时拉取你的通知（api.github.com/notifications），没配 token 时拉公开仓库的事件流；新通知用气泡说一句类型短语 + 仓库名（PR/Issue/CI 各有措辞），插件页列出通知、可标记已读。ETag 条件请求省流量，401/403/429 分清说清。",
+  "permissions": [
+    "net.fetch",
+    "storage",
+    "plugin.config",
+    "pet.bubble"
+  ],
+  "background": true,
+  "netHosts": [
+    "api.github.com"
+  ],
+  "config": [
+    {
+      "key": "token",
+      "label": "GitHub Token（可选；建议最小 scope，只读通知）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "publicRepo",
+      "label": "无 token 时轮询的公开仓库（owner/repo；留空则只在有 token 时工作）",
+      "type": "text",
+      "default": ""
+    },
+    {
+      "key": "pollMin",
+      "label": "轮询间隔（分钟，1–60；兜底 tick 另有节律）",
+      "type": "number",
+      "default": "15"
+    },
+    {
+      "key": "quietBubble",
+      "label": "关闭气泡（只更新插件页列表）",
+      "type": "bool",
+      "default": "false"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": [
+    "ui.css",
+    "lib/core.js"
+  ]
+}

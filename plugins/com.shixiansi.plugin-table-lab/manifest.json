@@ -1,0 +1,19 @@
+{
+  "id": "com.shixiansi.plugin-table-lab",
+  "name": "表格分析",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "把一个 CSV 拖进来（或选一个文件），它就地算出每列的类型与统计（count / unique / 数值列的 min·max·mean），画一张概览图，可选让模型解读——只发统计摘要，原始数据不出门。文件不落盘：CSV 超过 1 MiB 时只记住统计与文件名。",
+  "permissions": ["storage", "plugin.config", "llm.chat", "pet.bubble"],
+  "panel": true,
+  "config": [
+    {
+      "key": "maxHistBins",
+      "label": "首列直方图的格子数（8–40）",
+      "type": "number",
+      "default": "16"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["ui.css", "lib/csv.js"]
+}

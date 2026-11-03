@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>行情看板</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，三种挂载（由 init 的 surface 决定，不猜 kind）：
+    kind 'surface'      浮层面：每个代码一行（名称、现价、涨跌%、sparkline）
+    slot 'background'   常驻帧：按 tick 拉行情、判定休市、（可选）徽标
+    slot 'workshop'     插件页：代码清单管理 + 详情列表 + 历史
+  有 surface：不引 ui.css（其阴影/transform 会撞 css-forbidden），调色板自带（style.css）。
+-->
+<link rel="stylesheet" href="./style.css">
+</head>
+<body id="root" class="view-boot">
+<header class="bar">
+  <span class="title">行情</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<main id="card" class="card-body">
+  <div id="rows" class="rows"></div>
+  <p id="empty" class="empty">在插件页填几个代码（如 sh000001）</p>
+</main>
+
+<!-- 工坊页的管理区 -->
+<footer id="manage" class="manage" hidden>
+  <p class="hint">代码清单在插件设置里改（支持 sh/sz/bj 前缀）。行情源可切换：腾讯 / 新浪。</p>
+</footer>
+
+<script src="lib/quote.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

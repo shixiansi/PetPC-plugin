@@ -1,0 +1,26 @@
+{
+  "id": "com.shixiansi.plugin-weekly-review",
+  "name": "周报汇总",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "每周日晚汇总这一周的待办完成数、专注时长、日记篇数，让模型写成一篇不超过 300 字的周报（模型不在就退化为数字模板）。按能力名发现数据源（谁提供 stats 就问谁，不写死插件 id），任何一个数据源失联都只是报告里的一句「缺什么」，绝不拖死整份周报。别的插件和模型用 plugin.call 问它 report（立即生成）与 latest（最近一篇）。",
+  "permissions": ["plugin.call", "storage", "plugin.config", "pet.bubble", "events", "llm.chat"],
+  "background": true,
+  "serves": ["report", "latest"],
+  "config": [
+    {
+      "key": "reviewDay",
+      "label": "周几生成周报（1=周一 … 7=周日）",
+      "type": "number",
+      "default": "7"
+    },
+    {
+      "key": "reviewHour",
+      "label": "当天几点后生成（0–23 点）",
+      "type": "number",
+      "default": "20"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/weekly-core.js", "ui.css"]
+}

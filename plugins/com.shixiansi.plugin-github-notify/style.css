@@ -1,0 +1,64 @@
+/* GitHub 通知 —— 自家布局。颜色全部来自 ui.css 的 token（纯面板插件整份引它，§8.6）：
+   这里不出现十六进制色值，也不自带调色板（调色板所有者是 ui.css）。 */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-5);
+  background: var(--bg);
+  color: var(--text);
+  font: var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100%;
+}
+
+.head h1 { margin: 0; font-size: 20px; }
+.head .lede { margin: var(--space-1) 0 0; }
+
+.hint.error { color: var(--danger); }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+#gate-note { margin: var(--space-2) 0 0; }
+#last-at { font-size: 12px; }
+
+/* 通知表：横向滚动的责任在 .table-wrap，别把外层卡片撑破 */
+.table-wrap { overflow: auto; }
+table.gh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+table.gh-table th,
+table.gh-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+table.gh-table thead th {
+  color: var(--text-dim);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+}
+table.gh-table td.k { font-weight: 600; }
+table.gh-table td.repo { font-family: var(--font-mono); font-size: 12px; }
+table.gh-table tr.unread td.title { font-weight: 600; }
+table.gh-table tr.read td { color: var(--text-dim); }
+
+/* 通知标题里包链接：可点开 GitHub（浏览器外链不在本帧导航） */
+table.gh-table a { color: var(--accent); text-decoration: none; }
+table.gh-table a:hover { text-decoration: underline; }

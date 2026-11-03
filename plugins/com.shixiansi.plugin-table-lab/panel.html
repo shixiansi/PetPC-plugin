@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表格分析</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上，首帧闪一下深色是
+  控制中心里最显眼的破绽。开着时用户再切换，由 app.js 接 theme 消息。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  纯面板插件（manifest.panel: true，无 surface / 无 background）：一个文档一种挂载。
+    slot 'chat'      对话槽面板（桌宠侧）
+    slot 'workshop'  控制中心插件页
+  llm.chat 与 bubble.say 是 where:'pet' 的方法：workshop 那一面拿不到，按钮按
+  init.host.methods 降级并说出口（手册 §9 / LANE-CONTRACT 第 4 条）。
+
+  CSV 只从文件选择框 / 拖拽进来（FileReader / File API）——不读磁盘路径；内容不进 storage，
+  只存统计摘要与文件名（>1 MiB 的内容落一个键会被宿主拒写，这里从源头上就不发）。
+
+  ui.css 是宿主 token 的随包副本（纯面板插件必须整份引它，排在自家样式之前）。
+-->
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body id="root" data-slot="">
+<header class="head">
+  <div>
+    <h1>表格分析</h1>
+    <p class="lede">拖一个 CSV 进来，或用文件选择框选一个。所有计算都在这个页面里完成；
+    存下来的只有统计摘要与文件名，原始内容不落盘。</p>
+  </div>
+</header>
+
+<p class="hint" id="status" role="status" aria-live="polite">等待宿主初始化…</p>
+<p class="hint error" id="error" hidden></p>
+
+<main class="page">
+  <!-- 输入：文件选择 + 拖拽落点 -->
+  <section class="card" id="drop" data-over="false">
+    <div class="drop-row">
+      <input type="file" id="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" hidden>
+      <button type="button" id="pick" class="btn primary">选择 CSV 文件</button>
+      <span class="muted">或把文件拖到这张卡片上</span>
+      <span id="file-name" class="tag info" hidden></span>
+    </div>
+    <p class="hint" id="file-meta" hidden></p>
+  </section>
+
+  <!-- 概览：统计表 + 概览图 -->
+  <section class="card" id="overview" hidden>
+    <h2>统计概览</h2>
+    <div class="table-wrap">
+      <table id="stats" class="stats">
+        <thead>
+          <tr><th>列</th><th>类型</th><th>非空</th><th>不同值</th><th>min</th><th>max</th><th>mean</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="chart" class="chart"></div>
+    <p class="hint" id="chart-note" hidden></p>
+  </section>
+
+  <!-- 模型解读：只在桌宠侧可用；workshop 里按钮置灰 + 一句说明 -->
+  <section class="card" id="interpret" hidden>
+    <h2>让模型解读</h2>
+    <p class="hint">只把<strong>统计摘要</strong>（列名、类型、min/max/mean）发给模型，
+    原始数据一行都不会出门。</p>
+    <div class="drop-row">
+      <button type="button" id="ask" class="btn accent" disabled>请模型解读这份摘要</button>
+      <button type="button" id="bubble" class="btn" disabled>让桌宠说结论</button>
+    </div>
+    <p class="hint" id="llm-note" hidden></p>
+    <div id="answer" class="answer" hidden></div>
+  </section>
+
+  <!-- 空态（还没有文件时）：ui.css 的 .empty 四件套 -->
+  <section class="card" id="empty-state">
+    <div class="empty">
+      <div class="empty-glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="16" rx="2"/>
+          <path d="M3 9h18M9 4v16M15 4v16"/>
+        </svg>
+      </div>
+      <div class="empty-title">还没有表格</div>
+      <div class="empty-sub">选一个 CSV（或 TSV），统计、类型与概览图会出现在这里。</div>
+    </div>
+  </section>
+
+  <!-- 最近一次分析的记录（storage 里只有摘要与文件名） -->
+  <section class="card" id="history-card" hidden>
+    <h2>上一次分析</h2>
+    <p class="hint" id="history"></p>
+  </section>
+</main>
+
+<script src="lib/csv.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

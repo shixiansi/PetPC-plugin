@@ -1,0 +1,42 @@
+{
+  "id": "com.shixiansi.plugin-finance-board",
+  "name": "行情看板",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "桌宠旁边的小看板：填几个股票/基金代码，浮层面画一条 sparkline 与现价涨跌（红涨绿跌可配）。行情源内置腾讯与新浪两个形状、可切换，也可自填镜像地址。休市无新数据时安静（不重写不重画）；解析不出的一律标「无数据」，绝不编一个数字上去。",
+  "permissions": ["net.fetch", "storage", "plugin.config", "pet.surface"],
+  "background": true,
+  "netHosts": ["qt.gtimg.cn", "hq.sinajs.cn"],
+  "surface": [
+    { "dx": 160, "dy": -170, "w": 260, "h": 150, "maxH": 300, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "symbols",
+      "label": "代码清单（逗号分隔，如 sh000001, sz399006, sh600519）",
+      "type": "text",
+      "default": "sh000001"
+    },
+    {
+      "key": "apiBase",
+      "label": "行情源（qt.gtimg.cn=腾讯 / hq.sinajs.cn=新浪；填镜像地址也行，会自动加进网络白名单）",
+      "type": "text",
+      "default": "https://qt.gtimg.cn/q=",
+      "hostWhitelist": true
+    },
+    {
+      "key": "upColorIsRed",
+      "label": "涨用红色（中国习惯；关掉则涨绿跌红）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "showBadge",
+      "label": "宠物头顶显示首个代码的现价",
+      "type": "bool",
+      "default": "false"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/quote.js"]
+}

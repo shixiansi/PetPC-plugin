@@ -1,0 +1,20 @@
+{
+  "id": "com.shixiansi.plugin-convert-kit",
+  "name": "换算工具",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "单位、进制与时区偏移的换算，全部内置表、零网络。长度/重量/温度/数据量/时间按因子换算，进制在字符串域转，时区偏移算两地钟差。别的插件和模型用 plugin.call 问它 convert（{value,from,to} 或 {text:\"1km to mi\"}），拿得到数值与一句给人看的结果；认不出的单位会点名拒绝而不是猜。",
+  "permissions": ["plugin.call", "storage", "plugin.config"],
+  "background": true,
+  "serves": ["convert"],
+  "config": [
+    {
+      "key": "precision",
+      "label": "结果保留几位有效数字（2–12，默认 10）",
+      "type": "number",
+      "default": "10"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/convert.js", "ui.css"]
+}

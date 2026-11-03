@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telegram 接入端</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上（手册 §8.3）。
+  开着时再切换，由 app.js 收 theme 消息接上。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档两副面孔（init.surface.slot 决定）：
+    background  常驻帧：长轮询 getUpdates、发布 telegram-inbox、答 on_message。
+    workshop    控制中心插件页：状态、错误态、手动发送。不碰轮询。
+
+  这个插件是"薄"的：只收发与翻译消息形状。人设、记忆、回复策略在记忆核心/聊天插件；
+  它绝不自动回复——发送只有下方按钮这一条路，而且这面没有 net.fetch（where:'pet'），
+  点击后由常驻帧代发，发不出去会把宿主的中文原话说出口（§9）。
+
+  ui.css 是宿主 token 的随包副本（纯面板插件整份引它，排在自家样式之前）。
+-->
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body id="root" data-slot="">
+<header class="head">
+  <div>
+    <h1>Telegram 接入端</h1>
+    <p class="lede">只做两件事：长轮询收消息（发布到共享键 <code>telegram-inbox</code>，
+    谁想要谁读），以及把你在下面手写的这句话发出去。不自动回复——人设与回复策略不在这里。</p>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chip-config">配置：读取中…</span>
+    <span class="chip" id="chip-offset">offset：0</span>
+    <span class="chip" id="chip-inbox">收件箱：0 条</span>
+  </div>
+</header>
+
+<p class="hint" id="status" role="status" aria-live="polite">等待宿主初始化…</p>
+<p class="hint error" id="error" hidden></p>
+
+<main class="page">
+  <section class="card">
+    <h2>现在什么情况</h2>
+    <div id="facts" class="facts"></div>
+    <p class="hint">轮询由<strong>常驻帧</strong>持有：改完 Token / chat id 要等宿主重挂帧才生效。
+    断网或 409 / 401 这类错误态会出现在下方与错误行里。</p>
+  </section>
+
+  <section class="card">
+    <h2>手动发一条</h2>
+    <p class="hint">这是发送的<strong>唯一</strong>路径：插件绝不自动回复。发送要过常驻帧
+    （这一面没有网络能力），失败时把宿主的中文原话显示出来。</p>
+    <div class="send-row">
+      <label class="send-label" for="chat-id">chat id</label>
+      <input class="input" id="chat-id" type="text" placeholder="数字 id 或 @频道名" autocomplete="off">
+      <label class="send-label" for="send-text">文本</label>
+      <input class="input" id="send-text" type="text" placeholder="要发送的那句话" autocomplete="off" maxlength="3800">
+      <button type="button" id="send" class="btn primary" disabled>发送</button>
+    </div>
+    <p class="hint" id="send-status"></p>
+  </section>
+
+  <section class="card">
+    <h2>最近发生了什么</h2>
+    <ul id="log" class="log"></ul>
+    <p class="hint">只放事件（轮到没有、为什么退避、发了没有）——<strong>消息文本不进这里，也不进日志</strong>。</p>
+  </section>
+</main>
+
+<!-- 常驻帧：不画东西，只留一行状态（宿主帧是 display:none，写它没有成本） -->
+<p id="bg-status" hidden></p>
+
+<script src="lib/convert.js"></script>
+<script src="lib/core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

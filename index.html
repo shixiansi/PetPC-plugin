@@ -413,15 +413,15 @@ body:has(#f-community:checked) .is-official { display: none; }
     <div class="head-row">
       <div>
         <h1>PetPC 插件市场</h1>
-        <p class="lede">36 个插件（官方 36 · 社区 0）。每个插件就是一个目录（<code>manifest.json</code> + 前端资源），打包成 zip 后由宿主安装；机器可读版本是同目录的 <a href="index.json">index.json</a>。本页的列表与计数由 <code>tools/render-pages.mjs</code> 从 index.json 生成，不手维护。</p>
+        <p class="lede">48 个插件（官方 48 · 社区 0）。每个插件就是一个目录（<code>manifest.json</code> + 前端资源），打包成 zip 后由宿主安装；机器可读版本是同目录的 <a href="index.json">index.json</a>。本页的列表与计数由 <code>tools/render-pages.mjs</code> 从 index.json 生成，不手维护。</p>
       </div>
       <a class="btn ghost" href="manage.html">插件管理 →</a>
     </div>
   </header>
 
     <div class="chips" role="radiogroup" aria-label="筛选">
-      <input type="radio" name="filter" id="f-all" checked><label for="f-all">全部 36</label>
-      <input type="radio" name="filter" id="f-official"><label for="f-official">官方 36</label>
+      <input type="radio" name="filter" id="f-all" checked><label for="f-all">全部 48</label>
+      <input type="radio" name="filter" id="f-official"><label for="f-official">官方 48</label>
       <input type="radio" name="filter" id="f-community"><label for="f-community">社区 0</label>
     </div>
 
@@ -440,7 +440,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-agent-worker-0.1.2.zip" download>下载 0.1.2</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-agent-worker-0.1.2.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-agent-worker-0.1.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-1" aria-hidden="true">纪</span>
+      <div class="titles">
+        <h2>纪念日倒计时</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-anniversary</code></div>
+      </div>
+    </div>
+    <p class="desc">把生日、周年这类每年重复的日子和单次的大事记下来：徽标在宠物头顶显示最近一个的倒数天数，浮层面列出接下来的纪念日，插件页里增删改（日期支持 0001-9999 年，生日可以填很久以前）。别的插件和模型用 plugin.call 问它 next，就能拿到最近的一个：当天返回 daysLeft=0 的今天；闰年 2/29 的生日在平年落在 2/28；跨年也算得对。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span><span class="tag">plugin.call</span><span class="tag">events</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-anniversary-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-anniversary-0.1.0.zip</span>
     </div>
   </section>
 
@@ -458,7 +476,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-ast-coder-1.0.4.zip" download>下载 1.0.4</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-ast-coder-1.0.4.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-ast-coder-1.0.4.zip</span>
     </div>
   </section>
 
@@ -476,7 +494,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-bilibili-1.1.2.zip" download>下载 1.1.2</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-bilibili-1.1.2.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-bilibili-1.1.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">日</span>
+      <div class="titles">
+        <h2>日程日历</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-calendar</code></div>
+      </div>
+    </div>
+    <p class="desc">订阅 ICS 格式的公开日历（Google / Outlook / 飞书的公开日历都是这个格式）：会前 10 分钟弹一句气泡，浮层面显示今天与明天的日程。别的插件和模型用 plugin.call 问它 today / next / agenda，就能拿到未来 N 天的安排；断网时用上一次拉到的日历照常回答。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">pet.surface</span><span class="tag">events</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-calendar-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-calendar-0.1.0.zip</span>
     </div>
   </section>
 
@@ -494,7 +530,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-chat-1.9.0.zip" download>下载 1.9.0</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-chat-1.9.0.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-chat-1.9.0.zip</span>
     </div>
   </section>
 
@@ -512,7 +548,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-clipask-0.2.1.zip" download>下载 0.2.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-clipask-0.2.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-clipask-0.2.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">换</span>
+      <div class="titles">
+        <h2>换算工具</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-convert-kit</code></div>
+      </div>
+    </div>
+    <p class="desc">单位、进制与时区偏移的换算，全部内置表、零网络。长度/重量/温度/数据量/时间按因子换算，进制在字符串域转，时区偏移算两地钟差。别的插件和模型用 plugin.call 问它 convert（{value,from,to} 或 {text:&quot;1km to mi&quot;}），拿得到数值与一句给人看的结果；认不出的单位会点名拒绝而不是猜。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-convert-kit-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-convert-kit-0.1.0.zip</span>
     </div>
   </section>
 
@@ -530,7 +584,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-desktop-wallpaper-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-desktop-wallpaper-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-desktop-wallpaper-0.1.1.zip</span>
     </div>
   </section>
 
@@ -548,7 +602,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-diange-0.1.2.zip" download>下载 0.1.2</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-diange-0.1.2.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-diange-0.1.2.zip</span>
     </div>
   </section>
 
@@ -566,7 +620,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-diary-writer-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-diary-writer-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-diary-writer-0.1.1.zip</span>
     </div>
   </section>
 
@@ -584,7 +638,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-email-digest-1.0.2.zip" download>下载 1.0.2</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-email-digest-1.0.2.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-email-digest-1.0.2.zip</span>
     </div>
   </section>
 
@@ -602,7 +656,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-expense-tracker-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-expense-tracker-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-expense-tracker-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">行</span>
+      <div class="titles">
+        <h2>行情看板</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-finance-board</code></div>
+      </div>
+    </div>
+    <p class="desc">桌宠旁边的小看板：填几个股票/基金代码，浮层面画一条 sparkline 与现价涨跌（红涨绿跌可配）。行情源内置腾讯与新浪两个形状、可切换，也可自填镜像地址。休市无新数据时安静（不重写不重画）；解析不出的一律标「无数据」，绝不编一个数字上去。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.surface</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-finance-board-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-finance-board-0.1.0.zip</span>
     </div>
   </section>
 
@@ -620,7 +692,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-flashcards-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-flashcards-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-flashcards-0.1.1.zip</span>
     </div>
   </section>
 
@@ -638,7 +710,61 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-game-center-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-game-center-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-game-center-0.1.1.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">G</span>
+      <div class="titles">
+        <h2>GitHub 通知</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-github-notify</code></div>
+      </div>
+    </div>
+    <p class="desc">轮询 GitHub：配了 token 时拉取你的通知（api.github.com/notifications），没配 token 时拉公开仓库的事件流；新通知用气泡说一句类型短语 + 仓库名（PR/Issue/CI 各有措辞），插件页列出通知、可标记已读。ETag 条件请求省流量，401/403/429 分清说清。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-github-notify-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-github-notify-0.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-6" aria-hidden="true">习</span>
+      <div class="titles">
+        <h2>习惯打卡</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-habits</code></div>
+      </div>
+    </div>
+    <p class="desc">每天一签的小习惯：喝水、锻炼、读书……到点打卡，宠物头顶的徽标告诉你今天还差几个，浮层面列出每个习惯的连续天数。断签从零重算。别的插件和模型用 plugin.call 问它 streak / today，就能拿到打卡进度。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">pet.surface</span><span class="tag">events</span><span class="tag">plugin.call</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-habits-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-habits-0.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">久</span>
+      <div class="titles">
+        <h2>久坐喝水提醒</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-health-reminder</code></div>
+      </div>
+    </div>
+    <p class="desc">久坐、喝水、护眼三组提醒：各自可配间隔与启停，到点桌宠用气泡说一句，头顶徽标显示下一次提醒还有几分钟。浮层面与插件页显示三组倒计时与今日计数；勿扰时段与「歇会儿」期间保持安静。电脑休眠后倒计时会失准，这是已知限制（路线图 M4 修复）。</p>
+    <div class="tags">
+      <span class="tag accent">events</span><span class="tag">pet.surface</span><span class="tag">pet.bubble</span><span class="tag">plugin.config</span><span class="tag">storage</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-health-reminder-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-health-reminder-0.1.0.zip</span>
     </div>
   </section>
 
@@ -656,7 +782,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-knowledge-base-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-knowledge-base-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-knowledge-base-0.1.1.zip</span>
     </div>
   </section>
 
@@ -674,7 +800,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-live-danmaku-1.0.4.zip" download>下载 1.0.4</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-live-danmaku-1.0.4.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-live-danmaku-1.0.4.zip</span>
     </div>
   </section>
 
@@ -692,7 +818,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-llmchannel-0.2.7.zip" download>下载 0.2.7</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-llmchannel-0.2.7.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-llmchannel-0.2.7.zip</span>
     </div>
   </section>
 
@@ -710,7 +836,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-media-sync-0.1.9.zip" download>下载 0.1.9</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-media-sync-0.1.9.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-media-sync-0.1.9.zip</span>
     </div>
   </section>
 
@@ -728,7 +854,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-memcore-0.8.1.zip" download>下载 0.8.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-memcore-0.8.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-memcore-0.8.1.zip</span>
     </div>
   </section>
 
@@ -746,7 +872,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-moegirl-0.1.9.zip" download>下载 0.1.9</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-moegirl-0.1.9.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-moegirl-0.1.9.zip</span>
     </div>
   </section>
 
@@ -764,7 +890,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-onebot-0.1.7.zip" download>下载 0.1.7</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-onebot-0.1.7.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-onebot-0.1.7.zip</span>
     </div>
   </section>
 
@@ -782,7 +908,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-pet-evolution-0.1.3.zip" download>下载 0.1.3</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-pet-evolution-0.1.3.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-pet-evolution-0.1.3.zip</span>
     </div>
   </section>
 
@@ -800,7 +926,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-pet-sense-0.1.9.zip" download>下载 0.1.9</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-pet-sense-0.1.9.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-pet-sense-0.1.9.zip</span>
     </div>
   </section>
 
@@ -818,7 +944,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-pomodoro-2.3.14.zip" download>下载 2.3.14</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-pomodoro-2.3.14.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-pomodoro-2.3.14.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-4" aria-hidden="true">网</span>
+      <div class="titles">
+        <h2>网页变化监控</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-price-watch</code></div>
+      </div>
+    </div>
+    <p class="desc">盯网页的变化（价格、库存、公告）：填 URL 加一个正则或 CSS 选择器，插件按可配置的间隔抓取，值变了才用气泡说一句（首次抓取只立基线不报警），变化历史每项留最近 20 条。连续抓取失败自动翻倍间隔（封顶一小时），不伪装 UA、不追打。监控项用的域名自动进网络白名单（hostWhitelist），插件页可随时增删与查历史。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-price-watch-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-price-watch-0.1.0.zip</span>
     </div>
   </section>
 
@@ -836,7 +980,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-privacy-guard-0.1.5.zip" download>下载 0.1.5</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-privacy-guard-0.1.5.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-privacy-guard-0.1.5.zip</span>
     </div>
   </section>
 
@@ -854,7 +998,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-qq-1.16.3.zip" download>下载 1.16.3</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-qq-1.16.3.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-qq-1.16.3.zip</span>
     </div>
   </section>
 
@@ -872,7 +1016,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-qqbot-1.0.3.zip" download>下载 1.0.3</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-qqbot-1.0.3.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-qqbot-1.0.3.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-3" aria-hidden="true">速</span>
+      <div class="titles">
+        <h2>速记盒子</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-quicksave</code></div>
+      </div>
+    </div>
+    <p class="desc">一句话记下，#打标签，随时搜。500 条上限的淘汰顺序可预测（先挤最旧的未置顶，置顶的留住）；重复内容不重复占位，合并且提到最前。别的插件和模型用 plugin.call 问它 add（远程记一条）与 recent（最近几条，可带标签过滤）；面板里还能让模型把选中的几条速记整理成要点。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">plugin.call</span><span class="tag">llm.chat</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-quicksave-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-quicksave-0.1.0.zip</span>
     </div>
   </section>
 
@@ -890,7 +1052,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-rss-reader-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-rss-reader-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-rss-reader-0.1.1.zip</span>
     </div>
   </section>
 
@@ -908,7 +1070,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-screen-vision-0.1.5.zip" download>下载 0.1.5</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-screen-vision-0.1.5.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-screen-vision-0.1.5.zip</span>
     </div>
   </section>
 
@@ -926,7 +1088,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-slang-0.2.2.zip" download>下载 0.2.2</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-slang-0.2.2.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-slang-0.2.2.zip</span>
     </div>
   </section>
 
@@ -944,7 +1106,43 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-state-snapshot-1.0.2.zip" download>下载 1.0.2</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-state-snapshot-1.0.2.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-state-snapshot-1.0.2.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-7" aria-hidden="true">表</span>
+      <div class="titles">
+        <h2>表格分析</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-table-lab</code></div>
+      </div>
+    </div>
+    <p class="desc">把一个 CSV 拖进来（或选一个文件），它就地算出每列的类型与统计（count / unique / 数值列的 min·max·mean），画一张概览图，可选让模型解读——只发统计摘要，原始数据不出门。文件不落盘：CSV 超过 1 MiB 时只记住统计与文件名。</p>
+    <div class="tags">
+      <span class="tag accent">storage</span><span class="tag">plugin.config</span><span class="tag">llm.chat</span><span class="tag">pet.bubble</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-table-lab-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-table-lab-0.1.0.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-0" aria-hidden="true">T</span>
+      <div class="titles">
+        <h2>Telegram 接入端（薄适配器）</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-telegram</code></div>
+      </div>
+    </div>
+    <p class="desc">Telegram Bot API 的薄适配器：常驻帧长轮询（getUpdates）收消息，发布到共享键 inbox（环形 20 条）供别的插件读取，也可用 on_message 查询；发消息只有插件页手动一条路（sendMessage）。不做人设、不做记忆、绝不自动回复。</p>
+    <div class="tags">
+      <span class="tag accent">net.fetch</span><span class="tag">plugin.call</span><span class="tag">plugin.share</span><span class="tag">storage</span><span class="tag">plugin.config</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-telegram-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-telegram-0.1.0.zip</span>
     </div>
   </section>
 
@@ -962,7 +1160,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-todo-1.2.3.zip" download>下载 1.2.3</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-todo-1.2.3.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-todo-1.2.3.zip</span>
     </div>
   </section>
 
@@ -980,7 +1178,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-voice-1.1.0.zip" download>下载 1.1.0</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-voice-1.1.0.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-voice-1.1.0.zip</span>
     </div>
   </section>
 
@@ -998,7 +1196,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-voice-call-1.0.3.zip" download>下载 1.0.3</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-voice-call-1.0.3.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-voice-call-1.0.3.zip</span>
     </div>
   </section>
 
@@ -1016,7 +1214,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-weather-env-0.1.4.zip" download>下载 0.1.4</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-weather-env-0.1.4.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-weather-env-0.1.4.zip</span>
     </div>
   </section>
 
@@ -1034,7 +1232,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-web-dashboard-1.0.4.zip" download>下载 1.0.4</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-web-dashboard-1.0.4.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-web-dashboard-1.0.4.zip</span>
     </div>
   </section>
 
@@ -1052,7 +1250,7 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-web-scraper-0.1.1.zip" download>下载 0.1.1</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-web-scraper-0.1.1.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-web-scraper-0.1.1.zip</span>
     </div>
   </section>
 
@@ -1070,7 +1268,25 @@ body:has(#f-community:checked) .is-official { display: none; }
     </div>
     <div class="actions">
       <a class="btn primary" href="dist/com.shixiansi.plugin-websearch-1.0.5.zip" download>下载 1.0.5</a>
-      <span class="meta">更新于 11-01 · dist/com.shixiansi.plugin-websearch-1.0.5.zip</span>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-websearch-1.0.5.zip</span>
+    </div>
+  </section>
+
+  <section class="card hoverable is-official" style="margin-bottom: var(--space-3)">
+    <div class="card-head">
+      <span class="icon g-5" aria-hidden="true">周</span>
+      <div class="titles">
+        <h2>周报汇总</h2>
+        <div class="meta"><span>版本 <code>0.1.0</code></span><span>·</span><span>作者 <code>shixiansi</code></span><span>·</span><code>com.shixiansi.plugin-weekly-review</code></div>
+      </div>
+    </div>
+    <p class="desc">每周日晚汇总这一周的待办完成数、专注时长、日记篇数，让模型写成一篇不超过 300 字的周报（模型不在就退化为数字模板）。按能力名发现数据源（谁提供 stats 就问谁，不写死插件 id），任何一个数据源失联都只是报告里的一句「缺什么」，绝不拖死整份周报。别的插件和模型用 plugin.call 问它 report（立即生成）与 latest（最近一篇）。</p>
+    <div class="tags">
+      <span class="tag accent">plugin.call</span><span class="tag">storage</span><span class="tag">plugin.config</span><span class="tag">pet.bubble</span><span class="tag">events</span><span class="tag">llm.chat</span>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="dist/com.shixiansi.plugin-weekly-review-0.1.0.zip" download>下载 0.1.0</a>
+      <span class="meta">更新于 11-03 · dist/com.shixiansi.plugin-weekly-review-0.1.0.zip</span>
     </div>
   </section>
 </div>

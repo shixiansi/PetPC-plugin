@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>习惯打卡</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上，首帧闪一下深色是
+  控制中心里最显眼的破绽。开着的时候用户再切换，由 app.js 接 theme 消息。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，三种挂载（由 init 的 surface 决定，别猜 kind——常驻帧的 kind 也是 panel）：
+    kind 'surface'      浮层面那块卡片：今日进度 + 每个习惯的打卡按钮与连续天数
+    slot 'background'   常驻帧：算换日、答 plugin.call 的 streak/today、维护头顶徽标
+    slot 'workshop'     控制中心插件页：习惯的增删与打卡（storage/config 两个宿主都服务）
+
+  不引 ui.css：本插件声明了 surface，手册 §8.6 的例外适用——ui.css 的 .card/.btn 自带
+  box-shadow 与 hover transform，在被矩形裁剪的浮层面里会切出"缺一块"；调色板在 style.css
+  的两个调色板块里自带（颜色一律 var(--…)，十六进制只出现在那两块里）。
+-->
+<link rel="stylesheet" href="./style.css">
+</head>
+<body id="root" class="view-boot" data-surface="boot">
+<header class="bar">
+  <span class="title">习惯</span>
+  <span id="status" class="status" role="status" aria-live="polite">等待宿主初始化…</span>
+</header>
+
+<!-- 卡片最高长到 maxH（manifest 里声明了 320）：列表是唯一会增长的元素，
+     overflow + min-height:0 把滚动留在这个盒子里，不把标题栏顶出去。
+     高度变化由 app.js 量了报 surface.blocks。 -->
+<main id="card" class="card-body">
+  <p id="progress" class="progress"></p>
+  <div id="list" class="list"></div>
+  <p id="note" class="note" hidden></p>
+</main>
+
+<!-- 工坊页才有的管理区：浮层面空间小，加/删习惯去控制中心做。 -->
+<footer id="manage" class="manage" hidden>
+  <form id="add-form" class="add">
+    <input id="new-name" class="input" type="text" maxlength="24" placeholder="新习惯的名字，如：喝水" aria-label="新习惯的名字">
+    <button id="add-btn" class="btn primary" type="submit">添加</button>
+  </form>
+  <p class="hint">在习惯那一行点「删」移除它（打卡记录一起删）。徽标与浮层面在桌宠那边。</p>
+</footer>
+
+<script src="lib/habit-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

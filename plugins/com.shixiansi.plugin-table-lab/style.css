@@ -1,0 +1,82 @@
+/* 表格分析 —— 自家布局。颜色全部来自 ui.css 的 token（纯面板插件整份引它，见 §8.6）：
+   这里不许出现十六进制色值，也不写调色板（副本所有者是 ui.css）。 */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: var(--space-5);
+  background: var(--bg);
+  color: var(--text);
+  font: var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100%;
+}
+
+/* 头部沿用 ui.css 的 .head/.lede，这里只收紧行为 */
+.head h1 { margin: 0; font-size: 20px; }
+.head .lede { margin: var(--space-1) 0 0; }
+
+.hint.error { color: var(--danger); }
+
+/* 拖拽落点：卡片上给一个可感知的悬停态（颜色走 token，装饰落在卡片内部） */
+#drop .drop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-2) 0;
+}
+#drop[data-over='true'] {
+  background: var(--accent-soft);
+  border-radius: var(--radius-xl);
+}
+#file-meta { margin: var(--space-1) 0 0; }
+
+/* 统计表：横向滚动的责任在 .table-wrap，别把外层卡片撑破 */
+.table-wrap { overflow: auto; }
+table.stats {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+table.stats th,
+table.stats td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+table.stats thead th {
+  color: var(--text-dim);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+}
+table.stats td:first-child { font-weight: 600; }
+
+.chart { margin-top: var(--space-4); }
+.chart svg { width: 100%; max-width: 480px; height: auto; display: block; }
+
+/* 模型解读的回答块：引用样式的软底色，不新造颜色 */
+.answer {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-lg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 280px;
+  overflow: auto;
+}
+
+/* 历史记录：摘要文本可能多行 */
+#history { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+
+@media (max-width: 560px) {
+  body { padding: var(--space-4); }
+  table.stats th, table.stats td { padding: var(--space-2); }
+}

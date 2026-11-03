@@ -1,0 +1,215 @@
+/*
+ * 久坐喝水提醒的样式表。
+ *
+ * 这个文档长在被按矩形裁剪的浮层面里（§8.4）：box-shadow / filter / transform 会画到矩形
+ * 之外被切掉，所以一件都不用；分层靠底色与 border。也因此**不整份引 ui.css**（它的 .card /
+ * .btn 自带阴影与 hover 位移）——本插件声明了 surface，按 §8.6 的例外自带一份命名 token
+ * 调色板：色值只出现在下面两个调色板块里，规则里一律 var(--…)。
+ */
+
+/* --- 调色板：默认深色（桌宠是纯深色窗口） ------------------------------------ */
+:root {
+  --h-bg: #16181f;
+  --h-card: #1d2027;
+  --h-well: #12141a;
+  --h-line: #2c313c;
+  --h-text: #e8eaf0;
+  --h-muted: #9aa3b2;
+  --h-accent: #2f9e6e;
+  --h-accent-soft: #1d3328;
+  --h-on-accent: #ffffff;
+  --h-silent: #8a6d1f;
+  --h-silent-soft: #2b2413;
+}
+
+html[data-theme='light'] {
+  --h-bg: #ffffff;
+  --h-card: #f6f8fc;
+  --h-well: #ffffff;
+  --h-line: #d6dde9;
+  --h-text: #16202e;
+  --h-muted: #5b6779;
+  --h-accent: #1f7a52;
+  --h-accent-soft: #ecfdf5;
+  --h-on-accent: #ffffff;
+  --h-silent: #8a6d1f;
+  --h-silent-soft: #fdf6e3;
+}
+
+/* 画布必须透出桌面：透明写在 :root，only light 压住 Chromium 给深色画布铺的底。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* { box-sizing: border-box; }
+
+/* hidden 属性必须压过本文件里的任何 display——app.js 靠它切换视图。 */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--h-bg);
+  color: var(--h-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* init 到来之前与常驻帧里，什么都不画：帧的矩形里"没画的地方"是用户的桌面。 */
+body.view-boot,
+body.bg {
+  background: transparent;
+}
+
+body.view-boot .bar,
+body.view-boot .card-body,
+body.bg .bar,
+body.bg .card-body {
+  display: none;
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title { font-weight: 600; }
+
+.status {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--h-muted);
+  font-size: 12px;
+}
+
+/* 卡片底板（浮层面按声明矩形透明底板 + 卡片内容）：列表是唯一会增长的东西不存在——
+   行数写死为三，不声明会自己长大的块（§8.2b）。 */
+.card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--h-line);
+  border-radius: 10px;
+  background: var(--h-card);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--h-well);
+}
+
+.row.off .name {
+  color: var(--h-muted);
+}
+
+.name {
+  flex: 0 0 auto;
+  width: 3em;
+  font-weight: 600;
+}
+
+/* 开关按钮：一个字"开/关"，底色区分状态（不加阴影——矩形外会被裁）。 */
+.toggle {
+  flex: 0 0 auto;
+  width: 40px;
+  padding: 3px 0;
+  border: 1px solid var(--h-accent);
+  border-radius: 999px;
+  background: var(--h-accent);
+  color: var(--h-on-accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toggle.off {
+  border-color: var(--h-line);
+  background: var(--h-well);
+  color: var(--h-muted);
+}
+
+.toggle:disabled {
+  cursor: default;
+  border-color: var(--h-line);
+  background: var(--h-well);
+  color: var(--h-muted);
+}
+
+.countdown {
+  flex: 1 1 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--h-accent);
+  font-size: 12px;
+}
+
+.countdown.muted { color: var(--h-muted); }
+
+/* 勿扰/歇会儿中：倒计时照走，但用静默色提示"这段时间不会出声"。 */
+.countdown.silent { color: var(--h-silent); }
+
+.count {
+  flex: 0 0 auto;
+  color: var(--h-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.note {
+  flex: 1 1 auto;
+  color: var(--h-silent);
+  font-size: 12px;
+}
+
+.note[hidden] { display: none; }
+
+.btn {
+  flex: 0 0 auto;
+  padding: 3px 12px;
+  border: 1px solid var(--h-line);
+  border-radius: 8px;
+  background: var(--h-well);
+  color: var(--h-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 控制中心插件页（workshop）：同一个文档填满一块普通区域，可以有背景色（§8.4）。 */
+body.view-workshop {
+  background: var(--h-bg);
+}
+
+body.view-workshop .card-body {
+  background: var(--h-card);
+}

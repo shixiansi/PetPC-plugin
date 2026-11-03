@@ -1,0 +1,36 @@
+{
+  "id": "com.shixiansi.plugin-anniversary",
+  "name": "纪念日倒计时",
+  "version": "0.1.0",
+  "author": "shixiansi",
+  "description": "把生日、周年这类每年重复的日子和单次的大事记下来：徽标在宠物头顶显示最近一个的倒数天数，浮层面列出接下来的纪念日，插件页里增删改（日期支持 0001-9999 年，生日可以填很久以前）。别的插件和模型用 plugin.call 问它 next，就能拿到最近的一个：当天返回 daysLeft=0 的今天；闰年 2/29 的生日在平年落在 2/28；跨年也算得对。",
+  "permissions": [
+    "storage",
+    "plugin.config",
+    "pet.surface",
+    "pet.bubble",
+    "plugin.call",
+    "events"
+  ],
+  "background": true,
+  "serves": ["next"],
+  "surface": [
+    { "dx": 160, "dy": -170, "w": 320, "h": 200, "maxH": 300, "radius": 14 }
+  ],
+  "config": [
+    {
+      "key": "badgeEnabled",
+      "label": "在宠物头顶显示倒数天数徽标（关闭后立即清除）",
+      "type": "bool",
+      "default": "true"
+    },
+    {
+      "key": "remindDays",
+      "label": "纪念日临近几天时让桌宠说一句（0=不提醒）",
+      "type": "number",
+      "default": "3"
+    }
+  ],
+  "entry": "panel.html",
+  "assets": ["lib/dates.js"]
+}

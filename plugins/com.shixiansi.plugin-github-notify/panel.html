@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub 通知</title>
+<!--
+  配色在样式表绘制之前先落一次：宿主把 ?theme=light|dark 放在帧地址上（手册 §8.3）。
+-->
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  拉取型插件（任务书注释）：这个插件没有 events 权限，也不需要——它不订阅宿主状态，
+  数据源头是 GitHub 自己。拉取型的固有形状就是"常驻帧 + 定时 tick + ETag 条件请求"：
+  15 分钟一次兜底 tick（≥10s，避开 plugin-check 的 poll WARN；net.fetch 本身没有事件可听，
+  poll-with-event 规则对它不适用），打开插件页时立刻刷一遍。
+
+  一个文档三种挂载（都是 kind:'panel'，按 slot 分）：
+    slot 'background'  常驻帧：定时轮询 + 弹气泡（不依赖布局）
+    slot 'workshop'    控制中心插件页：列表 / 标记已读 / 错误态 / 立即刷新
+    slot 'chat'        桌宠侧对话槽面板：同 workshop
+  bubble.say 是 where:'pet' 的方法：workshop 那一面没有——轮询只发生在常驻帧，
+  面板只读 storage 里的列表（§9：不发注定被拒的请求）。
+
+  token 纪律：token 是普通 config 项（手册的 secret 机制只支持 Cookie 凭据与 llmApiKey，
+  net.fetch 的 authorization 头走不了它——见 app.js 注释）。它只进 config（宿主私有目录），
+  绝不写进 storage、绝不进日志、绝不进气泡文案。
+-->
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body id="root" data-slot="">
+<header class="head head-stack">
+  <div>
+    <h1>GitHub 通知</h1>
+    <p class="hint">轮询 api.github.com：配了 token 拉你的通知，没配 token 拉公开仓库事件。
+    新通知桌宠会说一句话；这里列出通知、可标记已读。
+    Token 是普通设置项（GitHub 要的 Authorization 头走不了本平台的 secret 通道，见 app.js 注释），
+    只存你的私有配置里，代码不把它写进数据或日志——建议用最小 scope 的 token。</p>
+  </div>
+</header>
+
+<p class="hint" id="status" role="status" aria-live="polite">等待宿主初始化…</p>
+<p class="hint error" id="error" hidden></p>
+
+<main class="page">
+  <section class="card" id="toolbar">
+    <div class="row">
+      <button type="button" id="refresh" class="btn primary">立即刷新</button>
+      <button type="button" id="mark-read" class="btn" disabled>把当前列表全部标记已读</button>
+      <span id="mode" class="tag info" hidden></span>
+      <span id="last-at" class="muted"></span>
+    </div>
+    <p class="hint" id="gate-note" hidden></p>
+  </section>
+
+  <section class="card" id="error-card" hidden>
+    <h2>这次没拉成</h2>
+    <p class="hint error" id="error-detail"></p>
+  </section>
+
+  <section class="card" id="list-card" hidden>
+    <h2>通知列表</h2>
+    <div class="table-wrap">
+      <table class="gh-table" id="list">
+        <thead><tr><th>类型</th><th>仓库</th><th>标题</th><th>时间</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" id="empty-state">
+    <div class="empty">
+      <div class="empty-glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3a9 9 0 0 0-2.9 17.5c.5.1.7-.2.7-.5v-1.7c-2.5.5-3-1.2-3-1.2-.4-1-1-1.3-1-1.3-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2-.2-4.1-1-4.1-4.4 0-1 .3-1.8.9-2.4-.1-.2-.4-1.2.1-2.5 0 0 .8-.2 2.5.9a8.6 8.6 0 0 1 4.6 0c1.7-1.1 2.5-.9 2.5-.9.5 1.3.2 2.3.1 2.5.6.6.9 1.4.9 2.4 0 3.4-2.1 4.2-4.1 4.4.3.3.6.8.6 1.6v2.3c0 .3.2.6.7.5A9 9 0 0 0 12 3z"/>
+        </svg>
+      </div>
+      <div class="empty-title">还没有通知</div>
+      <div class="empty-sub" id="empty-sub">填一个 token（或公开仓库 owner/repo）并授予网络权限后，通知会出现在这里。</div>
+    </div>
+  </section>
+</main>
+
+<script src="lib/core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

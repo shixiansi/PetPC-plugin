@@ -1,0 +1,183 @@
+/*
+ * 行情看板：这一页特有的东西。
+ *
+ * 这个文档长在被按矩形裁剪的浮层面里（§8.4）：box-shadow / filter / transform 一件都不用；
+ * 分层靠底色与 border。**不引 ui.css**（它的 .card/.btn 自带阴影与 hover 位移）——
+ * 调色板在下面两个调色板块里自带，颜色一律 var(--q-…)，十六进制只出现在那两块里。
+ */
+
+/* --- 调色板：默认深色（桌宠是纯深色窗口） ------------------------------------ */
+:root {
+  --q-bg: #16181f;
+  --q-card: #1d2027;
+  --q-well: #12141a;
+  --q-line: #2c313c;
+  --q-text: #e8eaf0;
+  --q-muted: #9aa3b2;
+  --q-up: #e05656;    /* 涨（中国习惯红涨） */
+  --q-down: #2f9e6e;  /* 跌 */
+  --q-flat: #9aa3b2;
+  --q-spark: #d0a243;
+}
+
+html[data-theme='light'] {
+  --q-bg: #ffffff;
+  --q-card: #f6f8fc;
+  --q-well: #ffffff;
+  --q-line: #d6dde9;
+  --q-text: #16202e;
+  --q-muted: #5b6779;
+  --q-up: #c0392b;
+  --q-down: #1d7a4c;
+  --q-flat: #5b6779;
+  --q-spark: #b8860b;
+}
+
+/* 画布必须透出桌面：透明写在 :root，only light 压住 Chromium 给深色画布铺的底。 */
+:root {
+  background: transparent;
+  color-scheme: only light;
+}
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--q-bg);
+  color: var(--q-text);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* init 到来之前与常驻帧里，什么都不画。 */
+body.view-boot,
+body.bg {
+  background: transparent;
+}
+
+body.view-boot .card-body,
+body.bg .card-body,
+body.bg .manage {
+  display: none;
+}
+
+.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.title { font-weight: 600; }
+
+.status {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--q-muted);
+  font-size: 12px;
+}
+
+/* 列表是唯一会增长的元素：overflow 留在这个盒子里（§8.4 的 min-height:0）。 */
+.card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--q-line);
+  border-radius: 10px;
+  background: var(--q-card);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--q-well);
+}
+
+.qrow .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qrow .price {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.qrow .pct {
+  flex: 0 0 auto;
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.qrow .up { color: var(--q-up); }
+.qrow .down { color: var(--q-down); }
+.qrow .flat { color: var(--q-flat); }
+
+.qrow .spark {
+  flex: 0 0 auto;
+}
+
+.qrow .spark polyline {
+  fill: none;
+  stroke: var(--q-spark);
+  stroke-width: 1.5;
+}
+
+.nodata {
+  padding: 6px 8px;
+  color: var(--q-muted);
+  font-size: 12px;
+}
+
+.empty {
+  margin: 0;
+  padding: 2px;
+  color: var(--q-muted);
+  font-size: 12px;
+}
+
+.manage {
+  flex: 0 0 auto;
+  padding-top: 4px;
+  border-top: 1px solid var(--q-line);
+}
+
+.hint {
+  margin: 0;
+  color: var(--q-muted);
+  font-size: 12px;
+}

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>网页变化监控</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  })();
+</script>
+<!--
+  一个文档，两种挂载（由 init 的 surface.slot 决定，不猜 kind）：
+    slot 'background'   常驻帧：按 tick 抓页面、判定变化、发气泡。什么都不画。
+    slot 'workshop'     插件页：增删监控项、看每项状态与变化历史。
+  纯面板型（无 surface）：ui.css 从 docs/ui 复制。
+-->
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="root" class="view-workshop">
+  <main id="workshop" class="workshop">
+    <header class="head head-stack">
+      <div class="chips">
+        <span class="chip">网页变化监控</span>
+        <span class="chip" id="chip-items">0 项</span>
+      </div>
+      <p class="lede">
+        值变了才说话：首次抓取只立基线；连续失败自动退避（封顶一小时），不伪装 UA、不追打。
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>加一个监控</h2>
+      <form id="add-form" class="add-form">
+        <input id="add-name" class="input" type="text" placeholder="名字，如：显卡价格" maxlength="60" aria-label="监控项名字">
+        <input id="add-url" class="input" type="url" required placeholder="要盯的页面 URL" maxlength="500" aria-label="页面 URL">
+        <input id="add-regex" class="input" type="text" placeholder="正则（优先）。如：¥\s*([0-9,]+)" maxlength="200" aria-label="正则">
+        <input id="add-selector" class="input" type="text" placeholder="CSS 选择器（没有正则时用）。如：.price" maxlength="200" aria-label="CSS 选择器">
+        <button id="add-btn" class="btn primary" type="submit">添加</button>
+      </form>
+      <p class="hint">正则命中组 1 优先（把价格用括号圈出来）；两个都填只用正则。提取失败不算变化、不报警。</p>
+      <p id="add-note" class="hint" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>监控项</h2></div>
+      <div id="items" class="items"></div>
+      <p id="items-empty" class="muted">还没有监控项。</p>
+    </section>
+
+    <p id="status" class="status"></p>
+  </main>
+</div>
+
+<script src="lib/price-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
